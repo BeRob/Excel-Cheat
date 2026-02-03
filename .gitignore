@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-*.pyo
-.env
-*.xlsx
-data/audit_log.jsonl
-data/users.kv
-.claude/
-CLAUDE.md
