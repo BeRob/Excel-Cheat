@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import tkinter as tk
 from tkinter import ttk
@@ -39,7 +40,14 @@ class MeasurementApp:
         self.root = tk.Tk()
         self.root.title(APP_TITLE)
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-        self.root.minsize(600, 400)
+        self.root.minsize(800, 600)
+        
+        # Vollbild / Maximiert starten
+        try:
+            self.root.state('zoomed')
+        except tk.TclError:
+            # Fallback fuer Systeme, die 'zoomed' nicht unterstuetzen
+            self.root.attributes('-fullscreen', True)
 
         apply_theme(self.root)
 
@@ -79,6 +87,16 @@ class MeasurementApp:
             style="HeaderInfo.TLabel",
         ).pack(side="left", padx=(5, 0))
 
+        # Help / Manual Button
+        help_btn = ttk.Button(
+            header_bar,
+            text="?",
+            width=3,
+            style="Manual.TButton",
+            command=self._open_manual
+        )
+        help_btn.pack(side="right", padx=15, pady=8)
+
         # Container fuer gestapelte Views
         self.container = tk.Frame(main_frame, bg=COLORS["background"])
         self.container.pack(fill="both", expand=True)
@@ -90,6 +108,12 @@ class MeasurementApp:
 
         self._create_views()
         self.navigate("login")
+
+    def _open_manual(self) -> None:
+        """Oeffnet die Bedienungsanleitung."""
+        manual_path = _app_root / "Bedienungsanleitung.html"
+        if manual_path.exists():
+            os.startfile(str(manual_path))
 
     def _create_views(self) -> None:
         for ViewClass, name in self.SCREENS:

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 class UserInfo:
     user_id: str
     display_name: str
+    is_admin: bool = False
 
 
 class AppState:
@@ -29,6 +30,7 @@ class AppState:
         self.persistent_headers: list[str] = []
         self.persistent_values: dict[str, str] = {}
         self.audit: AuditLogger | None = None
+        self.layout_mode: str = "vertical"  # "vertical" or "horizontal"
 
     def reset_user(self) -> None:
         """Setzt Benutzer und alle abhangigen Daten zurueck."""

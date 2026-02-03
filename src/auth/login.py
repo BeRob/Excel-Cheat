@@ -34,4 +34,5 @@ class AuthService:
     def _make_user_info(self, user_id: str, user_data: dict[str, str]) -> UserInfo:
         """Erstellt UserInfo aus den Benutzerdaten."""
         display_name = user_data.get("name", user_id)
-        return UserInfo(user_id=user_id, display_name=display_name)
+        is_admin = user_data.get("admin", "false").lower() == "true"
+        return UserInfo(user_id=user_id, display_name=display_name, is_admin=is_admin)

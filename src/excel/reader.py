@@ -79,6 +79,59 @@ def read_excel_headers(
     return result
 
 
+def read_all_data(
+    filepath: str | Path,
+    sheet_name: str | None = None,
+    header_row: int = 1,
+) -> list[dict[str, any]]:
+    """Liest alle Daten aus einer Excel-Datei.
+
+    Args:
+        filepath: Pfad zur .xlsx Datei.
+        sheet_name: Name des Arbeitsblatts. None = erstes Blatt.
+        header_row: Zeile mit den Spaltenüberschriften (1-basiert).
+
+    Returns:
+        Liste von Dictionaries (Spaltenname -> Wert).
+    """
+    try:
+        wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+    except Exception:
+        return []
+
+    try:
+        target_sheet = sheet_name if sheet_name else wb.sheetnames[0]
+        if target_sheet not in wb.sheetnames:
+            return []
+
+        ws = wb[target_sheet]
+        
+        # Get headers first
+        raw_headers: list = []
+        for row in ws.iter_rows(min_row=header_row, max_row=header_row, values_only=True):
+            raw_headers = list(row)
+            break
+            
+        if not raw_headers:
+            return []
+            
+        headers, _, _ = _clean_headers(raw_headers)
+        
+        data = []
+        # Iterate through all data rows after header
+        for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+            if any(cell is not None for cell in row):
+                row_dict = {}
+                for idx, value in enumerate(row):
+                    if idx < len(headers):
+                        row_dict[headers[idx]] = value
+                data.append(row_dict)
+        
+        return data
+    finally:
+        wb.close()
+
+
 def _clean_headers(
     raw_headers: list,
 ) -> tuple[list[str], dict[str, int], list[str]]:

@@ -1,4 +1,5 @@
-"""Dateiauswahl-Bildschirm: Excel-Datei und Arbeitsblatt waehlen."""
+"""
+Dateiauswahl-Bildschirm: Excel-Datei und Arbeitsblatt waehlen."""
 
 from __future__ import annotations
 
@@ -7,6 +8,7 @@ from tkinter import ttk, filedialog
 
 from src.config.settings import AUTO_COLUMNS, HEADER_ROW
 from src.excel.reader import read_excel_headers
+from src.ui.analysis_view import AnalysisView
 from src.ui.base_view import BaseView
 from src.ui.theme import COLORS, FONTS
 
@@ -19,13 +21,23 @@ class FileSelectView(BaseView):
         self._selected_path: str | None = None
         self._sheet_names: list[str] = []
         self._headers: list[str] = []
+        self._notebook: ttk.Notebook | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        # We create a container that will either hold the notebook or the selection content directly
+        self.main_container = ttk.Frame(self)
+        self.main_container.grid(row=0, column=0, sticky="nsew")
+        self.main_container.columnconfigure(0, weight=1)
+
+    def _build_selection_ui(self, parent: tk.Widget) -> None:
+        parent.columnconfigure(0, weight=1)
 
         # --- Obere Leiste ---
-        top_bar = ttk.Frame(self)
+        top_bar = ttk.Frame(parent)
         top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         top_bar.columnconfigure(0, weight=1)
 
@@ -38,12 +50,12 @@ class FileSelectView(BaseView):
         logout_btn.grid(row=0, column=1, padx=(10, 0))
 
         # --- Titel ---
-        ttk.Label(self, text="Datei auswählen", style="Subtitle.TLabel").grid(
+        ttk.Label(parent, text="Datei auswählen", style="Subtitle.TLabel").grid(
             row=1, column=0, pady=(10, 5)
         )
 
         # --- Datei-Auswahl ---
-        file_frame = ttk.Frame(self)
+        file_frame = ttk.Frame(parent)
         file_frame.grid(row=2, column=0, padx=40, pady=5, sticky="ew")
         file_frame.columnconfigure(1, weight=1)
 
@@ -57,7 +69,7 @@ class FileSelectView(BaseView):
         )
 
         # --- Sheet-Auswahl ---
-        self.sheet_frame = ttk.Frame(self)
+        self.sheet_frame = ttk.Frame(parent)
         self.sheet_frame.grid(row=3, column=0, padx=40, pady=5, sticky="ew")
 
         ttk.Label(self.sheet_frame, text="Arbeitsblatt:").grid(
@@ -77,7 +89,7 @@ class FileSelectView(BaseView):
         self.sheet_frame.grid_remove()  # Verstecken bis Datei geladen
 
         # --- Header-Vorschau ---
-        self.header_frame = ttk.LabelFrame(self, text="Erkannte Spalten", padding=10)
+        self.header_frame = ttk.LabelFrame(parent, text="Erkannte Spalten", padding=10)
         self.header_frame.grid(row=4, column=0, padx=40, pady=10, sticky="ew")
         self.header_frame.grid_remove()
 
@@ -93,19 +105,42 @@ class FileSelectView(BaseView):
 
         # --- Fehlermeldung ---
         self.error_var = tk.StringVar()
-        self.error_label = ttk.Label(self, textvariable=self.error_var, style="Error.TLabel")
+        self.error_label = ttk.Label(parent, textvariable=self.error_var, style="Error.TLabel")
         self.error_label.grid(row=5, column=0, padx=40, pady=5)
 
         # --- Weiter-Button ---
         self.next_btn = ttk.Button(
-            self, text="Weiter", command=self._go_next, state="disabled",
+            parent, text="Weiter", command=self._go_next, state="disabled",
             style="Accent.TButton",
         )
         self.next_btn.grid(row=6, column=0, pady=15)
 
     def on_show(self) -> None:
         user = self.app_state.current_user
-        name = user.display_name if user else "?"
+        if not user:
+            return
+
+        # Clear container
+        for child in self.main_container.winfo_children():
+            child.destroy()
+
+        if user.is_admin:
+            # Create Notebook for Admin
+            self._notebook = ttk.Notebook(self.main_container)
+            self._notebook.pack(fill="both", expand=True)
+
+            selection_tab = ttk.Frame(self._notebook)
+            analysis_tab = AnalysisView(self._notebook, self.app_state)
+
+            self._notebook.add(selection_tab, text="Datei auswählen")
+            self._notebook.add(analysis_tab, text="Datenauswertung")
+
+            self._build_selection_ui(selection_tab)
+        else:
+            # Simple View for normal users
+            self._build_selection_ui(self.main_container)
+
+        name = user.display_name
         self.user_label.config(text=f"Angemeldet als: {name}")
 
     def _choose_file(self) -> None:
@@ -177,7 +212,9 @@ class FileSelectView(BaseView):
         if not self._selected_path:
             return
 
-        sheet = self.sheet_var.get() or self._sheet_names[0]
+        sheet = self.sheet_var.get() or (self._sheet_names[0] if self._sheet_names else None)
+        if not sheet:
+             return
 
         # Erneut Headers lesen fuer aktuelle Map
         result = read_excel_headers(

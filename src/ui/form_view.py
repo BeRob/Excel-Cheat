@@ -40,6 +40,11 @@ class FormView(BaseView):
 
         btn_frame = ttk.Frame(top_bar)
         btn_frame.grid(row=0, column=1)
+        
+        # Layout Toggle
+        self.layout_btn = ttk.Button(btn_frame, text="Layout: Vertikal", command=self._toggle_layout)
+        self.layout_btn.pack(side="left", padx=(5, 0))
+
         ttk.Button(btn_frame, text="Kontext ändern", command=self._change_context).pack(
             side="left", padx=(5, 0)
         )
@@ -170,13 +175,30 @@ class FormView(BaseView):
             text=f"Benutzer: {user_name}  |  Datei: {file_name} / {sheet}  |  Kontext: {ctx_text}"
         )
 
-        # Felder neu generieren wenn sich Header geaendert haben
+        # Layout Button Text aktualisieren
+        mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
+        self.layout_btn.config(text=f"Layout: {mode_text}")
+
+        # Felder neu generieren wenn sich Header oder Layout geaendert haben
         current_headers = self.app_state.measurement_headers
-        if current_headers != self._last_headers:
+        if current_headers != self._last_headers or not hasattr(self, "_last_layout") or self._last_layout != self.app_state.layout_mode:
             self._generate_fields(current_headers)
             self._last_headers = list(current_headers)
+            self._last_layout = self.app_state.layout_mode
 
         self.status_var.set("")
+
+    def _toggle_layout(self) -> None:
+        """Wechselt zwischen horizontalem und vertikalem Layout."""
+        if self.app_state.layout_mode == "vertical":
+            self.app_state.layout_mode = "horizontal"
+        else:
+            self.app_state.layout_mode = "vertical"
+        
+        mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
+        self.layout_btn.config(text=f"Layout: {mode_text}")
+        self._generate_fields(self.app_state.measurement_headers)
+        self._last_layout = self.app_state.layout_mode
 
     def _generate_fields(self, headers: list[str]) -> None:
         """Erzeugt Eingabefelder dynamisch aus den Header-Namen."""
@@ -185,6 +207,13 @@ class FormView(BaseView):
             widget.destroy()
         self.field_vars.clear()
 
+        if self.app_state.layout_mode == "vertical":
+            self._generate_vertical_fields(headers)
+        else:
+            self._generate_horizontal_fields(headers)
+
+    def _generate_vertical_fields(self, headers: list[str]) -> None:
+        self.scrollable_frame.columnconfigure(0, weight=0)
         self.scrollable_frame.columnconfigure(1, weight=1)
 
         first_entry = None
@@ -195,6 +224,36 @@ class FormView(BaseView):
             var = tk.StringVar()
             entry = ttk.Entry(self.scrollable_frame, textvariable=var, width=25)
             entry.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
+            self.field_vars[header] = var
+            if i == 0:
+                first_entry = entry
+
+        if first_entry:
+            first_entry.focus_set()
+
+    def _generate_horizontal_fields(self, headers: list[str]) -> None:
+        # Horizontaler Modus: Kacheln (Label oben, Feld unten)
+        # Wir versuchen ca. 4 Spalten nebeneinander
+        MAX_COLS = 4
+        for i in range(MAX_COLS):
+            self.scrollable_frame.columnconfigure(i, weight=1)
+
+        first_entry = None
+        for i, header in enumerate(headers):
+            row = i // MAX_COLS
+            col = i % MAX_COLS
+            
+            # Container fuer Label + Feld
+            cell = ttk.Frame(self.scrollable_frame, padding=5)
+            cell.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
+            cell.columnconfigure(0, weight=1)
+            
+            ttk.Label(cell, text=f"{header}:", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
+            
+            var = tk.StringVar()
+            entry = ttk.Entry(cell, textvariable=var)
+            entry.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+            
             self.field_vars[header] = var
             if i == 0:
                 first_entry = entry

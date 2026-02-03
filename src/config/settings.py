@@ -5,14 +5,15 @@ import sys
 
 
 def _get_app_root() -> Path:
-    """Ermittelt das Projektverzeichnis (Ordner von app.py)."""
-    # Works both when running app.py directly and from tests
-    return Path(__file__).resolve().parent.parent.parent
-
+    """Ermittelt das Projektverzeichnis."""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    else:
+        return Path(__file__).resolve().parent.parent.parent
 
 APP_ROOT = _get_app_root()
 
-APP_TITLE = "Messwerterfassung"
+APP_TITLE = "QAInput"
 WINDOW_WIDTH = 900
 WINDOW_HEIGHT = 650
 

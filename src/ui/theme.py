@@ -60,15 +60,50 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure(
         "TButton",
         font=FONTS["body"],
-        padding=(10, 4),
+        padding=(12, 6),
         background=COLORS["surface"],
         foreground=COLORS["text_primary"],
-        borderwidth=1,
-        bordercolor=COLORS["border"],
+        borderwidth=0,
+        relief="flat",
     )
     style.map(
         "TButton",
-        background=[("active", COLORS["border"])],
+        background=[("active", COLORS["border"]), ("disabled", COLORS["disabled"])],
+        foreground=[("disabled", COLORS["text_secondary"])],
+    )
+
+    style.configure(
+        "Accent.TButton",
+        background=COLORS["accent"],
+        foreground=COLORS["text_on_primary"],
+        font=FONTS["body_bold"],
+        padding=(16, 10),
+        borderwidth=0,
+        relief="flat",
+    )
+    style.map(
+        "Accent.TButton",
+        background=[
+            ("active", COLORS["accent_hover"]),
+            ("disabled", COLORS["disabled"]),
+        ],
+        foreground=[
+            ("disabled", COLORS["background"]),
+        ],
+    )
+
+    style.configure(
+        "Manual.TButton",
+        background=COLORS["surface"],
+        foreground=COLORS["accent"],
+        font=FONTS["body_bold"],
+        padding=(5, 5),
+        borderwidth=1,
+        bordercolor=COLORS["accent"],
+    )
+    style.map(
+        "Manual.TButton",
+        background=[("active", COLORS["accent_light"])],
     )
 
     style.configure(
@@ -127,26 +162,6 @@ def apply_theme(root: tk.Tk) -> None:
         font=FONTS["subheading"],
         foreground=COLORS["text_primary"],
         background=COLORS["background"],
-    )
-
-    # --- Accent Button ---
-    style.configure(
-        "Accent.TButton",
-        background=COLORS["accent"],
-        foreground=COLORS["text_on_primary"],
-        font=FONTS["body_bold"],
-        padding=(14, 8),
-        borderwidth=0,
-    )
-    style.map(
-        "Accent.TButton",
-        background=[
-            ("active", COLORS["accent_hover"]),
-            ("disabled", COLORS["disabled"]),
-        ],
-        foreground=[
-            ("disabled", COLORS["background"]),
-        ],
     )
 
     # --- Success / Error / Warning labels ---
