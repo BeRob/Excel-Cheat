@@ -6,3 +6,4 @@ __pycache__/
 data/audit_log.jsonl
 data/users.kv
 .claude/
+CLAUDE.md
