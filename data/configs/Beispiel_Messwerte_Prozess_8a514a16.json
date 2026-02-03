@@ -1,0 +1,18 @@
+{
+  "file": "Beispiel_Messwerte_Prozess.xlsx",
+  "sheets": {
+    "Prozess_Beispiel": {
+      "persistent": [
+        "Charge_#",
+        "FA_#",
+        "Rolle_#"
+      ],
+      "measurement": [
+        "Länge (mm)",
+        "Breite (mm)",
+        "Dicke (mm)",
+        "Gewicht (g)"
+      ]
+    }
+  }
+}

@@ -52,13 +52,32 @@ class MeasurementApp:
 
         # --- Branded Header Bar ---
         header_bar = ttk.Frame(main_frame, style="Header.TFrame")
-        header_bar.pack(fill="x", side="top")
+        header_bar.pack(fill="x", side="top", pady=(0, 1)) # Small padding for border effect if needed
+
+        # Logo Container to hold the parts
+        logo_frame = ttk.Frame(header_bar, style="Header.TFrame")
+        logo_frame.pack(side="left", padx=15, pady=8)
+
+        # "QUEST" part (Bold)
         ttk.Label(
-            header_bar,
-            text="QUESTALPHA  |  Messwerterfassung",
-            style="Header.TLabel",
-            padding=(15, 8),
+            logo_frame,
+            text="QUEST",
+            style="LogoBold.TLabel",
         ).pack(side="left")
+
+        # "ALPHA" part (Light/Normal)
+        ttk.Label(
+            logo_frame,
+            text="ALPHA",
+            style="LogoLight.TLabel",
+        ).pack(side="left")
+
+        # Separator and Title
+        ttk.Label(
+            logo_frame,
+            text="  |  Messwerterfassung",
+            style="HeaderInfo.TLabel",
+        ).pack(side="left", padx=(5, 0))
 
         # Container fuer gestapelte Views
         self.container = tk.Frame(main_frame, bg=COLORS["background"])

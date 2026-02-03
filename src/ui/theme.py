@@ -7,23 +7,25 @@ from tkinter import ttk
 
 
 COLORS = {
-    "primary": "#1A1A1A",
-    "background": "#FFFFFF",
-    "surface": "#FFFFFF",  # Gleiche Farbe wie background für einheitliches Aussehen
-    "accent": "#0077B6",
-    "accent_hover": "#005F8A",
-    "accent_light": "#E0F0FA",
-    "text_primary": "#1A1A1A",
+    "primary": "#1C1C1C",       # Very dark grey, almost black
+    "background": "#FFFFFF",    # Pure white
+    "surface": "#F8F9FA",       # Very light grey for slight contrast
+    "accent": "#0066CC",        # Medical/Professional Blue
+    "accent_hover": "#0052A3",
+    "accent_light": "#E3F2FD",
+    "text_primary": "#1C1C1C",
     "text_secondary": "#555555",
     "text_on_primary": "#FFFFFF",
     "success": "#2E7D32",
-    "warning": "#CC8800",
-    "error": "#C62828",
-    "border": "#CCCCCC",
-    "disabled": "#AAAAAA",
+    "warning": "#ED6C02",
+    "error": "#D32F2F",
+    "border": "#E0E0E0",
+    "disabled": "#BDBDBD",
 }
 
 FONTS = {
+    "logo_bold": ("Segoe UI", 18, "bold"),
+    "logo_light": ("Segoe UI", 18, "normal"),
     "heading": ("Segoe UI", 16, "bold"),
     "subheading": ("Segoe UI", 14, "bold"),
     "body": ("Segoe UI", 10),
@@ -48,30 +50,55 @@ def apply_theme(root: tk.Tk) -> None:
     )
     style.configure(
         "TEntry",
-        fieldbackground=COLORS["background"],
+        fieldbackground=COLORS["surface"],
         foreground=COLORS["text_primary"],
         font=FONTS["body"],
+        borderwidth=1,
+        relief="solid",
+        bordercolor=COLORS["border"],
     )
     style.configure(
         "TButton",
         font=FONTS["body"],
         padding=(10, 4),
+        background=COLORS["surface"],
+        foreground=COLORS["text_primary"],
+        borderwidth=1,
+        bordercolor=COLORS["border"],
     )
+    style.map(
+        "TButton",
+        background=[("active", COLORS["border"])],
+    )
+
     style.configure(
         "TNotebook",
         background=COLORS["background"],
+        tabmargins=[2, 5, 2, 0],
     )
     style.configure(
         "TNotebook.Tab",
         font=FONTS["body"],
-        padding=(12, 4),
-        background=COLORS["background"],
+        padding=(12, 6),
+        background=COLORS["surface"],
+        foreground=COLORS["text_secondary"],
+        borderwidth=0,
     )
+    style.map(
+        "TNotebook.Tab",
+        background=[("selected", COLORS["background"])],
+        foreground=[("selected", COLORS["accent"])],
+        expand=[("selected", [1, 1, 1, 0])],
+    )
+
     style.configure(
         "TLabelframe",
         background=COLORS["background"],
         foreground=COLORS["text_primary"],
         font=FONTS["body_bold"],
+        borderwidth=1,
+        relief="solid",
+        bordercolor=COLORS["border"],
     )
     style.configure(
         "TLabelframe.Label",
@@ -82,6 +109,8 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure(
         "TCombobox",
         font=FONTS["body"],
+        fieldbackground=COLORS["surface"],
+        background=COLORS["surface"],
     )
 
     # --- Title ---
@@ -106,7 +135,8 @@ def apply_theme(root: tk.Tk) -> None:
         background=COLORS["accent"],
         foreground=COLORS["text_on_primary"],
         font=FONTS["body_bold"],
-        padding=(14, 6),
+        padding=(14, 8),
+        borderwidth=0,
     )
     style.map(
         "Accent.TButton",
@@ -139,16 +169,29 @@ def apply_theme(root: tk.Tk) -> None:
         font=FONTS["body"],
     )
 
-    # --- Header bar ---
+    # --- Header bar (Clean White) ---
     style.configure(
         "Header.TFrame",
-        background=COLORS["primary"],
+        background=COLORS["background"],
+    )
+    # Styles for the split logo
+    style.configure(
+        "LogoBold.TLabel",
+        background=COLORS["background"],
+        foreground=COLORS["text_primary"],
+        font=FONTS["logo_bold"],
     )
     style.configure(
-        "Header.TLabel",
-        background=COLORS["primary"],
-        foreground=COLORS["text_on_primary"],
-        font=FONTS["body_bold"],
+        "LogoLight.TLabel",
+        background=COLORS["background"],
+        foreground=COLORS["text_primary"],
+        font=FONTS["logo_light"],
+    )
+    style.configure(
+        "HeaderInfo.TLabel",
+        background=COLORS["background"],
+        foreground=COLORS["text_secondary"],
+        font=FONTS["body"],
     )
 
     root.configure(background=COLORS["background"])
