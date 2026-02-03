@@ -1,13 +1,14 @@
-"""Dateiauswahl-Bildschirm: Excel-Datei und Arbeitsblatt wählen."""
+"""Dateiauswahl-Bildschirm: Excel-Datei und Arbeitsblatt waehlen."""
 
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk, filedialog
 
-from src.config.settings import CONTEXT_COLUMNS, AUTO_COLUMNS, HEADER_ROW
+from src.config.settings import AUTO_COLUMNS, HEADER_ROW
 from src.excel.reader import read_excel_headers
 from src.ui.base_view import BaseView
+from src.ui.theme import COLORS, FONTS
 
 
 class FileSelectView(BaseView):
@@ -37,7 +38,7 @@ class FileSelectView(BaseView):
         logout_btn.grid(row=0, column=1, padx=(10, 0))
 
         # --- Titel ---
-        ttk.Label(self, text="Datei auswählen", font=("", 14, "bold")).grid(
+        ttk.Label(self, text="Datei auswählen", style="Subtitle.TLabel").grid(
             row=1, column=0, pady=(10, 5)
         )
 
@@ -51,7 +52,7 @@ class FileSelectView(BaseView):
         ).grid(row=0, column=0, padx=(0, 10))
 
         self.file_path_var = tk.StringVar(value="Keine Datei ausgewählt")
-        ttk.Label(file_frame, textvariable=self.file_path_var, foreground="gray").grid(
+        ttk.Label(file_frame, textvariable=self.file_path_var, foreground=COLORS["text_secondary"]).grid(
             row=0, column=1, sticky="w"
         )
 
@@ -80,17 +81,25 @@ class FileSelectView(BaseView):
         self.header_frame.grid(row=4, column=0, padx=40, pady=10, sticky="ew")
         self.header_frame.grid_remove()
 
-        self.header_listbox = tk.Listbox(self.header_frame, height=8)
+        self.header_listbox = tk.Listbox(
+            self.header_frame,
+            height=8,
+            font=FONTS["body"],
+            bg=COLORS["background"],
+            fg=COLORS["text_primary"],
+            selectbackground=COLORS["accent"],
+        )
         self.header_listbox.pack(fill="both", expand=True)
 
         # --- Fehlermeldung ---
         self.error_var = tk.StringVar()
-        self.error_label = ttk.Label(self, textvariable=self.error_var, foreground="red")
+        self.error_label = ttk.Label(self, textvariable=self.error_var, style="Error.TLabel")
         self.error_label.grid(row=5, column=0, padx=40, pady=5)
 
         # --- Weiter-Button ---
         self.next_btn = ttk.Button(
-            self, text="Weiter", command=self._go_next, state="disabled"
+            self, text="Weiter", command=self._go_next, state="disabled",
+            style="Accent.TButton",
         )
         self.next_btn.grid(row=6, column=0, pady=15)
 
@@ -112,7 +121,7 @@ class FileSelectView(BaseView):
         self.error_var.set("")
         self.next_btn.config(state="disabled")
 
-        # Header laden für erstes Sheet
+        # Header laden fuer erstes Sheet
         result = read_excel_headers(path, header_row=HEADER_ROW)
 
         if result.errors:
@@ -156,10 +165,9 @@ class FileSelectView(BaseView):
         self._headers = headers
         self.header_listbox.delete(0, "end")
 
-        # Messwert-Header hervorheben (ohne Kontext/Auto-Spalten)
-        skip = set(CONTEXT_COLUMNS + AUTO_COLUMNS)
+        auto_set = set(AUTO_COLUMNS)
         for h in headers:
-            marker = "" if h in skip else "  [Messwert]"
+            marker = "  [Auto]" if h in auto_set else ""
             self.header_listbox.insert("end", f"{h}{marker}")
 
         self.header_frame.grid()
@@ -171,7 +179,7 @@ class FileSelectView(BaseView):
 
         sheet = self.sheet_var.get() or self._sheet_names[0]
 
-        # Erneut Headers lesen für aktuelle Map
+        # Erneut Headers lesen fuer aktuelle Map
         result = read_excel_headers(
             self._selected_path, sheet_name=sheet, header_row=HEADER_ROW
         )
@@ -185,12 +193,6 @@ class FileSelectView(BaseView):
         self.app_state.current_headers = result.headers
         self.app_state.header_column_map = result.header_column_map
 
-        # Messwert-Header berechnen
-        skip = set(CONTEXT_COLUMNS + AUTO_COLUMNS)
-        self.app_state.measurement_headers = [
-            h for h in result.headers if h not in skip
-        ]
-
         if self.app_state.audit:
             self.app_state.audit.log(
                 "file_selected",
@@ -199,7 +201,7 @@ class FileSelectView(BaseView):
                 details={"sheet": sheet},
             )
 
-        self.on_navigate("context")
+        self.on_navigate("column_classify")
 
     def _logout(self) -> None:
         self.app_state.reset_user()

@@ -1,9 +1,10 @@
-"""Messwerterfassung – Einstiegspunkt der Anwendung."""
+"""Messwerterfassung -- Einstiegspunkt der Anwendung."""
 
 from __future__ import annotations
 
 import sys
 import tkinter as tk
+from tkinter import ttk
 from pathlib import Path
 
 # Sicherstellen, dass das Projektverzeichnis im Suchpfad ist
@@ -14,8 +15,10 @@ if str(_app_root) not in sys.path:
 from src.audit.audit_logger import AuditLogger
 from src.config.settings import APP_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT, AUDIT_LOG_PATH
 from src.domain.state import AppState
+from src.ui.theme import apply_theme, COLORS, FONTS
 from src.ui.login_view import LoginView
 from src.ui.file_select_view import FileSelectView
+from src.ui.column_classify_view import ColumnClassifyView
 from src.ui.context_view import ContextView
 from src.ui.form_view import FormView
 from src.ui.base_view import BaseView
@@ -27,6 +30,7 @@ class MeasurementApp:
     SCREENS: list[tuple[type[BaseView], str]] = [
         (LoginView, "login"),
         (FileSelectView, "file_select"),
+        (ColumnClassifyView, "column_classify"),
         (ContextView, "context"),
         (FormView, "form"),
     ]
@@ -37,11 +41,27 @@ class MeasurementApp:
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.root.minsize(600, 400)
 
+        apply_theme(self.root)
+
         self.state = AppState()
         self.state.audit = AuditLogger(AUDIT_LOG_PATH)
 
-        # Container für gestapelte Views
-        self.container = tk.Frame(self.root)
+        # Hauptcontainer
+        main_frame = tk.Frame(self.root, bg=COLORS["background"])
+        main_frame.pack(fill="both", expand=True)
+
+        # --- Branded Header Bar ---
+        header_bar = ttk.Frame(main_frame, style="Header.TFrame")
+        header_bar.pack(fill="x", side="top")
+        ttk.Label(
+            header_bar,
+            text="QUESTALPHA  |  Messwerterfassung",
+            style="Header.TLabel",
+            padding=(15, 8),
+        ).pack(side="left")
+
+        # Container fuer gestapelte Views
+        self.container = tk.Frame(main_frame, bg=COLORS["background"])
         self.container.pack(fill="both", expand=True)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)

@@ -1,4 +1,4 @@
-"""Excel-Schreibfunktionen: Zeile anhängen, Auto-Spalten erstellen."""
+"""Excel-Schreibfunktionen: Zeile anhaengen, Auto-Spalten erstellen."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 
 import openpyxl
 
-from src.config.settings import CONTEXT_COLUMNS, AUTO_COLUMNS
-from src.domain.state import ContextInfo, UserInfo
+from src.config.settings import AUTO_COLUMNS
+from src.domain.state import UserInfo
 
 
 @dataclass
@@ -26,18 +26,18 @@ def write_measurement_row(
     filepath: str | Path,
     sheet_name: str,
     header_column_map: dict[str, int],
-    context: ContextInfo,
+    persistent_values: dict[str, str],
     user: UserInfo,
     measurements: dict[str, float | None],
     timestamp: datetime | None = None,
 ) -> WriteResult:
-    """Hängt eine neue Messzeile an die Excel-Datei an.
+    """Haengt eine neue Messzeile an die Excel-Datei an.
 
     Args:
         filepath: Pfad zur .xlsx Datei.
         sheet_name: Name des Arbeitsblatts.
         header_column_map: Mapping Header-Name -> Spaltennummer (1-basiert).
-        context: Kontext-Informationen (Charge, FA, Rolle).
+        persistent_values: Feste Werte (Header -> Wert).
         user: Benutzer-Informationen.
         measurements: Normalisierte Messwerte (Header -> float oder None).
         timestamp: Zeitstempel (optional, Standard: jetzt).
@@ -67,21 +67,16 @@ def write_measurement_row(
 
         ws = wb[sheet_name]
 
-        # Auto-Spalten erstellen falls nötig
+        # Auto-Spalten erstellen falls noetig
         col_map = dict(header_column_map)
         created = _ensure_auto_columns(ws, col_map)
         result.columns_created = created
 
-        # Nächste freie Zeile
+        # Naechste freie Zeile
         next_row = ws.max_row + 1
 
-        # Kontext-Spalten schreiben
-        context_values = {
-            "Charge_#": context.charge,
-            "FA_#": context.fa,
-            "Rolle_#": context.rolle,
-        }
-        for col_name, value in context_values.items():
+        # Feste Werte schreiben
+        for col_name, value in persistent_values.items():
             if col_name in col_map:
                 ws.cell(row=next_row, column=col_map[col_name], value=value)
 
@@ -113,19 +108,18 @@ def write_measurement_row(
 def _ensure_auto_columns(
     ws, col_map: dict[str, int]
 ) -> list[str]:
-    """Stellt sicher, dass Auto-Spalten (Zeit, Mitarbeiter) und Kontext-Spalten existieren.
+    """Stellt sicher, dass Auto-Spalten (Zeit, Mitarbeiter) existieren.
 
-    Fehlende Spalten werden am Ende angefügt. col_map wird in-place aktualisiert.
+    Fehlende Spalten werden am Ende angefuegt. col_map wird in-place aktualisiert.
 
     Returns:
         Liste der neu erstellten Spaltennamen.
     """
     created: list[str] = []
-    all_required = CONTEXT_COLUMNS + AUTO_COLUMNS
 
     next_col = max(col_map.values(), default=0) + 1
 
-    for col_name in all_required:
+    for col_name in AUTO_COLUMNS:
         if col_name not in col_map:
             ws.cell(row=1, column=next_col, value=col_name)
             col_map[col_name] = next_col

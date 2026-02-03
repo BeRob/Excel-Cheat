@@ -22,4 +22,6 @@ AUDIT_LOG_PATH = APP_ROOT / "data" / "audit_log.jsonl"
 HEADER_ROW = 1
 
 CONTEXT_COLUMNS = ["Charge_#", "FA_#", "Rolle_#"]
+DEFAULT_PERSISTENT_COLUMNS = ["Charge_#", "FA_#", "Rolle_#"]
 AUTO_COLUMNS = ["Zeit", "Mitarbeiter"]
+CONFIG_DIR = APP_ROOT / "data" / "configs"

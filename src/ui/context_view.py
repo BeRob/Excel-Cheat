@@ -1,4 +1,4 @@
-"""Kontext-Bildschirm: Chargen-Nr, FA-Nr, Rolle setzen."""
+"""Kontext-Bildschirm: Dynamische feste Werte setzen."""
 
 from __future__ import annotations
 
@@ -6,15 +6,17 @@ import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
 
-from src.domain.state import ContextInfo
 from src.ui.base_view import BaseView
+from src.ui.theme import COLORS
 
 
 class ContextView(BaseView):
-    """Bildschirm zum Setzen der Kontext-Informationen."""
+    """Bildschirm zum Setzen der festen Werte (persistent headers)."""
 
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
+        self.field_vars: dict[str, tk.StringVar] = {}
+        self._field_entries: list[ttk.Entry] = []
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -30,6 +32,9 @@ class ContextView(BaseView):
 
         btn_frame = ttk.Frame(top_bar)
         btn_frame.grid(row=0, column=1)
+        ttk.Button(btn_frame, text="Zuordnung ändern", command=self._change_classify).pack(
+            side="left", padx=(5, 0)
+        )
         ttk.Button(btn_frame, text="Datei wechseln", command=self._change_file).pack(
             side="left", padx=(5, 0)
         )
@@ -38,42 +43,29 @@ class ContextView(BaseView):
         )
 
         # --- Titel ---
-        ttk.Label(self, text="Kontext setzen", font=("", 14, "bold")).grid(
+        ttk.Label(self, text="Feste Werte setzen", style="Subtitle.TLabel").grid(
             row=1, column=0, pady=(10, 5)
         )
 
-        # --- Kontext-Felder ---
-        form = ttk.Frame(self)
-        form.grid(row=2, column=0, padx=40, pady=10)
+        # --- Dynamischer Formular-Container ---
+        self.form_frame = ttk.Frame(self)
+        self.form_frame.grid(row=2, column=0, padx=40, pady=10)
 
-        self.charge_var = tk.StringVar()
-        self.fa_var = tk.StringVar()
-        self.rolle_var = tk.StringVar()
-
-        fields = [
-            ("Chargen-Nr:", self.charge_var),
-            ("FA-Nr:", self.fa_var),
-            ("Rolle:", self.rolle_var),
-        ]
-
-        for i, (label_text, var) in enumerate(fields):
-            ttk.Label(form, text=label_text).grid(
-                row=i, column=0, sticky="w", pady=5, padx=(0, 10)
-            )
-            entry = ttk.Entry(form, textvariable=var, width=30)
-            entry.grid(row=i, column=1, pady=5)
-            if i == 0:
-                self._first_entry = entry
-
-        # Validierung: Button aktivieren wenn alle Felder gefüllt
-        for var in (self.charge_var, self.fa_var, self.rolle_var):
-            var.trace_add("write", self._check_fields)
+        # --- Hinweis bei 0 festen Werten ---
+        self.no_fields_label = ttk.Label(
+            self,
+            text="Keine festen Werte definiert. Sie können direkt weiter zur Messung.",
+            foreground=COLORS["text_secondary"],
+        )
+        self.no_fields_label.grid(row=3, column=0, padx=40, pady=5)
+        self.no_fields_label.grid_remove()
 
         # --- Weiter-Button ---
         self.next_btn = ttk.Button(
-            self, text="Weiter zur Messung", command=self._go_next, state="disabled"
+            self, text="Weiter zur Messung", command=self._go_next,
+            style="Accent.TButton",
         )
-        self.next_btn.grid(row=3, column=0, pady=15)
+        self.next_btn.grid(row=4, column=0, pady=15)
 
     def on_show(self) -> None:
         # Info-Leiste aktualisieren
@@ -85,43 +77,68 @@ class ContextView(BaseView):
             text=f"Angemeldet als: {user_name}  |  Datei: {file_name}"
         )
 
-        # Felder vorausfüllen wenn Kontext bereits gesetzt
-        ctx = self.app_state.current_context
-        if ctx:
-            self.charge_var.set(ctx.charge)
-            self.fa_var.set(ctx.fa)
-            self.rolle_var.set(ctx.rolle)
-        else:
-            self.charge_var.set("")
-            self.fa_var.set("")
-            self.rolle_var.set("")
+        # Dynamische Felder generieren
+        self._generate_fields()
 
-        self._first_entry.focus_set()
+    def _generate_fields(self) -> None:
+        # Alte Felder entfernen
+        for widget in self.form_frame.winfo_children():
+            widget.destroy()
+        self.field_vars.clear()
+        self._field_entries.clear()
+
+        headers = self.app_state.persistent_headers
+
+        if not headers:
+            self.no_fields_label.grid()
+            self.next_btn.config(state="normal")
+            return
+
+        self.no_fields_label.grid_remove()
+
+        for i, header in enumerate(headers):
+            ttk.Label(self.form_frame, text=f"{header}:").grid(
+                row=i, column=0, sticky="w", pady=5, padx=(0, 10)
+            )
+            var = tk.StringVar()
+            # Vorausfuellen wenn bereits Werte vorhanden
+            if header in self.app_state.persistent_values:
+                var.set(self.app_state.persistent_values[header])
+            var.trace_add("write", self._check_fields)
+            entry = ttk.Entry(self.form_frame, textvariable=var, width=30)
+            entry.grid(row=i, column=1, pady=5)
+            self.field_vars[header] = var
+            self._field_entries.append(entry)
+
+        if self._field_entries:
+            self._field_entries[0].focus_set()
+
+        self._check_fields()
 
     def _check_fields(self, *_args) -> None:
-        filled = all(
-            var.get().strip()
-            for var in (self.charge_var, self.fa_var, self.rolle_var)
-        )
+        if not self.field_vars:
+            self.next_btn.config(state="normal")
+            return
+        filled = all(var.get().strip() for var in self.field_vars.values())
         self.next_btn.config(state="normal" if filled else "disabled")
 
     def _go_next(self) -> None:
-        ctx = ContextInfo(
-            charge=self.charge_var.get().strip(),
-            fa=self.fa_var.get().strip(),
-            rolle=self.rolle_var.get().strip(),
-        )
-        self.app_state.current_context = ctx
+        self.app_state.persistent_values = {
+            h: var.get().strip() for h, var in self.field_vars.items()
+        }
 
         if self.app_state.audit:
             self.app_state.audit.log(
                 "context_set",
                 user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                 file=str(self.app_state.current_file) if self.app_state.current_file else None,
-                context={"charge": ctx.charge, "fa": ctx.fa, "rolle": ctx.rolle},
+                context=dict(self.app_state.persistent_values),
             )
 
         self.on_navigate("form")
+
+    def _change_classify(self) -> None:
+        self.on_navigate("column_classify")
 
     def _change_file(self) -> None:
         self.app_state.reset_file()

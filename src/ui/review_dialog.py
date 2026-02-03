@@ -1,4 +1,4 @@
-"""Review-Dialog: Prüfen und Bestätigen vor dem Schreiben."""
+"""Review-Dialog: Pruefen und Bestaetigen vor dem Schreiben."""
 
 from __future__ import annotations
 
@@ -10,10 +10,11 @@ from pathlib import Path
 
 from src.domain.state import AppState
 from src.domain.validation import validate_measurements, ValidationResult
+from src.ui.theme import COLORS, FONTS
 
 
 class ReviewDialog(tk.Toplevel):
-    """Modaler Dialog zur Prüfung der Messwerte vor dem Schreiben."""
+    """Modaler Dialog zur Pruefung der Messwerte vor dem Schreiben."""
 
     def __init__(
         self,
@@ -28,7 +29,7 @@ class ReviewDialog(tk.Toplevel):
         self.on_confirm = on_confirm
 
         self.title("Prüfen und Senden")
-        self.geometry("550x500")
+        self.geometry("700x600")
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
@@ -40,6 +41,7 @@ class ReviewDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self._cancel)
 
     def _build_ui(self) -> None:
+        self.configure(bg=COLORS["background"])
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
 
@@ -53,15 +55,17 @@ class ReviewDialog(tk.Toplevel):
         ttk.Label(info_frame, text=f"Datei: {file_name}").pack(anchor="w")
         ttk.Label(info_frame, text=f"Arbeitsblatt: {sheet}").pack(anchor="w")
 
-        # --- Kontext ---
-        ctx_frame = ttk.LabelFrame(self, text="Kontext", padding=10)
+        # --- Feste Werte ---
+        ctx_frame = ttk.LabelFrame(self, text="Feste Werte", padding=10)
         ctx_frame.grid(row=1, column=0, padx=15, pady=5, sticky="ew")
 
-        ctx = self.app_state.current_context
-        if ctx:
-            ttk.Label(ctx_frame, text=f"Chargen-Nr: {ctx.charge}").pack(anchor="w")
-            ttk.Label(ctx_frame, text=f"FA-Nr: {ctx.fa}").pack(anchor="w")
-            ttk.Label(ctx_frame, text=f"Rolle: {ctx.rolle}").pack(anchor="w")
+        pv = self.app_state.persistent_values
+        if pv:
+            for header, value in pv.items():
+                ttk.Label(ctx_frame, text=f"{header}: {value}").pack(anchor="w")
+        else:
+            ttk.Label(ctx_frame, text="Keine festen Werte definiert.",
+                      foreground=COLORS["text_secondary"]).pack(anchor="w")
 
         # --- Auto-Felder ---
         auto_frame = ttk.LabelFrame(self, text="Automatische Felder", padding=10)
@@ -82,7 +86,7 @@ class ReviewDialog(tk.Toplevel):
         values_frame.columnconfigure(0, weight=1)
         values_frame.rowconfigure(0, weight=1)
 
-        canvas = tk.Canvas(values_frame, highlightthickness=0)
+        canvas = tk.Canvas(values_frame, highlightthickness=0, bg=COLORS["background"])
         scrollbar = ttk.Scrollbar(values_frame, orient="vertical", command=canvas.yview)
         scroll_frame = ttk.Frame(canvas)
 
@@ -109,13 +113,13 @@ class ReviewDialog(tk.Toplevel):
 
             # Farbe bestimmen
             if header in error_set:
-                fg = "red"
+                fg = COLORS["error"]
                 status = "Fehler"
             elif header in warning_set:
-                fg = "#CC8800"
+                fg = COLORS["warning"]
                 status = "Leer"
             else:
-                fg = "green"
+                fg = COLORS["success"]
                 status = str(norm_val) if norm_val is not None else ""
 
             ttk.Label(scroll_frame, text=f"{header}:", foreground=fg).grid(
@@ -130,8 +134,13 @@ class ReviewDialog(tk.Toplevel):
 
         # --- Zusammenfassung ---
         summary_text = f"{len(self.validation.warnings)} Warnung(en), {len(self.validation.errors)} Fehler"
-        summary_fg = "red" if self.validation.has_errors else ("#CC8800" if self.validation.warnings else "green")
-        ttk.Label(self, text=summary_text, foreground=summary_fg).grid(
+        if self.validation.has_errors:
+            summary_style = "Error.TLabel"
+        elif self.validation.warnings:
+            summary_style = "Warning.TLabel"
+        else:
+            summary_style = "Success.TLabel"
+        ttk.Label(self, text=summary_text, style=summary_style).grid(
             row=4, column=0, pady=5
         )
 
@@ -148,6 +157,7 @@ class ReviewDialog(tk.Toplevel):
             text="Senden",
             command=self._confirm,
             state="normal" if not self.validation.has_errors else "disabled",
+            style="Accent.TButton",
         )
         self.send_btn.pack(side="left", padx=10)
 

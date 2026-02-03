@@ -11,7 +11,7 @@ from src.ui.base_view import BaseView
 
 
 class LoginView(BaseView):
-    """Anmeldebildschirm mit Tabs für Passwort und QR-Code."""
+    """Anmeldebildschirm mit Tabs fuer Passwort und QR-Code."""
 
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
@@ -23,7 +23,7 @@ class LoginView(BaseView):
         self.rowconfigure(1, weight=1)
 
         # Titel
-        title = ttk.Label(self, text="Anmeldung", font=("", 16, "bold"))
+        title = ttk.Label(self, text="Anmeldung", style="Title.TLabel")
         title.grid(row=0, column=0, pady=(20, 10))
 
         # Notebook mit Tabs
@@ -51,11 +51,12 @@ class LoginView(BaseView):
         self.password_entry.grid(row=3, column=0, pady=(0, 15))
 
         self.pw_login_btn = ttk.Button(
-            pw_frame, text="Anmelden", command=self._login_password
+            pw_frame, text="Anmelden", command=self._login_password,
+            style="Accent.TButton",
         )
         self.pw_login_btn.grid(row=4, column=0)
 
-        # Enter-Taste für Passwort-Login
+        # Enter-Taste fuer Passwort-Login
         self.password_entry.bind("<Return>", lambda e: self._login_password())
 
         # --- Tab 2: QR-Code ---
@@ -75,13 +76,13 @@ class LoginView(BaseView):
             foreground="gray",
         ).grid(row=2, column=0, pady=(0, 15))
 
-        # Enter-Taste für QR-Login (Scanner sendet Enter)
+        # Enter-Taste fuer QR-Login (Scanner sendet Enter)
         self.qr_entry.bind("<Return>", lambda e: self._login_qr())
 
         # --- Status-Meldung ---
         self.status_var = tk.StringVar()
         self.status_label = ttk.Label(
-            self, textvariable=self.status_var, foreground="red"
+            self, textvariable=self.status_var, style="Error.TLabel"
         )
         self.status_label.grid(row=2, column=0, pady=10)
 
