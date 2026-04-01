@@ -1,0 +1,192 @@
+"""Produkt- und Prozesskonfiguration aus JSON-Dateien."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+@dataclass
+class FieldDef:
+    """Definition eines einzelnen Feldes in einem Prozess."""
+
+    id: str
+    display_name: str
+    type: str  # "text" | "number" | "choice"
+    role: str  # "context" | "measurement" | "auto"
+    persistent: bool = False
+    spec_target: float | None = None
+    spec_min: float | None = None
+    spec_max: float | None = None
+    options: list[str] | None = None
+    optional: bool = False
+
+
+@dataclass
+class ProcessConfig:
+    """Konfiguration eines Prozesses (z.B. IPC1 Vorschneiden)."""
+
+    template_id: str
+    display_name: str
+    fields: list[FieldDef]
+    row_group_size: int | None = None
+
+
+@dataclass
+class ProductConfig:
+    """Konfiguration eines Produkts mit seinen Prozessen."""
+
+    product_id: str
+    display_name: str
+    processes: list[ProcessConfig]
+
+
+@dataclass
+class ShiftDef:
+    """Definition einer Schicht."""
+
+    name: str
+    start_hour: int
+    end_hour: int
+
+
+@dataclass
+class AppConfig:
+    """Gesamte Anwendungskonfiguration."""
+
+    products: list[ProductConfig] = field(default_factory=list)
+    output_dir: str = "output"
+    shifts: list[ShiftDef] = field(default_factory=list)
+
+
+def _parse_field(data: dict) -> FieldDef:
+    """Parst ein einzelnes Feld aus einem JSON-Dict."""
+    return FieldDef(
+        id=data["id"],
+        display_name=data["display_name"],
+        type=data.get("type", "text"),
+        role=data.get("role", "measurement"),
+        persistent=data.get("persistent", False),
+        spec_target=data.get("spec_target"),
+        spec_min=data.get("spec_min"),
+        spec_max=data.get("spec_max"),
+        options=data.get("options"),
+        optional=data.get("optional", False),
+    )
+
+
+def _parse_process(data: dict) -> ProcessConfig:
+    """Parst einen Prozess aus einem JSON-Dict."""
+    return ProcessConfig(
+        template_id=data["template_id"],
+        display_name=data["display_name"],
+        fields=[_parse_field(f) for f in data["fields"]],
+        row_group_size=data.get("row_group_size"),
+    )
+
+
+def load_product_config(path: Path) -> ProductConfig:
+    """Laedt eine einzelne Produkt-Konfiguration aus einer JSON-Datei."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return ProductConfig(
+        product_id=data["product_id"],
+        display_name=data["display_name"],
+        processes=[_parse_process(p) for p in data["processes"]],
+    )
+
+
+def load_app_config(config_path: Path, products_dir: Path) -> AppConfig:
+    """Laedt die gesamte App-Konfiguration.
+
+    Args:
+        config_path: Pfad zu app_config.json (globale Settings).
+        products_dir: Pfad zum Ordner mit Produkt-JSON-Dateien.
+
+    Returns:
+        AppConfig mit allen Produkten und globalen Einstellungen.
+    """
+    # Globale Settings laden
+    if config_path.exists():
+        global_data = json.loads(config_path.read_text(encoding="utf-8"))
+    else:
+        global_data = {}
+
+    shifts = [
+        ShiftDef(
+            name=s["name"],
+            start_hour=s["start_hour"],
+            end_hour=s["end_hour"],
+        )
+        for s in global_data.get("shifts", [])
+    ]
+
+    # Alle Produkt-Dateien laden
+    products: list[ProductConfig] = []
+    if products_dir.exists():
+        for p in sorted(products_dir.glob("*.json")):
+            products.append(load_product_config(p))
+
+    return AppConfig(
+        products=products,
+        output_dir=global_data.get("output_dir", "output"),
+        shifts=shifts,
+    )
+
+
+# ── Hilfsfunktionen ─────────────────────────────────────────────────────
+
+def get_context_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Gibt alle Kontext-Felder zurueck (role='context')."""
+    return [f for f in process.fields if f.role == "context"]
+
+
+def get_persistent_context_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Gibt persistente Kontext-Felder zurueck (bleiben ueber Messungen)."""
+    return [f for f in process.fields if f.role == "context" and f.persistent]
+
+
+def get_per_measurement_context_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Gibt pro-Messung Kontext-Felder zurueck (aendern sich je Messung)."""
+    return [f for f in process.fields if f.role == "context" and not f.persistent]
+
+
+def get_measurement_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Gibt alle Messwert-Felder zurueck (role='measurement')."""
+    return [f for f in process.fields if f.role == "measurement"]
+
+
+def get_auto_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Gibt alle Auto-Felder zurueck (role='auto')."""
+    return [f for f in process.fields if f.role == "auto"]
+
+
+def get_all_headers(process: ProcessConfig) -> list[str]:
+    """Gibt alle Feld-Anzeigenamen in Reihenfolge zurueck (fuer Excel-Header)."""
+    return [f.display_name for f in process.fields]
+
+
+def get_field_by_id(process: ProcessConfig, field_id: str) -> FieldDef | None:
+    """Sucht ein Feld anhand seiner ID."""
+    for f in process.fields:
+        if f.id == field_id:
+            return f
+    return None
+
+
+def determine_shift(hour: int, shifts: list[ShiftDef]) -> str:
+    """Bestimmt die Schicht basierend auf der aktuellen Stunde.
+
+    Behandelt Mitternacht-Uebergang (z.B. Schicht 3: 22-06).
+    """
+    for shift in shifts:
+        if shift.start_hour < shift.end_hour:
+            # Normaler Fall: z.B. 6-14, 14-22
+            if shift.start_hour <= hour < shift.end_hour:
+                return shift.name
+        else:
+            # Mitternacht-Uebergang: z.B. 22-6
+            if hour >= shift.start_hour or hour < shift.end_hour:
+                return shift.name
+
+    return "1"  # Fallback

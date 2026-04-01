@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.claude/
+output/
+data/audit_log.jsonl
+*.egg-info/
+dist/
+build/
+.env

@@ -1,150 +1,127 @@
-"""Tests fuer den Excel-Writer."""
+"""Tests fuer den Excel-Writer (neue config-basierte API)."""
 
 import shutil
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import date
 from pathlib import Path
 
 import openpyxl
 
-from src.domain.state import UserInfo
+from src.config.process_config import FieldDef, ProcessConfig
+from src.excel.creator import create_measurement_file
 from src.excel.writer import write_measurement_row
 
 
-SAMPLE_FILE = Path(__file__).resolve().parent.parent / "Beispiel_Messwerte_Prozess.xlsx"
+def _make_process() -> ProcessConfig:
+    return ProcessConfig(
+        template_id="IPC1_Test",
+        display_name="IPC1 Test",
+        fields=[
+            FieldDef(id="lot", display_name="LOT Nr.", type="text", role="context", persistent=True),
+            FieldDef(id="rollen", display_name="Rollen Nr.", type="text", role="context"),
+            FieldDef(id="breite", display_name="Breite 1", type="number", role="measurement",
+                     spec_min=180, spec_max=190),
+            FieldDef(id="breite2", display_name="Breite 2", type="number", role="measurement",
+                     spec_min=180, spec_max=190),
+            FieldDef(id="datum", display_name="Datum", type="text", role="auto"),
+            FieldDef(id="bearbeiter", display_name="Bearbeiter", type="text", role="auto"),
+        ],
+    )
 
 
-class TestExcelWriter(unittest.TestCase):
+class TestWriteMeasurementRow(unittest.TestCase):
 
     def setUp(self):
-        self.tmp_dir = tempfile.mkdtemp()
-        self.test_file = Path(self.tmp_dir) / "test.xlsx"
-        shutil.copy(SAMPLE_FILE, self.test_file)
-        self.persistent_values = {"Charge_#": "C-TEST", "FA_#": "FA-001", "Rolle_#": "R1"}
-        self.user = UserInfo(user_id="testuser", display_name="Test User")
-        # Read actual row count to determine next_row
-        wb = openpyxl.load_workbook(self.test_file, read_only=True)
-        ws = wb[wb.sheetnames[0]]
-        self._existing_rows = ws.max_row
-        wb.close()
-        self.col_map = {
-            "Charge_#": 1, "FA_#": 2, "Rolle_#": 3,
-            "Länge (mm)": 4, "Breite (mm)": 5, "Dicke (mm)": 6, "Gewicht (g)": 7,
-            "Zeit": 8, "Mitarbeiter": 9,
-        }
+        self.tmp_dir = Path(tempfile.mkdtemp())
+        self.process = _make_process()
+        self.filepath = create_measurement_file(
+            self.process, "TEST", self.tmp_dir, "1", date(2026, 4, 2)
+        )
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
     def test_write_appends_row(self):
-        measurements = {"Länge (mm)": 100.0, "Breite (mm)": 50.0, "Dicke (mm)": 2.0, "Gewicht (g)": 10.0}
         result = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
+            self.filepath,
+            self.process,
+            context_values={"LOT Nr.": "LOT-001", "Rollen Nr.": "R1"},
+            measurements={"Breite 1": 185.0, "Breite 2": 186.0},
+            auto_values={"Datum": "2026-04-02", "Bearbeiter": "testuser"},
         )
         self.assertTrue(result.success)
-        self.assertEqual(result.row_number, self._existing_rows + 1)
+        self.assertEqual(result.row_number, 2)
 
-    def test_auto_columns_not_recreated(self):
-        """Auto columns already exist in sample file, so none should be created."""
-        measurements = {"Länge (mm)": 100.0}
-        result = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
+    def test_values_in_correct_columns(self):
+        write_measurement_row(
+            self.filepath,
+            self.process,
+            context_values={"LOT Nr.": "LOT-001", "Rollen Nr.": "R1"},
+            measurements={"Breite 1": 185.0, "Breite 2": 186.0},
+            auto_values={"Datum": "2026-04-02", "Bearbeiter": "testuser"},
         )
-        self.assertTrue(result.success)
-        # Zeit and Mitarbeiter already exist in col_map, so nothing new created
-        self.assertEqual(len(result.columns_created), 0)
-
-    def test_auto_columns_created_when_missing(self):
-        """Auto columns are created if not in col_map."""
-        col_map_no_auto = {
-            "Charge_#": 1, "FA_#": 2, "Rolle_#": 3,
-            "Länge (mm)": 4, "Breite (mm)": 5, "Dicke (mm)": 6, "Gewicht (g)": 7,
-        }
-        measurements = {"Länge (mm)": 100.0}
-        result = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", col_map_no_auto,
-            self.persistent_values, self.user, measurements
-        )
-        self.assertTrue(result.success)
-        # Only auto columns should be created (Zeit, Mitarbeiter)
-        # They may or may not appear depending on whether they exist in the file
-        # but not in the map - the function should try to create them
-        for col in result.columns_created:
-            self.assertIn(col, ["Zeit", "Mitarbeiter"])
-
-    def test_context_values_written(self):
-        measurements = {"Länge (mm)": 100.0}
-        result = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
-        )
-        written_row = result.row_number
-        wb = openpyxl.load_workbook(self.test_file, read_only=True)
-        ws = wb["Prozess_Beispiel"]
-        row = list(ws.iter_rows(min_row=written_row, max_row=written_row, values_only=True))[0]
-        self.assertEqual(row[0], "C-TEST")
-        self.assertEqual(row[1], "FA-001")
-        self.assertEqual(row[2], "R1")
-        wb.close()
-
-    def test_zeit_is_datetime(self):
-        measurements = {"Länge (mm)": 100.0}
-        result = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
-        )
-        written_row = result.row_number
-        wb = openpyxl.load_workbook(self.test_file, read_only=True)
-        ws = wb["Prozess_Beispiel"]
-        row = list(ws.iter_rows(min_row=written_row, max_row=written_row, values_only=True))[0]
-        # Zeit should be at index 7 (column 8)
-        self.assertIsInstance(row[7], datetime)
-        wb.close()
-
-    def test_mitarbeiter_written(self):
-        measurements = {"Länge (mm)": 100.0}
-        result = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
-        )
-        written_row = result.row_number
-        wb = openpyxl.load_workbook(self.test_file, read_only=True)
-        ws = wb["Prozess_Beispiel"]
-        row = list(ws.iter_rows(min_row=written_row, max_row=written_row, values_only=True))[0]
-        # Mitarbeiter should be at index 8 (column 9)
-        self.assertEqual(row[8], "testuser")
+        wb = openpyxl.load_workbook(self.filepath, read_only=True)
+        ws = wb.active
+        row = [ws.cell(2, c).value for c in range(1, 7)]
+        self.assertEqual(row[0], "LOT-001")     # col 1: LOT Nr.
+        self.assertEqual(row[1], "R1")           # col 2: Rollen Nr.
+        self.assertAlmostEqual(row[2], 185.0)    # col 3: Breite 1
+        self.assertAlmostEqual(row[3], 186.0)    # col 4: Breite 2
+        self.assertEqual(row[4], "2026-04-02")   # col 5: Datum
+        self.assertEqual(row[5], "testuser")     # col 6: Bearbeiter
         wb.close()
 
     def test_two_sequential_writes(self):
-        measurements = {"Länge (mm)": 100.0}
-        r1 = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
-        )
-        r2 = write_measurement_row(
-            self.test_file, "Prozess_Beispiel", self.col_map,
-            self.persistent_values, self.user, measurements
-        )
-        self.assertEqual(r1.row_number, self._existing_rows + 1)
-        self.assertEqual(r2.row_number, self._existing_rows + 2)
+        ctx = {"LOT Nr.": "LOT-001", "Rollen Nr.": "R1"}
+        meas = {"Breite 1": 185.0, "Breite 2": 186.0}
+        auto = {"Datum": "2026-04-02", "Bearbeiter": "user"}
+
+        r1 = write_measurement_row(self.filepath, self.process, ctx, meas, auto)
+        r2 = write_measurement_row(self.filepath, self.process, ctx, meas, auto)
+        self.assertEqual(r1.row_number, 2)
+        self.assertEqual(r2.row_number, 3)
 
     def test_file_not_found(self):
         result = write_measurement_row(
-            "/nonexistent/file.xlsx", "Sheet1", self.col_map,
-            self.persistent_values, self.user, {}
+            Path("/nonexistent/file.xlsx"),
+            self.process,
+            {}, {}, {},
         )
         self.assertFalse(result.success)
         self.assertIsNotNone(result.error)
 
-    def test_invalid_sheet(self):
+    def test_none_values_skipped(self):
         result = write_measurement_row(
-            self.test_file, "NonExistent", self.col_map,
-            self.persistent_values, self.user, {}
+            self.filepath,
+            self.process,
+            context_values={"LOT Nr.": "LOT-001"},
+            measurements={"Breite 1": None},
+            auto_values={"Datum": "2026-04-02"},
         )
-        self.assertFalse(result.success)
+        self.assertTrue(result.success)
+        wb = openpyxl.load_workbook(self.filepath, read_only=True)
+        ws = wb.active
+        # Breite 1 (col 3) should be None since we passed None
+        self.assertIsNone(ws.cell(2, 3).value)
+        # Rollen Nr. (col 2) should be None since not provided
+        self.assertIsNone(ws.cell(2, 2).value)
+        wb.close()
+
+    def test_partial_measurements(self):
+        result = write_measurement_row(
+            self.filepath,
+            self.process,
+            context_values={"LOT Nr.": "LOT-001"},
+            measurements={"Breite 1": 185.0},
+            auto_values={},
+        )
+        self.assertTrue(result.success)
+        wb = openpyxl.load_workbook(self.filepath, read_only=True)
+        ws = wb.active
+        self.assertAlmostEqual(ws.cell(2, 3).value, 185.0)
+        self.assertIsNone(ws.cell(2, 4).value)  # Breite 2 not provided
+        wb.close()
 
 
 if __name__ == "__main__":

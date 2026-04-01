@@ -126,7 +126,7 @@ class LoginView(BaseView):
                 user=user.user_id,
                 details={"method": method},
             )
-        self.on_navigate("file_select")
+        self.on_navigate("product_process")
 
     def _on_login_fail(self, attempted: str, method: str) -> None:
         self.status_var.set("Anmeldung fehlgeschlagen.")
