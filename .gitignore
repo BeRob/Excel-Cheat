@@ -1,0 +1,23 @@
+# Build-Artefakte
+build/
+dist/
+
+# Python-Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Laufzeitdaten
+data/audit_log.jsonl
+data/users.kv
+data/configs/
+
+# Arbeitsdateien
+excel files/
+screenshots/
+Manual_QAInput.pdf
+
+# Planung / AI-Tools
+planung.md
+GEMINI.md
+.claude/

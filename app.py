@@ -5,11 +5,16 @@ from __future__ import annotations
 import os
 import sys
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from pathlib import Path
 
 # Sicherstellen, dass das Projektverzeichnis im Suchpfad ist
 _app_root = Path(__file__).resolve().parent
+# Verzeichnis der ausfuehrbaren Datei (fuer gebundelte Ressourcen)
+if getattr(sys, 'frozen', False):
+    _exe_dir = Path(sys.executable).resolve().parent
+else:
+    _exe_dir = _app_root
 if str(_app_root) not in sys.path:
     sys.path.insert(0, str(_app_root))
 
@@ -111,9 +116,18 @@ class MeasurementApp:
 
     def _open_manual(self) -> None:
         """Oeffnet die Bedienungsanleitung."""
-        manual_path = _app_root / "Bedienungsanleitung.html"
-        if manual_path.exists():
-            os.startfile(str(manual_path))
+        for base in (_exe_dir, _app_root):
+            for name in ("Bedienungsanleitung.html", "Manual_QAInput.pdf"):
+                path = base / name
+                if path.exists():
+                    os.startfile(str(path))
+                    return
+        messagebox.showinfo(
+            "Bedienungsanleitung",
+            "Die Bedienungsanleitung wurde nicht gefunden.\n\n"
+            "Bitte legen Sie die Datei 'Bedienungsanleitung.html' "
+            "neben die Anwendung.",
+        )
 
     def _create_views(self) -> None:
         for ViewClass, name in self.SCREENS:
