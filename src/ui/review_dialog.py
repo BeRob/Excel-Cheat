@@ -5,12 +5,15 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 from pathlib import Path
 
 from src.domain.state import AppState
 from src.domain.validation import validate_measurements, ValidationResult
 from src.ui.theme import COLORS, FONTS
+
+if TYPE_CHECKING:
+    from src.config.process_config import FieldDef
 
 
 class ReviewDialog(tk.Toplevel):
@@ -21,20 +24,22 @@ class ReviewDialog(tk.Toplevel):
         parent: tk.Widget,
         app_state: AppState,
         raw_values: dict[str, str],
-        on_confirm: Callable[[dict[str, float | None]], None],
+        on_confirm: Callable[[dict[str, float | str | None]], None],
+        field_defs: list[FieldDef] | None = None,
     ) -> None:
         super().__init__(parent)
         self.app_state = app_state
         self.raw_values = raw_values
         self.on_confirm = on_confirm
+        self.field_defs = field_defs
 
-        self.title("Prüfen und Senden")
+        self.title("Pruefen und Senden")
         self.geometry("700x600")
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
 
-        self.validation = validate_measurements(raw_values)
+        self.validation = validate_measurements(raw_values, field_defs=field_defs)
         self._build_ui()
 
         self.focus_set()
@@ -45,15 +50,22 @@ class ReviewDialog(tk.Toplevel):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
 
-        # --- Datei-Info ---
-        info_frame = ttk.LabelFrame(self, text="Datei", padding=10)
+        # --- Prozess-Info ---
+        info_frame = ttk.LabelFrame(self, text="Prozess", padding=10)
         info_frame.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="ew")
 
+        product = self.app_state.selected_product
+        process = self.app_state.selected_process
+        shift = self.app_state.current_shift
         file = self.app_state.current_file
+
+        product_name = product.display_name if product else "?"
+        process_name = process.display_name if process else "?"
         file_name = Path(file).name if file else "?"
-        sheet = self.app_state.current_sheet or "?"
+
+        ttk.Label(info_frame, text=f"Produkt: {product_name}").pack(anchor="w")
+        ttk.Label(info_frame, text=f"Prozess: {process_name}  |  Schicht {shift}").pack(anchor="w")
         ttk.Label(info_frame, text=f"Datei: {file_name}").pack(anchor="w")
-        ttk.Label(info_frame, text=f"Arbeitsblatt: {sheet}").pack(anchor="w")
 
         # --- Feste Werte ---
         ctx_frame = ttk.LabelFrame(self, text="Feste Werte", padding=10)
@@ -64,7 +76,7 @@ class ReviewDialog(tk.Toplevel):
             for header, value in pv.items():
                 ttk.Label(ctx_frame, text=f"{header}: {value}").pack(anchor="w")
         else:
-            ttk.Label(ctx_frame, text="Keine festen Werte definiert.",
+            ttk.Label(ctx_frame, text="Keine festen Werte.",
                       foreground=COLORS["text_secondary"]).pack(anchor="w")
 
         # --- Auto-Felder ---
@@ -72,13 +84,16 @@ class ReviewDialog(tk.Toplevel):
         auto_frame.grid(row=2, column=0, padx=15, pady=5, sticky="ew")
 
         user = self.app_state.current_user
-        ttk.Label(auto_frame, text=f"Zeit: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}").pack(
-            anchor="w"
-        )
-        ttk.Label(
-            auto_frame,
-            text=f"Mitarbeiter: {user.display_name if user else '?'}",
-        ).pack(anchor="w")
+        ttk.Label(auto_frame,
+                  text=f"Datum: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}").pack(anchor="w")
+        ttk.Label(auto_frame,
+                  text=f"Bearbeiter: {user.display_name if user else '?'}").pack(anchor="w")
+
+        # Row-group info
+        if process and process.row_group_size:
+            nutzen = (self.app_state.row_group_counter % process.row_group_size) + 1
+            ttk.Label(auto_frame,
+                      text=f"Nutzen: {nutzen} von {process.row_group_size}").pack(anchor="w")
 
         # --- Messwerte (scrollbar) ---
         values_frame = ttk.LabelFrame(self, text="Messwerte", padding=10)
@@ -100,24 +115,36 @@ class ReviewDialog(tk.Toplevel):
         canvas.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
-        # Messwerte anzeigen
+        # Feld-Definitionen als Lookup
+        fd_map: dict[str, FieldDef] = {}
+        if self.field_defs:
+            for fd in self.field_defs:
+                fd_map[fd.display_name] = fd
+
         scroll_frame.columnconfigure(0, weight=0)
         scroll_frame.columnconfigure(1, weight=0)
-        scroll_frame.columnconfigure(2, weight=1)
+        scroll_frame.columnconfigure(2, weight=0)
+        scroll_frame.columnconfigure(3, weight=1)
 
         error_set = {e.split(":")[0] for e in self.validation.errors}
-        warning_set = {w.split(" ")[0] for w in self.validation.warnings}
+        warning_set = set()
+        for w in self.validation.warnings:
+            # Sowohl "Feld ist leer" als auch "Feld: Wert liegt unter..."
+            if ":" in w:
+                warning_set.add(w.split(":")[0])
+            else:
+                warning_set.add(w.split(" ")[0])
 
         for i, (header, raw_val) in enumerate(self.raw_values.items()):
             norm_val = self.validation.normalized_values.get(header)
+            fd = fd_map.get(header)
 
-            # Farbe bestimmen
             if header in error_set:
                 fg = COLORS["error"]
                 status = "Fehler"
             elif header in warning_set:
                 fg = COLORS["warning"]
-                status = "Leer"
+                status = "Warnung"
             else:
                 fg = COLORS["success"]
                 status = str(norm_val) if norm_val is not None else ""
@@ -128,12 +155,25 @@ class ReviewDialog(tk.Toplevel):
             ttk.Label(scroll_frame, text=raw_val or "(leer)", foreground=fg).grid(
                 row=i, column=1, sticky="w", padx=(0, 10), pady=2
             )
+
+            # Spec-Bereich anzeigen
+            spec_text = ""
+            if fd and fd.spec_min is not None and fd.spec_max is not None:
+                spec_text = f"[{fd.spec_min}-{fd.spec_max}]"
+            ttk.Label(scroll_frame, text=spec_text,
+                      foreground=COLORS["text_secondary"]).grid(
+                row=i, column=2, sticky="w", padx=(0, 10), pady=2
+            )
+
             ttk.Label(scroll_frame, text=status, foreground=fg).grid(
-                row=i, column=2, sticky="w", pady=2
+                row=i, column=3, sticky="w", pady=2
             )
 
         # --- Zusammenfassung ---
-        summary_text = f"{len(self.validation.warnings)} Warnung(en), {len(self.validation.errors)} Fehler"
+        summary_text = (
+            f"{len(self.validation.warnings)} Warnung(en), "
+            f"{len(self.validation.errors)} Fehler"
+        )
         if self.validation.has_errors:
             summary_style = "Error.TLabel"
         elif self.validation.warnings:

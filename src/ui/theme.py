@@ -7,13 +7,13 @@ from tkinter import ttk
 
 
 COLORS = {
-    "primary": "#1C1C1C",       # Very dark grey, almost black
+    "primary": "#1B2023",       # Questalpha dark text
     "background": "#FFFFFF",    # Pure white
-    "surface": "#F8F9FA",       # Very light grey for slight contrast
-    "accent": "#0066CC",        # Medical/Professional Blue
-    "accent_hover": "#0052A3",
+    "surface": "#F0F3F5",       # Questalpha light background
+    "accent": "#0070BB",        # Questalpha brand blue
+    "accent_hover": "#005A96",
     "accent_light": "#E3F2FD",
-    "text_primary": "#1C1C1C",
+    "text_primary": "#1B2023",
     "text_secondary": "#555555",
     "text_on_primary": "#FFFFFF",
     "success": "#2E7D32",

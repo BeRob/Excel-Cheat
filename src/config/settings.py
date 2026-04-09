@@ -20,9 +20,10 @@ WINDOW_HEIGHT = 650
 USERS_KV_PATH = APP_ROOT / "data" / "users.kv"
 AUDIT_LOG_PATH = APP_ROOT / "data" / "audit_log.jsonl"
 
-HEADER_ROW = 1
+INFO_HEADER_ROWS = 5   # Rows 1-5: product/process/FA info block
+HEADER_ROW = 6          # Row 6: column headers (after info block)
+AUTO_COLUMNS = ["Datum", "Bearbeiter"]
 
-CONTEXT_COLUMNS = ["Charge_#", "FA_#", "Rolle_#"]
-DEFAULT_PERSISTENT_COLUMNS = ["Charge_#", "FA_#", "Rolle_#"]
-AUTO_COLUMNS = ["Zeit", "Mitarbeiter"]
-CONFIG_DIR = APP_ROOT / "data" / "configs"
+APP_CONFIG_PATH = APP_ROOT / "data" / "app_config.json"
+PRODUCTS_DIR = APP_ROOT / "data" / "products"
+OUTPUT_DIR = APP_ROOT / "output"

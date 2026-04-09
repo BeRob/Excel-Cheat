@@ -8,11 +8,18 @@ from pathlib import Path
 from collections import deque
 from datetime import datetime
 
-from src.domain.validation import validate_measurements
+from src.config.process_config import (
+    get_measurement_fields,
+    get_per_measurement_context_fields,
+    get_persistent_context_fields,
+    get_auto_fields,
+    FieldDef,
+)
+from src.domain.validation import validate_measurements, parse_numeric
 from src.excel.writer import write_measurement_row
 from src.ui.base_view import BaseView
 from src.ui.review_dialog import ReviewDialog
-from src.ui.theme import COLORS
+from src.ui.theme import COLORS, FONTS
 
 
 class FormView(BaseView):
@@ -21,14 +28,17 @@ class FormView(BaseView):
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
         self.field_vars: dict[str, tk.StringVar] = {}
-        self._last_headers: list[str] = []
-        self._history: deque = deque(maxlen=10)  # Speichert die letzten 10 Messungen
+        self.persistent_vars: dict[str, tk.StringVar] = {}
+        self._field_defs: list[FieldDef] = []
+        self._persistent_field_defs: list[FieldDef] = []
+        self._last_fields_key: str = ""
+        self._history: deque = deque(maxlen=10)
         self._build_ui()
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
-        self.rowconfigure(5, weight=0)  # History-Bereich
+        self.rowconfigure(5, weight=0)
 
         # --- Obere Leiste ---
         top_bar = ttk.Frame(self)
@@ -40,25 +50,25 @@ class FormView(BaseView):
 
         btn_frame = ttk.Frame(top_bar)
         btn_frame.grid(row=0, column=1)
-        
-        # Layout Toggle
-        self.layout_btn = ttk.Button(btn_frame, text="Layout: Vertikal", command=self._toggle_layout)
+
+        self.layout_btn = ttk.Button(btn_frame, text="Layout: Vertikal",
+                                     command=self._toggle_layout)
         self.layout_btn.pack(side="left", padx=(5, 0))
 
-        ttk.Button(btn_frame, text="Kontext ändern", command=self._change_context).pack(
-            side="left", padx=(5, 0)
-        )
-        ttk.Button(btn_frame, text="Datei wechseln", command=self._change_file).pack(
-            side="left", padx=(5, 0)
-        )
-        ttk.Button(btn_frame, text="Abmelden", command=self._logout).pack(
-            side="left", padx=(5, 0)
-        )
+        ttk.Button(btn_frame, text="Kontext aendern",
+                   command=self._change_context).pack(side="left", padx=(5, 0))
+        ttk.Button(btn_frame, text="Prozess wechseln",
+                   command=self._change_process).pack(side="left", padx=(5, 0))
+        ttk.Button(btn_frame, text="Abmelden",
+                   command=self._logout).pack(side="left", padx=(5, 0))
 
-        # --- Titel ---
-        ttk.Label(self, text="Messwerte erfassen", style="Subtitle.TLabel").grid(
-            row=1, column=0, pady=(5, 5)
-        )
+        # --- Titel + Row-Group Anzeige ---
+        title_frame = ttk.Frame(self)
+        title_frame.grid(row=1, column=0, pady=(5, 5))
+        ttk.Label(title_frame, text="Messwerte erfassen",
+                  style="Subtitle.TLabel").pack(side="left")
+        self.group_label = ttk.Label(title_frame, text="", foreground=COLORS["accent"])
+        self.group_label.pack(side="left", padx=(15, 0))
 
         # --- Scrollbarer Bereich ---
         scroll_container = ttk.Frame(self)
@@ -75,51 +85,42 @@ class FormView(BaseView):
         self.scrollable_frame = ttk.Frame(self.canvas)
 
         self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
+            "<Configure>", lambda e: self._update_scroll_region(),
         )
         self.canvas_window = self.canvas.create_window(
             (0, 0), window=self.scrollable_frame, anchor="nw"
         )
-
-        # Canvas-Breite an Container anpassen
         self.canvas.bind(
             "<Configure>",
             lambda e: self.canvas.itemconfig(self.canvas_window, width=e.width),
         )
-
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
         self.canvas.grid(row=0, column=0, sticky="nsew")
         self.scrollbar.grid(row=0, column=1, sticky="ns")
 
-        # Mausrad-Scrolling
         self.canvas.bind("<Enter>", self._bind_mousewheel)
         self.canvas.bind("<Leave>", self._unbind_mousewheel)
 
         # --- Status-Zeile ---
         self.status_var = tk.StringVar()
-        self.status_label = ttk.Label(self, textvariable=self.status_var, style="Success.TLabel")
+        self.status_label = ttk.Label(self, textvariable=self.status_var,
+                                      style="Success.TLabel")
         self.status_label.grid(row=3, column=0, pady=5)
 
         # --- Untere Leiste ---
         bottom_bar = ttk.Frame(self)
         bottom_bar.grid(row=4, column=0, pady=(5, 10))
 
-        ttk.Button(bottom_bar, text="Felder leeren", command=self._clear_fields).pack(
-            side="left", padx=10
-        )
-        ttk.Button(
-            bottom_bar, text="Speichern", command=self._save,
-            style="Accent.TButton",
-        ).pack(side="left", padx=10)
+        ttk.Button(bottom_bar, text="Felder leeren",
+                   command=self._clear_fields).pack(side="left", padx=10)
+        ttk.Button(bottom_bar, text="Speichern", command=self._save,
+                   style="Accent.TButton").pack(side="left", padx=10)
 
         # --- History-Bereich ---
         history_frame = ttk.LabelFrame(self, text="Letzte 10 Messungen", padding=10)
         history_frame.grid(row=5, column=0, sticky="ew", padx=40, pady=(5, 15))
         history_frame.columnconfigure(0, weight=1)
 
-        # Treeview für History
         tree_container = ttk.Frame(history_frame)
         tree_container.pack(fill="both", expand=True)
         tree_container.columnconfigure(0, weight=1)
@@ -134,7 +135,6 @@ class FormView(BaseView):
         self.history_tree.heading("zeit", text="Zeit")
         self.history_tree.heading("kontext", text="Kontext")
         self.history_tree.heading("werte", text="Messwerte")
-
         self.history_tree.column("zeit", width=150, minwidth=100)
         self.history_tree.column("kontext", width=200, minwidth=150)
         self.history_tree.column("werte", width=300, minwidth=200)
@@ -143,9 +143,16 @@ class FormView(BaseView):
             tree_container, orient="vertical", command=self.history_tree.yview
         )
         self.history_tree.configure(yscrollcommand=history_scrollbar.set)
-
         self.history_tree.grid(row=0, column=0, sticky="nsew")
         history_scrollbar.grid(row=0, column=1, sticky="ns")
+
+    def _update_scroll_region(self) -> None:
+        """Aktualisiert Scrollregion und blendet Scrollbar bei Bedarf ein/aus."""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        if self.scrollable_frame.winfo_reqheight() <= self.canvas.winfo_height():
+            self.scrollbar.grid_remove()
+        else:
+            self.scrollbar.grid()
 
     def _bind_mousewheel(self, event) -> None:
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
@@ -154,137 +161,294 @@ class FormView(BaseView):
         self.canvas.unbind_all("<MouseWheel>")
 
     def _on_mousewheel(self, event) -> None:
+        # Nur scrollen wenn Inhalt groesser als sichtbarer Bereich
+        if self.scrollable_frame.winfo_reqheight() <= self.canvas.winfo_height():
+            return
         self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def on_show(self) -> None:
-        # Info-Leiste aktualisieren
+        process = self.app_state.selected_process
+        product = self.app_state.selected_product
         user = self.app_state.current_user
-        file = self.app_state.current_file
+        shift = self.app_state.current_shift
 
         user_name = user.display_name if user else "?"
-        file_name = Path(file).name if file else "?"
-        sheet = self.app_state.current_sheet or "?"
+        product_name = product.display_name if product else "?"
+        process_name = process.display_name if process else "?"
+        file_name = Path(self.app_state.current_file).name if self.app_state.current_file else "?"
 
         pv = self.app_state.persistent_values
-        if pv:
-            ctx_text = " | ".join(f"{k}: {v}" for k, v in pv.items())
-        else:
-            ctx_text = "Keine"
+        ctx_text = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else ""
 
-        self.info_label.config(
-            text=f"Benutzer: {user_name}  |  Datei: {file_name} / {sheet}  |  Kontext: {ctx_text}"
-        )
+        info_parts = [user_name, process_name, f"Schicht {shift}", file_name]
+        if ctx_text:
+            info_parts.append(ctx_text)
+        self.info_label.config(text="  |  ".join(info_parts))
 
-        # Layout Button Text aktualisieren
         mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
         self.layout_btn.config(text=f"Layout: {mode_text}")
 
-        # Felder neu generieren wenn sich Header oder Layout geaendert haben
-        current_headers = self.app_state.measurement_headers
-        if current_headers != self._last_headers or not hasattr(self, "_last_layout") or self._last_layout != self.app_state.layout_mode:
-            self._generate_fields(current_headers)
-            self._last_headers = list(current_headers)
-            self._last_layout = self.app_state.layout_mode
+        # Row-Group Anzeige
+        self._update_group_label()
+
+        # Felder generieren
+        fields_key = f"{process_name}_{self.app_state.layout_mode}"
+        if fields_key != self._last_fields_key:
+            self._generate_fields()
+            self._last_fields_key = fields_key
 
         self.status_var.set("")
 
+    def _update_group_label(self) -> None:
+        process = self.app_state.selected_process
+        if process and process.row_group_size:
+            current = (self.app_state.row_group_counter % process.row_group_size) + 1
+            self.group_label.config(
+                text=f"Nutzen: {current} von {process.row_group_size}"
+            )
+        else:
+            self.group_label.config(text="")
+
     def _toggle_layout(self) -> None:
-        """Wechselt zwischen horizontalem und vertikalem Layout."""
         if self.app_state.layout_mode == "vertical":
             self.app_state.layout_mode = "horizontal"
         else:
             self.app_state.layout_mode = "vertical"
-        
+
         mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
         self.layout_btn.config(text=f"Layout: {mode_text}")
-        self._generate_fields(self.app_state.measurement_headers)
-        self._last_layout = self.app_state.layout_mode
+        self._generate_fields()
+        self._last_fields_key = f"{self.app_state.selected_process.display_name}_{self.app_state.layout_mode}"
 
-    def _generate_fields(self, headers: list[str]) -> None:
-        """Erzeugt Eingabefelder dynamisch aus den Header-Namen."""
-        # Alte Felder entfernen
+    def _generate_fields(self) -> None:
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
         self.field_vars.clear()
+        self.persistent_vars.clear()
+        self._field_defs.clear()
+        self._persistent_field_defs.clear()
+
+        process = self.app_state.selected_process
+        if not process:
+            return
+
+        # Persistente Kontext-Felder (eigener Block)
+        persistent_fields = get_persistent_context_fields(process)
+        self._persistent_field_defs = persistent_fields
+
+        # Per-measurement Kontext-Felder + Messwert-Felder (Hauptblock)
+        per_meas_ctx = get_per_measurement_context_fields(process)
+        measurement = get_measurement_fields(process)
+        all_fields = per_meas_ctx + measurement
+        self._field_defs = all_fields
+
+        # --- Block: Feste Werte ---
+        first_widget = None
+        if persistent_fields:
+            ctx_frame = ttk.LabelFrame(
+                self.scrollable_frame, text="Feste Werte", padding=10,
+            )
+            ctx_frame.pack(fill="x", padx=5, pady=(5, 10))
+            ctx_frame.columnconfigure(1, weight=1)
+
+            for i, fd in enumerate(persistent_fields):
+                ttk.Label(ctx_frame, text=f"{fd.display_name}:").grid(
+                    row=i, column=0, sticky="w", pady=3, padx=(5, 10),
+                )
+                var = tk.StringVar()
+                if fd.display_name in self.app_state.persistent_values:
+                    var.set(self.app_state.persistent_values[fd.display_name])
+
+                if fd.type == "choice" and fd.options:
+                    widget = ttk.Combobox(
+                        ctx_frame, textvariable=var, values=fd.options,
+                        state="readonly", width=23,
+                    )
+                else:
+                    widget = ttk.Entry(ctx_frame, textvariable=var, width=25)
+
+                widget.grid(row=i, column=1, sticky="w", pady=3)
+                self.persistent_vars[fd.display_name] = var
+                if i == 0:
+                    first_widget = widget
+
+        # --- Block: Messwerte ---
+        meas_frame = ttk.LabelFrame(
+            self.scrollable_frame, text="Messwerte", padding=10,
+        )
+        meas_frame.pack(fill="x", padx=5, pady=(0, 5))
 
         if self.app_state.layout_mode == "vertical":
-            self._generate_vertical_fields(headers)
+            first_meas = self._generate_vertical_fields(all_fields, meas_frame)
         else:
-            self._generate_horizontal_fields(headers)
+            first_meas = self._generate_horizontal_fields(all_fields, meas_frame)
 
-    def _generate_vertical_fields(self, headers: list[str]) -> None:
-        self.scrollable_frame.columnconfigure(0, weight=0)
-        self.scrollable_frame.columnconfigure(1, weight=1)
+        if first_widget is None:
+            first_widget = first_meas
+        if first_widget:
+            first_widget.focus_set()
 
-        first_entry = None
-        for i, header in enumerate(headers):
-            ttk.Label(self.scrollable_frame, text=f"{header}:").grid(
-                row=i, column=0, sticky="w", pady=5, padx=(10, 15)
+        self.canvas.yview_moveto(0)
+
+    def _generate_vertical_fields(
+        self, fields: list[FieldDef], parent: tk.Widget,
+    ) -> tk.Widget | None:
+        parent.columnconfigure(0, weight=0)
+        parent.columnconfigure(1, weight=1)
+        parent.columnconfigure(2, weight=0)
+
+        first_widget = None
+        for i, fd in enumerate(fields):
+            label_text = f"{fd.display_name}:"
+            ttk.Label(parent, text=label_text).grid(
+                row=i, column=0, sticky="w", pady=5, padx=(5, 15),
             )
+
             var = tk.StringVar()
-            entry = ttk.Entry(self.scrollable_frame, textvariable=var, width=25)
-            entry.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
-            self.field_vars[header] = var
+            if fd.role == "context" and fd.display_name in self.app_state.persistent_values:
+                var.set(self.app_state.persistent_values[fd.display_name])
+
+            widget = self._create_field_widget(parent, fd, var)
+            widget.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
+
+            if fd.spec_min is not None and fd.spec_max is not None:
+                spec_text = f"[{fd.spec_min} - {fd.spec_max}]"
+                ttk.Label(
+                    parent, text=spec_text,
+                    foreground=COLORS["text_secondary"],
+                    font=("Segoe UI", 8),
+                ).grid(row=i, column=2, sticky="w", pady=5, padx=(5, 0))
+
+            self.field_vars[fd.display_name] = var
             if i == 0:
-                first_entry = entry
+                first_widget = widget
 
-        if first_entry:
-            first_entry.focus_set()
+        return first_widget
 
-    def _generate_horizontal_fields(self, headers: list[str]) -> None:
-        # Horizontaler Modus: Kacheln (Label oben, Feld unten)
-        # Wir versuchen ca. 4 Spalten nebeneinander
+    def _generate_horizontal_fields(
+        self, fields: list[FieldDef], parent: tk.Widget,
+    ) -> tk.Widget | None:
         MAX_COLS = 4
         for i in range(MAX_COLS):
-            self.scrollable_frame.columnconfigure(i, weight=1)
+            parent.columnconfigure(i, weight=1)
 
-        first_entry = None
-        for i, header in enumerate(headers):
+        first_widget = None
+        for i, fd in enumerate(fields):
             row = i // MAX_COLS
             col = i % MAX_COLS
-            
-            # Container fuer Label + Feld
-            cell = ttk.Frame(self.scrollable_frame, padding=5)
+
+            cell = ttk.Frame(parent, padding=5)
             cell.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
             cell.columnconfigure(0, weight=1)
-            
-            ttk.Label(cell, text=f"{header}:", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
-            
-            var = tk.StringVar()
-            entry = ttk.Entry(cell, textvariable=var)
-            entry.grid(row=1, column=0, sticky="ew", pady=(2, 0))
-            
-            self.field_vars[header] = var
-            if i == 0:
-                first_entry = entry
 
-        if first_entry:
-            first_entry.focus_set()
+            label_text = fd.display_name
+            if fd.spec_min is not None and fd.spec_max is not None:
+                label_text += f" [{fd.spec_min}-{fd.spec_max}]"
+            ttk.Label(cell, text=f"{label_text}:",
+                      font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
+
+            var = tk.StringVar()
+            if fd.role == "context" and fd.display_name in self.app_state.persistent_values:
+                var.set(self.app_state.persistent_values[fd.display_name])
+
+            widget = self._create_field_widget(cell, fd, var)
+            widget.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+
+            self.field_vars[fd.display_name] = var
+            if i == 0:
+                first_widget = widget
+
+        return first_widget
+
+    def _create_field_widget(
+        self, parent: tk.Widget, fd: FieldDef, var: tk.StringVar
+    ) -> tk.Widget:
+        """Erstellt das passende Widget basierend auf dem Feldtyp."""
+        if fd.type == "choice" and fd.options:
+            widget = ttk.Combobox(
+                parent, textvariable=var, values=fd.options,
+                state="readonly", width=23,
+            )
+            # Enter navigiert zum naechsten Feld (Up/Down fuer Combobox-Auswahl)
+            widget.bind("<Return>", self._focus_next)
+        else:
+            widget = ttk.Entry(parent, textvariable=var, width=25)
+            widget.bind("<Return>", self._focus_next)
+            widget.bind("<Down>", self._focus_next)
+            widget.bind("<Up>", self._focus_prev)
+            # Spec-Feedback bei Zahlenfeldern
+            if fd.type == "number" and fd.spec_min is not None:
+                widget.bind("<FocusOut>", lambda e, w=widget, f=fd, v=var:
+                            self._on_spec_check(w, f, v))
+
+        return widget
+
+    def _focus_next(self, event) -> str:
+        """Fokus zum naechsten Widget in Tab-Reihenfolge."""
+        event.widget.tk_focusNext().focus_set()
+        return "break"
+
+    def _focus_prev(self, event) -> str:
+        """Fokus zum vorherigen Widget in Tab-Reihenfolge."""
+        event.widget.tk_focusPrev().focus_set()
+        return "break"
+
+    def _on_spec_check(self, widget: ttk.Entry, fd: FieldDef, var: tk.StringVar) -> None:
+        """Prueft Spec-Limits und faerbt das Feld entsprechend."""
+        value = var.get().strip()
+        if not value:
+            widget.configure(style="TEntry")
+            return
+
+        try:
+            parsed = parse_numeric(value)
+            if fd.spec_min is not None and fd.spec_max is not None:
+                if fd.spec_min <= parsed <= fd.spec_max:
+                    widget.configure(foreground=COLORS["success"])
+                else:
+                    widget.configure(foreground=COLORS["error"])
+            else:
+                widget.configure(foreground="")
+        except (ValueError, OverflowError):
+            widget.configure(foreground=COLORS["error"])
 
     def _clear_fields(self) -> None:
-        for var in self.field_vars.values():
+        process = self.app_state.selected_process
+        for name, var in self.field_vars.items():
+            # Per-measurement Kontext nicht leeren
+            fd = next((f for f in self._field_defs if f.display_name == name), None)
+            if fd and fd.role == "context":
+                continue
             var.set("")
         self.status_var.set("")
-        # Fokus auf erstes Feld
         children = self.scrollable_frame.winfo_children()
         for child in children:
-            if isinstance(child, ttk.Entry):
+            if isinstance(child, (ttk.Entry, ttk.Combobox)):
                 child.focus_set()
                 break
 
     def _save(self) -> None:
         """Oeffnet den Review-Dialog vor dem Schreiben."""
+        # Persistente Werte aktualisieren
+        for header, var in self.persistent_vars.items():
+            self.app_state.persistent_values[header] = var.get().strip()
+
         raw_values = {header: var.get() for header, var in self.field_vars.items()}
 
         ReviewDialog(
             parent=self,
             app_state=self.app_state,
             raw_values=raw_values,
+            field_defs=self._field_defs,
             on_confirm=self._do_write,
         )
 
-    def _do_write(self, normalized_values: dict[str, float | None]) -> None:
+    def _do_write(self, normalized_values: dict[str, float | str | None]) -> None:
         """Schreibt die Messwerte in die Excel-Datei."""
+        process = self.app_state.selected_process
+        if not process:
+            return
+
         if self.app_state.audit:
             self.app_state.audit.log(
                 "write_attempt",
@@ -294,30 +458,49 @@ class FormView(BaseView):
                 details={"measurement_count": len(normalized_values)},
             )
 
+        # Werte aufteilen nach Rolle
+        context_values: dict[str, str] = {}
+        measurement_values: dict[str, float | str | None] = {}
+
+        for fd in self._field_defs:
+            val = normalized_values.get(fd.display_name)
+            if fd.role == "context":
+                context_values[fd.display_name] = str(val) if val is not None else ""
+            else:
+                measurement_values[fd.display_name] = val
+
+        # Persistente Kontext-Werte hinzufuegen
+        context_values.update(self.app_state.persistent_values)
+
+        # Auto-Werte berechnen
+        auto_values: dict[str, str | float | None] = {}
+        now = datetime.now()
+        for fd in get_auto_fields(process):
+            if fd.id == "datum":
+                auto_values[fd.display_name] = now.strftime("%Y-%m-%d %H:%M:%S")
+            elif fd.id == "bearbeiter":
+                user = self.app_state.current_user
+                auto_values[fd.display_name] = user.display_name if user else ""
+            elif fd.id == "nutzen" and process.row_group_size:
+                nutzen = (self.app_state.row_group_counter % process.row_group_size) + 1
+                auto_values[fd.display_name] = nutzen
+            elif fd.id == "pruefmuster":
+                self.app_state.auto_sequence += 1
+                auto_values[fd.display_name] = self.app_state.auto_sequence
+
         result = write_measurement_row(
             filepath=self.app_state.current_file,
-            sheet_name=self.app_state.current_sheet,
-            header_column_map=dict(self.app_state.header_column_map),
-            persistent_values=self.app_state.persistent_values,
-            user=self.app_state.current_user,
-            measurements=normalized_values,
+            process=process,
+            context_values=context_values,
+            measurements=measurement_values,
+            auto_values=auto_values,
         )
 
         if result.success:
-            # header_column_map aktualisieren falls neue Spalten erstellt
-            if result.columns_created:
-                from src.excel.reader import read_excel_headers
-                from src.config.settings import HEADER_ROW
-                updated = read_excel_headers(
-                    self.app_state.current_file,
-                    sheet_name=self.app_state.current_sheet,
-                    header_row=HEADER_ROW,
-                )
-                if not updated.errors:
-                    self.app_state.header_column_map = updated.header_column_map
-                    self.app_state.current_headers = updated.headers
+            # Zaehler aktualisieren
+            self.app_state.row_group_counter += 1
+            self._update_group_label()
 
-            # Zur History hinzufuegen
             self._add_to_history(normalized_values)
 
             self.status_var.set(f"Zeile {result.row_number} erfolgreich geschrieben.")
@@ -330,15 +513,16 @@ class FormView(BaseView):
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
-                    details={
-                        "row": result.row_number,
-                        "columns_created": result.columns_created,
-                    },
+                    details={"row": result.row_number},
                 )
         else:
             messagebox.showerror("Fehler beim Schreiben", result.error)
             self.status_var.set(f"Fehler: {result.error}")
             self.status_label.config(style="Error.TLabel")
+
+            # Auto-Sequence zuruecksetzen wenn fehlgeschlagen
+            if "pruefmuster" in [f.id for f in get_auto_fields(process)]:
+                self.app_state.auto_sequence -= 1
 
             if self.app_state.audit:
                 self.app_state.audit.log(
@@ -349,53 +533,38 @@ class FormView(BaseView):
                     details={"error": result.error},
                 )
 
-    def _add_to_history(self, measurements: dict[str, float | None]) -> None:
-        """Fuegt eine Messung zur History hinzu und aktualisiert die Anzeige."""
+    def _add_to_history(self, measurements: dict[str, float | str | None]) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
 
-        # Kontext formatieren
         pv = self.app_state.persistent_values
-        if pv:
-            kontext = " | ".join(f"{k}: {v}" for k, v in pv.items())
-        else:
-            kontext = "-"
+        kontext = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else "-"
 
-        # Messwerte formatieren (nur nicht-None Werte)
         werte_list = []
         for header, value in measurements.items():
             if value is not None:
                 werte_list.append(f"{header}: {value}")
         werte = ", ".join(werte_list) if werte_list else "-"
 
-        # Zur History hinzufuegen
         self._history.append((timestamp, kontext, werte))
-
-        # Treeview aktualisieren
         self._update_history_display()
 
     def _update_history_display(self) -> None:
-        """Aktualisiert die History-Anzeige im Treeview."""
-        # Alte Eintraege loeschen
         for item in self.history_tree.get_children():
             self.history_tree.delete(item)
-
-        # Neue Eintraege hinzufuegen (neueste zuerst)
         for zeit, kontext, werte in reversed(self._history):
             self.history_tree.insert("", "end", values=(zeit, kontext, werte))
 
     def _change_context(self) -> None:
         self.on_navigate("context")
 
-    def _change_file(self) -> None:
-        self.app_state.reset_file()
-        # History leeren bei Dateiwechsel
+    def _change_process(self) -> None:
+        self.app_state.reset_process()
         self._history.clear()
         self._update_history_display()
-        self.on_navigate("file_select")
+        self.on_navigate("product_process")
 
     def _logout(self) -> None:
         self.app_state.reset_user()
-        # History leeren bei Logout
         self._history.clear()
         self._update_history_display()
         self.on_navigate("login")

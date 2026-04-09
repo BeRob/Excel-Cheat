@@ -56,7 +56,8 @@ class LoginView(BaseView):
         )
         self.pw_login_btn.grid(row=4, column=0)
 
-        # Enter-Taste fuer Passwort-Login
+        # Enter-Taste: Username -> Passwort-Feld, Passwort -> Login
+        self.username_entry.bind("<Return>", lambda e: self.password_entry.focus_set())
         self.password_entry.bind("<Return>", lambda e: self._login_password())
 
         # --- Tab 2: QR-Code ---
@@ -79,6 +80,9 @@ class LoginView(BaseView):
         # Enter-Taste fuer QR-Login (Scanner sendet Enter)
         self.qr_entry.bind("<Return>", lambda e: self._login_qr())
 
+        # Tab-Wechsel: Fokus setzen
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
         # --- Status-Meldung ---
         self.status_var = tk.StringVar()
         self.status_label = ttk.Label(
@@ -91,7 +95,18 @@ class LoginView(BaseView):
         self.password_var.set("")
         self.qr_var.set("")
         self.status_var.set("")
-        self.username_entry.focus_set()
+        # Passwort-Tab als Standard
+        self.notebook.select(0)
+        # Fokus mit Verzoegerung (sicherstellen, dass Widget sichtbar ist)
+        self.after(100, lambda: self.username_entry.focus_force())
+
+    def _on_tab_changed(self, event=None) -> None:
+        """Setzt den Fokus passend zum aktiven Tab."""
+        tab_id = self.notebook.index(self.notebook.select())
+        if tab_id == 0:
+            self.after(50, lambda: self.username_entry.focus_force())
+        else:
+            self.after(50, lambda: self.qr_entry.focus_force())
 
     def _login_password(self) -> None:
         username = self.username_var.get().strip()
@@ -126,7 +141,7 @@ class LoginView(BaseView):
                 user=user.user_id,
                 details={"method": method},
             )
-        self.on_navigate("file_select")
+        self.on_navigate("product_process")
 
     def _on_login_fail(self, attempted: str, method: str) -> None:
         self.status_var.set("Anmeldung fehlgeschlagen.")
