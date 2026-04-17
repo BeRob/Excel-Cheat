@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QAInput - Bedienungsanleitung</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 40px;
+            color: #1B2023;
+            background: #FFFFFF;
+            line-height: 1.6;
+        }
+        h1 { color: #0070BB; border-bottom: 2px solid #0070BB; padding-bottom: 8px; }
+        h2 { color: #1B2023; border-bottom: 1px solid #E0E0E0; padding-bottom: 6px; margin-top: 2em; }
+        h3 { color: #333; margin-top: 1.5em; }
+        code {
+            background: #E8ECF0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.95em;
+        }
+        pre {
+            background: #E8ECF0;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #E0E0E0;
+        }
+        pre code { background: none; padding: 0; }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+        th, td {
+            border: 1px solid #E0E0E0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th { background: #E8ECF0; font-weight: 600; }
+        tr:nth-child(even) { background: #F8F9FA; }
+        hr { border: none; border-top: 1px solid #E0E0E0; margin: 2em 0; }
+        strong { color: #1B2023; }
+        a { color: #0070BB; }
+        ul, ol { padding-left: 1.5em; }
+        li { margin-bottom: 0.3em; }
+    </style>
+</head>
+<body>
+<h1 id="qainput-dokumentation">QAInput -- Dokumentation</h1>
+<h2 id="was-macht-diese-anwendung">Was macht diese Anwendung?</h2>
+<p>QAInput ist eine Desktop-Anwendung zur Erfassung von Messwerten in der Qualitätssicherung. Mitarbeiter melden sich an, wählen ein Produkt und einen Prozess aus, und geben dann Messwerte ein. Die Anwendung speichert alles in Excel-Dateien, die automatisch erstellt und benannt werden.</p>
+<p>Die Grundidee: Statt manuell Excel-Vorlagen zu öffnen und Spalten zuzuordnen, wird alles über JSON-Konfigurationsdateien gesteuert. Ein neues Produkt hinzufügen bedeutet einfach: eine neue JSON-Datei in den <code>data/products/</code>-Ordner legen -- oder direkt im integrierten Admin-Editor anlegen. Kein Code ändern.</p>
+<hr />
+<h2 id="projektstruktur">Projektstruktur</h2>
+<pre class="codehilite"><code>QAInput/
+|-- app.py                          Einstiegspunkt der Anwendung
+|-- QUESTALPHA_StaticLogo_pos_rgb.png  Logo für die Kopfleiste
+|-- build_exe.spec                  PyInstaller Build-Konfiguration
+|-- data/
+|   |-- app_config.json             Globale Einstellungen (Schichten, Ausgabeverzeichnis)
+|   |-- products/
+|   |   |-- REF31962.json           Produktkonfiguration mit allen Prozessen
+|   |   |-- (weitere Produkte...)
+|   |-- users.kv                    Benutzerliste (Passwort, QR-Code, Name)
+|-- src/
+|   |-- audit/
+|   |   |-- audit_logger.py         Audit-Trail (wer hat wann was gemacht)
+|   |-- auth/
+|   |   |-- login.py                Authentifizierung (Passwort + QR)
+|   |   |-- users_kv.py             Parser für die Benutzerdatei
+|   |-- config/
+|   |   |-- settings.py             Feste Anwendungskonstanten (Pfade, Fenstergröße)
+|   |   |-- process_config.py       Konfigurationssystem (JSON lesen, Datenklassen, Hilfsfunktionen)
+|   |   |-- config_writer.py        Konfiguration schreiben (Datenklassen -&gt; JSON, Validierung)
+|   |-- domain/
+|   |   |-- state.py                Zentraler Zustand der Anwendung (wer ist eingeloggt, was ist ausgewählt)
+|   |   |-- validation.py           Validierung von Eingaben (Zahlenformate, Spec-Limits, Feldtypen)
+|   |-- excel/
+|   |   |-- creator.py              Excel-Dateien erstellen (Info-Header, Kopfzeile, Dateiname, Resume)
+|   |   |-- reader.py               Excel-Dateien lesen (für die Analyse-Ansicht)
+|   |   |-- writer.py               Messwert-Zeilen in Excel schreiben
+|   |-- ui/
+|       |-- base_view.py            Basisklasse für alle Bildschirme
+|       |-- theme.py                Farben, Schriften, Styles (Questalpha-Design)
+|       |-- login_view.py           Anmeldebildschirm
+|       |-- product_process_view.py Produkt- und Prozessauswahl (inkl. Admin-Tabs)
+|       |-- context_view.py         Feste Werte setzen (z.B. FA-Nr., LOT Nr.)
+|       |-- form_view.py            Messwerterfassung (Hauptbildschirm)
+|       |-- review_dialog.py        Prüfung vor dem Speichern
+|       |-- analysis_view.py        Datenauswertung (nur für Admins)
+|       |-- config_editor_view.py   Produktkonfigurations-Editor (nur für Admins)
+|-- tests/
+    |-- test_process_config.py      Tests für das Konfigurationssystem
+    |-- test_config_writer.py       Tests für Serialisierung und Validierung
+    |-- test_creator.py             Tests für die Excel-Erstellung
+    |-- test_writer.py              Tests für den Excel-Writer
+    |-- test_validation.py          Tests für die Eingabevalidierung
+    |-- test_kv_parser.py           Tests für den Benutzer-Parser
+</code></pre>
+
+<hr />
+<h2 id="ablauf-in-der-anwendung">Ablauf in der Anwendung</h2>
+<pre class="codehilite"><code>Anmeldung --&gt; Produkt/Prozess wählen --&gt; Feste Werte setzen --&gt; Messwerte erfassen
+                                                                      |
+                                                                      v
+                                                               Prüfen + Senden
+                                                                      |
+                                                                      v
+                                                            In Excel geschrieben
+</code></pre>
+
+<ol>
+<li><strong>Anmeldung</strong> -- Mitarbeiter meldet sich mit Passwort oder QR-Handscanner an.</li>
+<li><strong>Produkt/Prozess wählen</strong> -- Produkt aus Dropdown wählen, dann den Prozess. Die App zeigt an, welche Felder erwartet werden und welche Spec-Limits gelten. Die Schicht wird automatisch anhand der Uhrzeit bestimmt.</li>
+<li><strong>Feste Werte setzen</strong> -- Werte wie FA-Nr. und LOT-Nr., die sich nicht bei jeder Messung ändern, werden hier einmal eingetragen und für alle folgenden Messungen beibehalten. Diese Werte werden auch in den Info-Header der Excel-Datei geschrieben.</li>
+<li><strong>Messwerte erfassen</strong> -- Der Hauptbildschirm. Hier gibt der Mitarbeiter die aktuellen Messwerte ein. Oben stehen die festen Werte in einem eigenen Block (editierbar, falls sich z.B. die LOT-Nr. ändert). Darunter die Messwert-Felder. Zahlenfelder prüfen sofort, ob der Wert innerhalb der Spec-Limits liegt (grün/rot). Optionale Felder wie "Bemerkungen" können leer bleiben.</li>
+<li><strong>Prüfen und Senden</strong> -- Vor dem Schreiben öffnet sich ein Dialog, der alle Werte noch einmal zusammenfasst. Fehler (z.B. ungültige Zahlen) blockieren das Senden. Warnungen (z.B. Wert außerhalb Spec) werden angezeigt, aber das Senden ist trotzdem möglich.</li>
+</ol>
+<h3 id="tastaturnavigation">Tastaturnavigation</h3>
+<p>Im Messwert-Bildschirm kann mit Tastatur navigiert werden:
+- <strong>Enter</strong> oder <strong>Pfeil runter</strong> -- Springt zum nächsten Eingabefeld
+- <strong>Pfeil hoch</strong> -- Springt zum vorherigen Eingabefeld
+- <strong>Tab</strong> -- Standard-Tab-Navigation</p>
+<hr />
+<h2 id="admin-funktionen">Admin-Funktionen</h2>
+<p>Admin-Benutzer (gekennzeichnet durch <code>admin=true</code> in <code>users.kv</code>) bekommen in der Produkt/Prozess-Ansicht drei Tabs statt einem:</p>
+<ol>
+<li><strong>Produkt/Prozess</strong> -- Die normale Auswahl-Ansicht (für alle Benutzer)</li>
+<li><strong>Datenauswertung</strong> -- Excel-Dateien öffnen und als Tabelle anzeigen</li>
+<li><strong>Produktkonfiguration</strong> -- Neues Feature: Produkt-JSON-Dateien direkt in der App erstellen und bearbeiten</li>
+</ol>
+<h3 id="produktkonfigurations-editor">Produktkonfigurations-Editor</h3>
+<p>Der Editor erlaubt Admins, Produkte ohne manuelles JSON-Editieren zu verwalten:</p>
+<ul>
+<li><strong>Produkt laden/neu/kopieren</strong> -- Bestehende Produkte aus der Dropdown-Liste laden, neue anlegen, oder ein bestehendes als Vorlage kopieren</li>
+<li><strong>Prozesse verwalten</strong> -- Prozesse hinzufügen, entfernen und umsortieren. Jeder Prozess hat eine Template-ID, einen Anzeigenamen und eine optionale Zeilengruppe</li>
+<li><strong>Felder bearbeiten</strong> -- Per Doppelklick oder "Bearbeiten"-Button öffnet sich ein Dialog mit allen Feldeigenschaften:</li>
+<li>ID und Anzeigename</li>
+<li>Typ (Text, Zahl, Auswahl)</li>
+<li>Rolle (Kontext, Messwert, Auto)</li>
+<li>Persistent und Optional Flags</li>
+<li>Spezifikationsgrenzen (Min/Max/Zielwert) für Zahlenfelder</li>
+<li>Optionsliste für Auswahl-Felder</li>
+<li><strong>Ausgabeverzeichnis</strong> -- Pro Produkt ein eigenes Ausgabeverzeichnis setzen</li>
+<li><strong>Speichern</strong> -- Validiert die Konfiguration (Pflichtfelder, doppelte IDs, Spec-Grenzen) und schreibt die JSON-Datei. Danach ist das Produkt sofort in der Produkt/Prozess-Auswahl verfügbar</li>
+</ul>
+<p>Die gespeicherten JSON-Dateien können per USB-Stick auf andere Rechner verteilt werden -- einfach in den <code>data/products/</code>-Ordner kopieren.</p>
+<hr />
+<h2 id="excel-dateien">Excel-Dateien</h2>
+<h3 id="dateinamen">Dateinamen</h3>
+<p>Die generierten Dateien heißen z.B.:</p>
+<pre class="codehilite"><code>IPC1_Vorschneiden_REF31962_Schicht1_2026-04-02.xlsx
+</code></pre>
+
+<p>Format: <code>{Prozess-ID}_{Produkt-ID}_Schicht{1-3}_{Datum}.xlsx</code></p>
+<p>Wenn dieselbe Kombination am selben Tag in derselben Schicht erneut gestartet wird, findet die App die bestehende Datei und schreibt darin weiter (Resume).</p>
+<h3 id="aufbau-der-excel-datei">Aufbau der Excel-Datei</h3>
+<p>Jede Excel-Datei hat folgenden Aufbau:</p>
+<table>
+<thead>
+<tr>
+<th>Zeile</th>
+<th>Inhalt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Produkt:</strong> Anzeigename des Produkts</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Prozess:</strong> Anzeigename des Prozesses</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>FA-Nr.:</strong> Fertigungsauftragsnummer</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Schicht:</strong> 1, 2 oder 3</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Datum:</strong> Erstellungsdatum</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Spalten-Kopfzeile (Feldnamen)</td>
+</tr>
+<tr>
+<td>7+</td>
+<td>Messdaten</td>
+</tr>
+</tbody>
+</table>
+<p>Die Zeilen 1-5 bilden den Info-Header-Block. Er wird beim ersten Setzen der festen Werte geschrieben und bei Änderung (z.B. "Kontext ändern") aktualisiert.</p>
+<h3 id="ausgabeverzeichnis">Ausgabeverzeichnis</h3>
+<p>Das Ausgabeverzeichnis kann auf drei Ebenen konfiguriert werden:</p>
+<ol>
+<li><strong>Pro Produkt</strong> -- Im Feld <code>output_dir</code> der Produkt-JSON-Datei (höchste Priorität)</li>
+<li><strong>Global</strong> -- Im Feld <code>output_dir</code> in <code>app_config.json</code> (Fallback)</li>
+<li><strong>Standard</strong> -- <code>output/</code> im Anwendungsverzeichnis (wenn nichts konfiguriert)</li>
+</ol>
+<hr />
+<h2 id="dateien-im-detail">Dateien im Detail</h2>
+<h3 id="apppy-einstiegspunkt"><code>app.py</code> -- Einstiegspunkt</h3>
+<p>Erstellt das Tkinter-Hauptfenster, lädt die Konfiguration, und verwaltet die Navigation zwischen den vier Bildschirmen (Login, Produkt/Prozess, Kontext, Formular). Die Navigation funktioniert über gestapelte Frames -- alle Views werden beim Start erzeugt und per <code>tkraise()</code> in den Vordergrund gebracht.</p>
+<p>Oben im Fenster ist eine Leiste mit dem Questalpha-Logo (als PNG geladen) und einem Hilfe-Button.</p>
+<h3 id="dataapp_configjson-globale-einstellungen"><code>data/app_config.json</code> -- Globale Einstellungen</h3>
+<p>Definiert das Ausgabeverzeichnis und die Schichten:</p>
+<pre class="codehilite"><code class="language-json">{
+  &quot;output_dir&quot;: &quot;output&quot;,
+  &quot;shifts&quot;: [
+    {&quot;name&quot;: &quot;1&quot;, &quot;start_hour&quot;: 6, &quot;end_hour&quot;: 14},
+    {&quot;name&quot;: &quot;2&quot;, &quot;start_hour&quot;: 14, &quot;end_hour&quot;: 22},
+    {&quot;name&quot;: &quot;3&quot;, &quot;start_hour&quot;: 22, &quot;end_hour&quot;: 6}
+  ]
+}
+</code></pre>
+
+<p>Schicht 3 ist die Nachtschicht und geht über Mitternacht. Die App erkennt das: Wer um 3 Uhr nachts arbeitet, ist noch in Schicht 3 vom Vortag.</p>
+<h3 id="dataproductsref31962json-produktkonfiguration"><code>data/products/REF31962.json</code> -- Produktkonfiguration</h3>
+<p>Jedes Produkt hat eine eigene JSON-Datei. Diese definiert alle Prozesse (IPC1 bis IPC5) und für jeden Prozess die Felder mit ihren Eigenschaften:</p>
+<ul>
+<li><strong>id</strong> -- Technischer Bezeichner (z.B. <code>"breite_1"</code>)</li>
+<li><strong>display_name</strong> -- Anzeigename (z.B. <code>"Breite 1"</code>)</li>
+<li><strong>type</strong> -- <code>"text"</code>, <code>"number"</code> oder <code>"choice"</code> (Dropdown)</li>
+<li><strong>role</strong> -- <code>"context"</code> (Kontext), <code>"measurement"</code> (Messwert) oder <code>"auto"</code> (automatisch)</li>
+<li><strong>persistent</strong> -- <code>true</code> wenn der Wert über mehrere Messungen gleich bleibt (z.B. FA-Nr., LOT Nr.)</li>
+<li><strong>spec_min/spec_max/spec_target</strong> -- Spezifikationsgrenzen und Zielwert für Zahlenfelder</li>
+<li><strong>options</strong> -- Auswahlliste für Choice-Felder (z.B. <code>["Ja", "Nein"]</code>)</li>
+<li><strong>optional</strong> -- <code>true</code> wenn das Feld leer bleiben darf</li>
+</ul>
+<p>Optionales Top-Level-Feld:
+- <strong>output_dir</strong> -- Ausgabeverzeichnis für dieses Produkt (überschreibt den globalen Wert)</p>
+<p>Besonderheiten einzelner Prozesse:
+- <strong>IPC2 Schaelen</strong> hat <code>row_group_size: 3</code> -- das bedeutet, es gibt 3 Nutzen pro Rolle. Die App zählt automatisch "Nutzen 1 von 3", "Nutzen 2 von 3", etc.
+- <strong>IPC4 Stanzen</strong> hat ein Auto-Feld "Prüfmuster", das bei jeder Messung hochzählt.</p>
+<p>Um ein neues Produkt hinzuzufügen gibt es zwei Wege:
+1. <strong>Admin-Editor</strong> -- Im Tab "Produktkonfiguration" direkt in der App anlegen
+2. <strong>Manuell</strong> -- Eine neue JSON-Datei nach dem gleichen Schema in <code>data/products/</code> legen</p>
+<p>Die App findet neue Produkte beim nächsten Start (oder nach dem Speichern im Editor) automatisch.</p>
+<h3 id="srcconfigprocess_configpy-konfigurationssystem"><code>src/config/process_config.py</code> -- Konfigurationssystem</h3>
+<p>Das Herzstück der Konfiguration. Definiert fünf Datenklassen:</p>
+<ul>
+<li><strong>FieldDef</strong> -- Ein einzelnes Feld (Name, Typ, Rolle, Spec-Limits, etc.)</li>
+<li><strong>ProcessConfig</strong> -- Ein Prozess mit seinen Feldern und optionaler Zeilengruppierung</li>
+<li><strong>ProductConfig</strong> -- Ein Produkt mit seinen Prozessen und optionalem Ausgabeverzeichnis</li>
+<li><strong>ShiftDef</strong> -- Eine Schichtdefinition (Name, Start, Ende)</li>
+<li><strong>AppConfig</strong> -- Alles zusammen: Produkte, Schichten, Ausgabeverzeichnis</li>
+</ul>
+<p>Ladefunktionen:
+- <code>load_app_config()</code> -- Liest <code>app_config.json</code> und scannt den <code>products/</code>-Ordner
+- <code>load_product_config()</code> -- Liest eine einzelne Produkt-JSON-Datei</p>
+<p>Hilfsfunktionen zum Filtern von Feldern nach Rolle:
+- <code>get_context_fields()</code> -- Alle Kontext-Felder
+- <code>get_persistent_context_fields()</code> -- Kontext-Felder, die über Messungen bestehen bleiben
+- <code>get_per_measurement_context_fields()</code> -- Kontext-Felder, die sich pro Messung ändern
+- <code>get_measurement_fields()</code> -- Alle Messwert-Felder
+- <code>get_auto_fields()</code> -- Automatisch befüllte Felder
+- <code>get_all_headers()</code> -- Anzeigenamen aller Felder in Reihenfolge (für die Excel-Kopfzeile)
+- <code>get_field_by_id()</code> -- Feld anhand der technischen ID suchen
+- <code>determine_shift()</code> -- Schicht anhand der aktuellen Stunde bestimmen (mit Mitternachts-Logik)</p>
+<h3 id="srcconfigconfig_writerpy-konfiguration-schreiben"><code>src/config/config_writer.py</code> -- Konfiguration schreiben</h3>
+<p>Gegenstück zu <code>process_config.py</code>: Konvertiert die Datenklassen zurück in JSON-Dicts und schreibt sie als Datei. Wird vom Admin-Editor benutzt.</p>
+<ul>
+<li><code>field_to_dict()</code> / <code>process_to_dict()</code> / <code>product_to_dict()</code> -- Serialisierung</li>
+<li><code>validate_product_config()</code> -- Prüft: Pflichtfelder ausgefüllt, IDs eindeutig, Spec-Grenzen logisch, Choice-Felder mit Optionen. Gibt eine Liste von Fehlertexten zurück (leer = alles OK)</li>
+<li><code>save_product_config()</code> -- Schreibt die JSON-Datei in den Produkt-Ordner</li>
+</ul>
+<h3 id="srcconfigsettingspy-konstanten"><code>src/config/settings.py</code> -- Konstanten</h3>
+<p>Feste Werte, die nicht in der JSON-Konfiguration stehen:</p>
+<ul>
+<li>Fenstertitel und -größe</li>
+<li>Pfade zu Benutzerdatei, Audit-Log, Konfiguration und Produktordner</li>
+<li>Ausgabeverzeichnis</li>
+<li>Info-Header-Konfiguration (<code>INFO_HEADER_ROWS = 5</code>, <code>HEADER_ROW = 6</code>)</li>
+<li>Automatisch generierte Spaltennamen (<code>Datum</code>, <code>Bearbeiter</code>)</li>
+</ul>
+<h3 id="srcdomainstatepy-anwendungszustand"><code>src/domain/state.py</code> -- Anwendungszustand</h3>
+<p>Die zentrale <code>AppState</code>-Klasse hält alles, was die App gerade weiß:</p>
+<ul>
+<li>Wer ist eingeloggt? (<code>current_user</code>)</li>
+<li>Welche Konfiguration ist geladen? (<code>app_config</code>)</li>
+<li>Was ist ausgewählt? (<code>selected_product</code>, <code>selected_process</code>, <code>current_shift</code>)</li>
+<li>In welche Datei wird geschrieben? (<code>current_file</code>)</li>
+<li>Welche festen Werte sind gesetzt? (<code>persistent_values</code>)</li>
+<li>Wo stehen die Zähler? (<code>row_group_counter</code>, <code>auto_sequence</code>)</li>
+</ul>
+<p>Die <code>reset_*</code>-Methoden sorgen dafür, dass beim Zurücknavigieren alles sauber zurückgesetzt wird -- in der richtigen Reihenfolge (User -&gt; Product -&gt; Process -&gt; Context).</p>
+<h3 id="srcdomainvalidationpy-eingabevalidierung"><code>src/domain/validation.py</code> -- Eingabevalidierung</h3>
+<p>Validiert Benutzereingaben vor dem Schreiben. Drei Stufen:</p>
+<ol>
+<li>
+<p><strong>Dezimal-Normalisierung</strong> -- Erkennt automatisch deutsches (<code>3,14</code>) und englisches (<code>3.14</code>) Zahlenformat. Auch gemischte Formate wie <code>1.250,5</code> (deutsch für 1250,5) werden korrekt geparst.</p>
+</li>
+<li>
+<p><strong>Typbasierte Validierung</strong> (mit FieldDefs):</p>
+</li>
+<li><code>number</code> -- Muss eine gültige Zahl sein. Spec-Limits erzeugen Warnungen (keine Fehler), weil der Bediener bewusst außerhalb der Spec messen kann.</li>
+<li><code>choice</code> -- Muss eine der definierten Optionen sein.</li>
+<li>
+<p><code>text</code> -- Wird durchgereicht ohne Prüfung.</p>
+</li>
+<li>
+<p><strong>Fallback</strong> (ohne FieldDefs) -- Alles wird als Zahl behandelt. Das ist die Rückwärtskompatibilität für Code, der noch keine Konfiguration verwendet.</p>
+</li>
+</ol>
+<p>Leere Felder erzeugen eine Warnung, außer sie sind als <code>optional</code> markiert. Fehler blockieren das Speichern, Warnungen nicht.</p>
+<h3 id="srcexcelcreatorpy-excel-dateien-erstellen"><code>src/excel/creator.py</code> -- Excel-Dateien erstellen</h3>
+<p>Kümmert sich um die Erstellung und das Auffinden von Excel-Dateien:</p>
+<ul>
+<li><code>generate_file_name()</code> -- Erzeugt den Dateinamen: <code>{Prozess}_{Produkt}_Schicht{X}_{Datum}.xlsx</code></li>
+<li><code>get_shift_date()</code> -- Bestimmt das Datum für den Dateinamen. Wichtig: Wer nach Mitternacht in Schicht 3 arbeitet, bekommt das Datum des Vortages (weil die Schicht vor Mitternacht begann).</li>
+<li><code>find_existing_file()</code> -- Sucht, ob es für diese Kombination aus Produkt/Prozess/Schicht/Datum schon eine Datei gibt (für Resume nach App-Neustart).</li>
+<li><code>create_measurement_file()</code> -- Erstellt eine neue Excel-Datei mit Kopfzeile in Zeile 6 (nach dem Info-Header).</li>
+<li><code>write_info_header()</code> -- Schreibt den Info-Header (Zeilen 1-5) mit Produkt, Prozess, FA-Nr., Schicht und Datum.</li>
+<li><code>count_data_rows()</code> -- Zählt vorhandene Datenzeilen (für die Initialisierung der Zähler beim Resume).</li>
+</ul>
+<h3 id="srcexcelreaderpy-excel-lesen"><code>src/excel/reader.py</code> -- Excel lesen</h3>
+<p>Liest Daten aus bestehenden Excel-Dateien. Wird nur von der Analyse-Ansicht genutzt (Admin-Funktion). Kann Header lesen, Spalten-Maps erstellen, und alle Daten als Liste von Dictionaries zurückgeben.</p>
+<h3 id="srcexcelwriterpy-messwerte-schreiben"><code>src/excel/writer.py</code> -- Messwerte schreiben</h3>
+<p>Hängt eine neue Zeile an eine bestehende Excel-Datei an. Die Spaltenreihenfolge wird aus der Prozesskonfiguration abgeleitet -- Feld 1 in Spalte 1, Feld 2 in Spalte 2, etc.</p>
+<p>Nimmt drei getrennte Wert-Dictionaries entgegen (Kontext, Messwerte, Auto-Werte), führt sie zusammen und schreibt sie in die richtige Spalte. Gibt ein <code>WriteResult</code> zurück, das Erfolg/Fehler signalisiert.</p>
+<p>Fehlerbehandlung: Wenn die Datei gesperrt ist (z.B. in Excel geöffnet), gibt es eine klare Fehlermeldung.</p>
+<h3 id="srcauditaudit_loggerpy-audit-trail"><code>src/audit/audit_logger.py</code> -- Audit-Trail</h3>
+<p>Schreibt strukturierte Events als JSON-Zeilen in eine Logdatei (<code>data/audit_log.jsonl</code>). Jeder Eintrag hat einen Zeitstempel, einen Event-Typ und optionale Details. Wird bei jeder relevanten Aktion aufgerufen: Login, Prozessauswahl, Kontext setzen, Schreiben (Versuch, Erfolg, Fehler).</p>
+<p>Fehler beim Schreiben des Logs werden abgefangen und auf stderr ausgegeben -- das Audit-Log darf nie die eigentliche Arbeit blockieren.</p>
+<h3 id="srcauthloginpy-authentifizierung"><code>src/auth/login.py</code> -- Authentifizierung</h3>
+<p>Bietet zwei Anmeldemethoden:
+- <strong>Passwort</strong> -- Benutzername + Passwort prüfen
+- <strong>QR-Code</strong> -- Ein Handscanner scannt einen QR-Code, die App sucht den passenden Benutzer</p>
+<p>Gibt ein <code>UserInfo</code>-Objekt zurück (mit User-ID, Anzeigename und Admin-Flag) oder <code>None</code> bei fehlgeschlagener Anmeldung.</p>
+<h3 id="srcauthusers_kvpy-benutzerdatei-parser"><code>src/auth/users_kv.py</code> -- Benutzerdatei-Parser</h3>
+<p>Liest die Benutzerliste aus einer einfachen Key-Value-Datei. Format:</p>
+<pre class="codehilite"><code>user.max.password=1234
+user.max.qr=QR-MAX
+user.max.name=Max Mustermann
+user.max.admin=true
+</code></pre>
+
+<p>Kommentare (mit <code>#</code>) und Leerzeilen werden ignoriert. Fehlerhafte Zeilen werden übersprungen.</p>
+<h3 id="srcuibase_viewpy-basis-fur-alle-bildschirme"><code>src/ui/base_view.py</code> -- Basis für alle Bildschirme</h3>
+<p>Abstrakte Basisklasse. Jede View bekommt den <code>AppState</code> und eine <code>on_navigate</code>-Funktion. Bietet <code>on_show()</code> und <code>on_hide()</code> zum Überschreiben -- damit können Views reagieren, wenn sie sichtbar oder unsichtbar werden.</p>
+<h3 id="srcuithemepy-design"><code>src/ui/theme.py</code> -- Design</h3>
+<p>Definiert Farben, Schriften und ttk-Styles für die gesamte Anwendung. Das Design orientiert sich am Questalpha-Branding:
+- Weißer Hintergrund
+- Dunkle Schrift (<code>#1B2023</code>)
+- Blaue Akzentfarbe (<code>#0070BB</code>)
+- Helle Oberflächen (<code>#F0F3F5</code>)</p>
+<p>Alle UI-Elemente (Buttons, Labels, Eingabefelder, Tabs) werden hier zentral gestylt.</p>
+<h3 id="srcuilogin_viewpy-anmeldung"><code>src/ui/login_view.py</code> -- Anmeldung</h3>
+<p>Zwei Tabs: Passwort-Login und QR-Code-Login. Im Passwort-Tab springt Enter vom Benutzernamen zum Passwortfeld und löst dann die Anmeldung aus. Der QR-Tab reagiert auf die Enter-Taste (Handscanner senden Enter nach dem Scan). Nach erfolgreicher Anmeldung geht es weiter zur Produkt/Prozess-Auswahl.</p>
+<h3 id="srcuiproduct_process_viewpy-produktprozess-auswahl"><code>src/ui/product_process_view.py</code> -- Produkt/Prozess-Auswahl</h3>
+<p>Zwei Dropdown-Felder: Produkt wählen, dann Prozess wählen. Bei Auswahl eines Prozesses erscheint eine Übersicht der Felder (welche Kontext-Felder, welche Messwerte mit Spec-Limits, welche Auto-Felder).</p>
+<p>Die Schicht wird automatisch angezeigt. Beim Klick auf "Weiter" passiert einiges:
+- Schicht und Datum werden bestimmt
+- Das Ausgabeverzeichnis wird aufgelöst (Produkt-spezifisch oder global)
+- Die App sucht nach einer bestehenden Datei für diese Kombination (Resume)
+- Wenn keine existiert, wird eine neue erstellt
+- Zähler werden initialisiert (Nutzen, Prüfmuster)
+- Der AppState wird aktualisiert</p>
+<p>Für Admin-Benutzer gibt es zwei zusätzliche Tabs: "Datenauswertung" und "Produktkonfiguration".</p>
+<h3 id="srcuicontext_viewpy-feste-werte"><code>src/ui/context_view.py</code> -- Feste Werte</h3>
+<p>Zeigt Eingabefelder für die persistenten Kontext-Felder (z.B. FA-Nr., LOT Nr.). Wenn ein Prozess keine persistenten Felder hat, zeigt die View einen Hinweis und lässt direkt weiter navigieren.</p>
+<p>Die Felder werden dynamisch generiert, basierend auf der Prozesskonfiguration. Choice-Felder bekommen ein Dropdown, Text-Felder ein normales Eingabefeld. Vorherige Werte werden vorausgefüllt.</p>
+<p>Nach dem Setzen der Werte wird der Info-Header der Excel-Datei geschrieben (Produkt, Prozess, FA-Nr., Schicht, Datum).</p>
+<h3 id="srcuiform_viewpy-messwerterfassung"><code>src/ui/form_view.py</code> -- Messwerterfassung</h3>
+<p>Der Hauptbildschirm. Zeigt zwei getrennte Blöcke:</p>
+<ol>
+<li><strong>Feste Werte</strong> (LabelFrame "Feste Werte") -- Die persistenten Kontext-Felder (z.B. FA-Nr., LOT Nr.) werden hier editierbar angezeigt. Änderungen werden beim Speichern übernommen.</li>
+<li><strong>Messwerte</strong> (LabelFrame "Messwerte") -- Eingabefelder für alle pro-Messung-Kontext-Felder und Messwert-Felder.</li>
+</ol>
+<p>Zwei Layouts: vertikal (untereinander) und horizontal (Gitter mit 4 Spalten), umschaltbar per Button.</p>
+<p>Besonderheiten:
+- <strong>Tastaturnavigation</strong>: Enter/Pfeil-runter springt zum nächsten Feld, Pfeil-hoch zum vorherigen.
+- <strong>Spec-Feedback</strong>: Zahlenfelder prüfen beim Verlassen, ob der Wert innerhalb der Spec-Limits liegt. Grüne Schrift = OK, rote Schrift = außerhalb.
+- <strong>Scroll-Begrenzung</strong>: Die Felder können nicht über den sichtbaren Bereich hinaus gescrollt werden. Die Scrollbar wird ausgeblendet, wenn der gesamte Inhalt sichtbar ist.
+- <strong>Row-Group-Anzeige</strong>: Bei Prozessen mit Zeilengruppen (z.B. IPC2 mit 3 Nutzen) zeigt ein Label "Nutzen: 2 von 3" an.
+- <strong>History</strong>: Die letzten 10 Messungen werden in einer Tabelle am unteren Rand angezeigt.
+- <strong>Auto-Werte</strong>: Datum, Bearbeiter, Nutzen und Prüfmuster werden automatisch berechnet.
+- <strong>Rollback</strong>: Wenn das Schreiben fehlschlägt, wird der Prüfmuster-Zähler zurückgesetzt.</p>
+<h3 id="srcuireview_dialogpy-prufung-vor-dem-speichern"><code>src/ui/review_dialog.py</code> -- Prüfung vor dem Speichern</h3>
+<p>Ein modaler Dialog, der alle Werte zusammenfasst bevor sie geschrieben werden. Zeigt:
+- Produkt, Prozess, Schicht und Datei
+- Feste Werte (Kontext)
+- Automatische Felder (Datum, Bearbeiter, Nutzen)
+- Alle Messwerte mit Farbmarkierung (grün = OK, gelb = Warnung, rot = Fehler)
+- Spec-Bereiche neben den Werten</p>
+<p>Fehler blockieren den Senden-Button. Warnungen erlauben das Senden, werden aber deutlich angezeigt.</p>
+<h3 id="srcuianalysis_viewpy-datenauswertung"><code>src/ui/analysis_view.py</code> -- Datenauswertung</h3>
+<p>Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Lässt eine Excel-Datei öffnen und zeigt deren Daten in einer scrollbaren Tabelle an.</p>
+<h3 id="srcuiconfig_editor_viewpy-produktkonfigurations-editor"><code>src/ui/config_editor_view.py</code> -- Produktkonfigurations-Editor</h3>
+<p>Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Enthält zwei Klassen:</p>
+<ul>
+<li><strong>ConfigEditorView</strong> -- Der Haupteditor mit Produkt-Auswahl, Prozessliste und Felder-Tabelle</li>
+<li><strong>FieldEditorDialog</strong> -- Modaler Dialog zum Bearbeiten eines einzelnen Feldes (Typ, Rolle, Spec-Limits, Optionen, Flags)</li>
+</ul>
+<p>Der Editor validiert die Konfiguration vor dem Speichern und aktualisiert die App-Konfiguration sofort nach dem Schreiben.</p>
+<hr />
+<h2 id="schichtlogik">Schichtlogik</h2>
+<table>
+<thead>
+<tr>
+<th>Schicht</th>
+<th>Zeitraum</th>
+<th>Besonderheit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>06:00 - 14:00</td>
+<td>--</td>
+</tr>
+<tr>
+<td>2</td>
+<td>14:00 - 22:00</td>
+<td>--</td>
+</tr>
+<tr>
+<td>3</td>
+<td>22:00 - 06:00</td>
+<td>Geht über Mitternacht. Wer um 3 Uhr nachts arbeitet, bekommt das Datum des Vortages im Dateinamen.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="tests">Tests</h2>
+<p>Die Tests nutzen <code>unittest</code> und können so ausgeführt werden:</p>
+<pre class="codehilite"><code class="language-bash">python -m unittest discover -s tests -v
+</code></pre>
+
+<h3 id="test_process_configpy-22-tests">test_process_config.py (22 Tests)</h3>
+<p>Testet das komplette Konfigurationssystem:
+- Feld-Filterfunktionen (context/persistent/measurement/auto)
+- Schichtbestimmung zu verschiedenen Uhrzeiten (auch Mitternachts-Übergang)
+- JSON-Laden mit Defaults und Sonderoptionen (row_group_size, output_dir)
+- Laden der echten REF31962-Konfiguration als Integrationstest</p>
+<h3 id="test_config_writerpy-26-tests">test_config_writer.py (26 Tests)</h3>
+<p>Testet Serialisierung und Validierung:
+- Konvertierung von Feldern, Prozessen und Produkten in JSON-Dicts
+- Roundtrip-Test: Serialisieren -&gt; JSON schreiben -&gt; wieder parsen -&gt; vergleichen
+- Validierungsregeln: leere IDs, doppelte IDs, ungültige Typen/Rollen, Spec-Grenzen, Choice-Optionen
+- Datei erstellen, überschreiben, Verzeichnis anlegen</p>
+<h3 id="test_creatorpy-14-tests">test_creator.py (14 Tests)</h3>
+<p>Testet die Excel-Erstellung:
+- Dateinamengenerierung
+- Datumszuordnung für Nachtschicht
+- Datei erstellen mit korrekter Kopfzeile in Zeile 6
+- Info-Header schreiben (Zeilen 1-5)
+- Bestehende Dateien finden
+- Datenzeilen zählen (für Resume)</p>
+<h3 id="test_writerpy-6-tests">test_writer.py (6 Tests)</h3>
+<p>Testet das Schreiben von Messwerten:
+- Zeile wird angehängt (ab Zeile 7)
+- Werte landen in der richtigen Spalte
+- Zwei aufeinanderfolgende Schreibvorgänge
+- Fehlerbehandlung bei fehlender Datei
+- None-Werte werden übersprungen</p>
+<h3 id="test_validationpy-28-tests">test_validation.py (28 Tests)</h3>
+<p>Testet die Eingabevalidierung:
+- Dezimal-Normalisierung (deutsches/englisches Format)
+- Numerisches Parsing
+- Validierung ohne Felddefinitionen (Legacy-Modus)
+- Typbasierte Validierung (number mit Spec-Limits, choice mit Optionsprüfung, text)
+- Optionale vs. Pflichtfelder</p>
+<h3 id="test_kv_parserpy-7-tests">test_kv_parser.py (7 Tests)</h3>
+<p>Testet den Benutzerdatei-Parser:
+- Einzelne und mehrere Benutzer
+- Kommentare und Leerzeilen
+- Sonderzeichen in Werten
+- Fehlerhafte Zeilen</p>
+<hr />
+<h2 id="ein-neues-produkt-hinzufugen">Ein neues Produkt hinzufügen</h2>
+<h3 id="variante-1-im-admin-editor-empfohlen">Variante 1: Im Admin-Editor (empfohlen)</h3>
+<ol>
+<li>Als Admin anmelden</li>
+<li>Tab "Produktkonfiguration" öffnen</li>
+<li>"Neu" klicken (oder ein bestehendes Produkt mit "Kopieren" als Vorlage nehmen)</li>
+<li>Produkt-ID und Anzeigename eingeben</li>
+<li>Prozesse und Felder definieren</li>
+<li>"Speichern" klicken -- fertig</li>
+</ol>
+<h3 id="variante-2-manuell-per-json">Variante 2: Manuell per JSON</h3>
+<ol>
+<li>Eine neue JSON-Datei in <code>data/products/</code> erstellen (z.B. <code>NEUES_PRODUKT.json</code>)</li>
+<li>Die Struktur von <code>REF31962.json</code> als Vorlage nehmen</li>
+<li>Prozesse und Felder anpassen</li>
+<li>App neu starten -- fertig</li>
+</ol>
+<h3 id="verteilung-auf-andere-rechner">Verteilung auf andere Rechner</h3>
+<p>Die JSON-Datei aus <code>data/products/</code> auf einen USB-Stick kopieren und auf dem Zielrechner in den gleichen Ordner legen. Beim nächsten Start der App wird das Produkt automatisch erkannt.</p>
+<hr />
+<h2 id="abhangigkeiten">Abhängigkeiten</h2>
+<ul>
+<li><strong>Python 3.12+</strong> (nutzt <code>X | None</code>-Syntax)</li>
+<li><strong>openpyxl</strong> -- Excel-Dateien lesen und schreiben</li>
+<li><strong>tkinter</strong> -- GUI (in Python enthalten)</li>
+</ul>
+<hr />
+<h2 id="build-windows-exe">Build (Windows EXE)</h2>
+<pre class="codehilite"><code class="language-bash">pyinstaller build_exe.spec
+</code></pre>
+
+<p>Erzeugt im <code>dist/</code>-Ordner eine ausführbare Datei. Der <code>data/</code>-Ordner und das Logo werden automatisch mit eingepackt.</p>
+</body>
+</html>

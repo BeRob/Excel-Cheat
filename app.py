@@ -1,4 +1,4 @@
-"""Messwerterfassung -- Einstiegspunkt der Anwendung."""
+"""Einstiegspunkt der Messwerterfassung."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
 
-# Sicherstellen, dass das Projektverzeichnis im Suchpfad ist
 _app_root = Path(__file__).resolve().parent
 if str(_app_root) not in sys.path:
     sys.path.insert(0, str(_app_root))
@@ -44,48 +43,46 @@ class MeasurementApp:
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.root.minsize(800, 600)
 
-        # Vollbild / Maximiert starten
         try:
-            self.root.state('zoomed')
+            self.root.state("zoomed")
         except tk.TclError:
-            self.root.attributes('-fullscreen', True)
+            self.root.attributes("-fullscreen", True)
 
         apply_theme(self.root)
 
         self.state = AppState()
         self.state.audit = AuditLogger(AUDIT_LOG_PATH)
-
-        # Konfiguration laden
         self.state.app_config = load_app_config(APP_CONFIG_PATH, PRODUCTS_DIR)
 
-        # Output-Verzeichnis erstellen
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Hauptcontainer
         main_frame = tk.Frame(self.root, bg=COLORS["background"])
         main_frame.pack(fill="both", expand=True)
 
-        # --- Branded Header Bar ---
         header_bar = ttk.Frame(main_frame, style="Header.TFrame")
         header_bar.pack(fill="x", side="top", pady=(0, 1))
 
         logo_frame = ttk.Frame(header_bar, style="Header.TFrame")
         logo_frame.pack(side="left", padx=15, pady=8)
 
-        # Logo-Bild laden (Fallback auf Text)
+        # Logo via Pillow laden (saubere Skalierung), bei Fehler Textlabel
         logo_path = _app_root / "QUESTALPHA_StaticLogo_pos_rgb.png"
         try:
-            self._logo_image_full = tk.PhotoImage(file=str(logo_path))
-            self._logo_image = self._logo_image_full.subsample(15, 15)
+            from PIL import Image, ImageTk
+            pil_img = Image.open(str(logo_path))
+            target_h = 40
+            target_w = int(pil_img.width * target_h / pil_img.height)
+            pil_img = pil_img.resize((target_w, target_h), Image.LANCZOS)
+            self._logo_image = ImageTk.PhotoImage(pil_img)
             ttk.Label(
                 logo_frame, image=self._logo_image,
                 background=COLORS["background"],
             ).pack(side="left")
-        except tk.TclError:
+        except Exception:
             ttk.Label(logo_frame, text="QUESTALPHA", style="LogoBold.TLabel").pack(side="left")
 
         ttk.Label(
-            logo_frame, text="  |  Messwerterfassung", style="HeaderInfo.TLabel",
+            logo_frame, text="  |  QAInput - Messwerterfassung", style="HeaderInfo.TLabel",
         ).pack(side="left", padx=(5, 0))
 
         help_btn = ttk.Button(
@@ -94,7 +91,6 @@ class MeasurementApp:
         )
         help_btn.pack(side="right", padx=15, pady=8)
 
-        # Container fuer gestapelte Views
         self.container = tk.Frame(main_frame, bg=COLORS["background"])
         self.container.pack(fill="both", expand=True)
         self.container.grid_rowconfigure(0, weight=1)
@@ -107,19 +103,17 @@ class MeasurementApp:
         self.navigate("login")
 
     def _open_manual(self) -> None:
-        """Oeffnet die Bedienungsanleitung."""
         manual_path = _app_root / "Bedienungsanleitung.html"
         if manual_path.exists():
             os.startfile(str(manual_path))
 
     def _create_views(self) -> None:
-        for ViewClass, name in self.SCREENS:
-            view = ViewClass(self.container, self.state, self.navigate)
+        for view_class, name in self.SCREENS:
+            view = view_class(self.container, self.state, self.navigate)
             view.grid(row=0, column=0, sticky="nsew")
             self.views[name] = view
 
     def navigate(self, target: str) -> None:
-        """Wechselt zum angegebenen Bildschirm."""
         if self.current_view_name and self.current_view_name in self.views:
             self.views[self.current_view_name].on_hide()
 
@@ -129,7 +123,6 @@ class MeasurementApp:
         view.tkraise()
 
     def run(self) -> None:
-        """Startet die Anwendung."""
         self.state.audit.log("app_start")
         self.root.mainloop()
 

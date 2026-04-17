@@ -1,4 +1,4 @@
-"""Review-Dialog: Pruefen und Bestaetigen vor dem Schreiben."""
+"""Review-Dialog: prüfen und bestätigen vor dem Schreiben."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ from typing import Callable, TYPE_CHECKING
 from pathlib import Path
 
 from src.domain.state import AppState
-from src.domain.validation import validate_measurements, ValidationResult
-from src.ui.theme import COLORS, FONTS
+from src.domain.validation import validate_measurements
+from src.ui.theme import COLORS
 
 if TYPE_CHECKING:
     from src.config.process_config import FieldDef
 
 
 class ReviewDialog(tk.Toplevel):
-    """Modaler Dialog zur Pruefung der Messwerte vor dem Schreiben."""
+    """Modaler Dialog zur Kontrolle der Messwerte vor dem Speichern."""
 
     def __init__(
         self,
@@ -33,7 +33,7 @@ class ReviewDialog(tk.Toplevel):
         self.on_confirm = on_confirm
         self.field_defs = field_defs
 
-        self.title("Pruefen und Senden")
+        self.title("Prüfen und Senden")
         self.geometry("700x600")
         self.resizable(True, True)
         self.transient(parent)
@@ -50,7 +50,6 @@ class ReviewDialog(tk.Toplevel):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
 
-        # --- Prozess-Info ---
         info_frame = ttk.LabelFrame(self, text="Prozess", padding=10)
         info_frame.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="ew")
 
@@ -67,7 +66,6 @@ class ReviewDialog(tk.Toplevel):
         ttk.Label(info_frame, text=f"Prozess: {process_name}  |  Schicht {shift}").pack(anchor="w")
         ttk.Label(info_frame, text=f"Datei: {file_name}").pack(anchor="w")
 
-        # --- Feste Werte ---
         ctx_frame = ttk.LabelFrame(self, text="Feste Werte", padding=10)
         ctx_frame.grid(row=1, column=0, padx=15, pady=5, sticky="ew")
 
@@ -79,7 +77,6 @@ class ReviewDialog(tk.Toplevel):
             ttk.Label(ctx_frame, text="Keine festen Werte.",
                       foreground=COLORS["text_secondary"]).pack(anchor="w")
 
-        # --- Auto-Felder ---
         auto_frame = ttk.LabelFrame(self, text="Automatische Felder", padding=10)
         auto_frame.grid(row=2, column=0, padx=15, pady=5, sticky="ew")
 
@@ -89,13 +86,11 @@ class ReviewDialog(tk.Toplevel):
         ttk.Label(auto_frame,
                   text=f"Bearbeiter: {user.display_name if user else '?'}").pack(anchor="w")
 
-        # Row-group info
         if process and process.row_group_size:
             nutzen = (self.app_state.row_group_counter % process.row_group_size) + 1
             ttk.Label(auto_frame,
                       text=f"Nutzen: {nutzen} von {process.row_group_size}").pack(anchor="w")
 
-        # --- Messwerte (scrollbar) ---
         values_frame = ttk.LabelFrame(self, text="Messwerte", padding=10)
         values_frame.grid(row=3, column=0, padx=15, pady=5, sticky="nsew")
         values_frame.columnconfigure(0, weight=1)
@@ -115,7 +110,6 @@ class ReviewDialog(tk.Toplevel):
         canvas.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
-        # Feld-Definitionen als Lookup
         fd_map: dict[str, FieldDef] = {}
         if self.field_defs:
             for fd in self.field_defs:
@@ -129,7 +123,7 @@ class ReviewDialog(tk.Toplevel):
         error_set = {e.split(":")[0] for e in self.validation.errors}
         warning_set = set()
         for w in self.validation.warnings:
-            # Sowohl "Feld ist leer" als auch "Feld: Wert liegt unter..."
+            # Unterstützt sowohl "Feld ist leer" als auch "Feld: Wert liegt unter ..."
             if ":" in w:
                 warning_set.add(w.split(":")[0])
             else:
@@ -156,7 +150,6 @@ class ReviewDialog(tk.Toplevel):
                 row=i, column=1, sticky="w", padx=(0, 10), pady=2
             )
 
-            # Spec-Bereich anzeigen
             spec_text = ""
             if fd and fd.spec_min is not None and fd.spec_max is not None:
                 spec_text = f"[{fd.spec_min}-{fd.spec_max}]"
@@ -169,7 +162,6 @@ class ReviewDialog(tk.Toplevel):
                 row=i, column=3, sticky="w", pady=2
             )
 
-        # --- Zusammenfassung ---
         summary_text = (
             f"{len(self.validation.warnings)} Warnung(en), "
             f"{len(self.validation.errors)} Fehler"
@@ -184,7 +176,6 @@ class ReviewDialog(tk.Toplevel):
             row=4, column=0, pady=5
         )
 
-        # --- Buttons ---
         btn_frame = ttk.Frame(self)
         btn_frame.grid(row=5, column=0, pady=(5, 15))
 

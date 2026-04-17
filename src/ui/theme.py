@@ -1,4 +1,4 @@
-"""Zentrales Theming: Farben, Schriften und ttk-Styles."""
+"""Farben, Schriften und ttk-Styles (Questalpha-Branding)."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ from tkinter import ttk
 
 
 COLORS = {
-    "primary": "#1B2023",       # Questalpha dark text
-    "background": "#FFFFFF",    # Pure white
-    "surface": "#F0F3F5",       # Questalpha light background
-    "accent": "#0070BB",        # Questalpha brand blue
+    "primary": "#1B2023",
+    "background": "#FFFFFF",
+    "surface": "#E8ECF0",
+    "accent": "#0070BB",
     "accent_hover": "#005A96",
     "accent_light": "#E3F2FD",
     "text_primary": "#1B2023",
@@ -25,21 +25,18 @@ COLORS = {
 
 FONTS = {
     "logo_bold": ("Segoe UI", 18, "bold"),
-    "logo_light": ("Segoe UI", 18, "normal"),
     "heading": ("Segoe UI", 16, "bold"),
     "subheading": ("Segoe UI", 14, "bold"),
-    "body": ("Segoe UI", 10),
-    "body_bold": ("Segoe UI", 10, "bold"),
-    "small": ("Segoe UI", 9),
+    "body": ("Segoe UI", 11),
+    "body_bold": ("Segoe UI", 11, "bold"),
+    "small": ("Segoe UI", 10),
 }
 
 
 def apply_theme(root: tk.Tk) -> None:
-    """Konfiguriert ttk.Style mit dem Anwendungsthema."""
     style = ttk.Style(root)
     style.theme_use("clam")
 
-    # --- Standard-Hintergrund ---
     style.configure(".", background=COLORS["background"], font=FONTS["body"])
     style.configure("TFrame", background=COLORS["background"])
     style.configure(
@@ -57,14 +54,23 @@ def apply_theme(root: tk.Tk) -> None:
         relief="solid",
         bordercolor=COLORS["border"],
     )
+    style.map(
+        "TEntry",
+        fieldbackground=[
+            ("disabled", COLORS["disabled"]),
+            ("readonly", COLORS["surface"]),
+            ("!disabled", COLORS["surface"]),
+        ],
+    )
     style.configure(
         "TButton",
-        font=FONTS["body"],
+        font=FONTS["body_bold"],
         padding=(12, 6),
         background=COLORS["surface"],
         foreground=COLORS["text_primary"],
-        borderwidth=0,
-        relief="flat",
+        borderwidth=1,
+        relief="solid",
+        bordercolor=COLORS["border"],
     )
     style.map(
         "TButton",
@@ -78,8 +84,9 @@ def apply_theme(root: tk.Tk) -> None:
         foreground=COLORS["text_on_primary"],
         font=FONTS["body_bold"],
         padding=(16, 10),
-        borderwidth=0,
-        relief="flat",
+        borderwidth=1,
+        relief="solid",
+        bordercolor=COLORS["accent_hover"],
     )
     style.map(
         "Accent.TButton",
@@ -87,9 +94,7 @@ def apply_theme(root: tk.Tk) -> None:
             ("active", COLORS["accent_hover"]),
             ("disabled", COLORS["disabled"]),
         ],
-        foreground=[
-            ("disabled", COLORS["background"]),
-        ],
+        foreground=[("disabled", COLORS["background"])],
     )
 
     style.configure(
@@ -109,6 +114,9 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure(
         "TNotebook",
         background=COLORS["background"],
+        bordercolor=COLORS["border"],
+        lightcolor=COLORS["background"],
+        darkcolor=COLORS["background"],
         tabmargins=[2, 5, 2, 0],
     )
     style.configure(
@@ -117,13 +125,18 @@ def apply_theme(root: tk.Tk) -> None:
         padding=(12, 6),
         background=COLORS["surface"],
         foreground=COLORS["text_secondary"],
-        borderwidth=0,
+        borderwidth=1,
+        bordercolor=COLORS["border"],
+        lightcolor=COLORS["background"],
+        darkcolor=COLORS["background"],
     )
     style.map(
         "TNotebook.Tab",
         background=[("selected", COLORS["background"])],
         foreground=[("selected", COLORS["accent"])],
         expand=[("selected", [1, 1, 1, 0])],
+        lightcolor=[("selected", COLORS["background"])],
+        darkcolor=[("selected", COLORS["background"])],
     )
 
     style.configure(
@@ -147,16 +160,21 @@ def apply_theme(root: tk.Tk) -> None:
         fieldbackground=COLORS["surface"],
         background=COLORS["surface"],
     )
+    style.map(
+        "TCombobox",
+        fieldbackground=[
+            ("disabled", COLORS["disabled"]),
+            ("readonly", COLORS["surface"]),
+            ("!disabled", COLORS["surface"]),
+        ],
+    )
 
-    # --- Title ---
     style.configure(
         "Title.TLabel",
         font=FONTS["heading"],
         foreground=COLORS["text_primary"],
         background=COLORS["background"],
     )
-
-    # --- Subtitle ---
     style.configure(
         "Subtitle.TLabel",
         font=FONTS["subheading"],
@@ -164,7 +182,6 @@ def apply_theme(root: tk.Tk) -> None:
         background=COLORS["background"],
     )
 
-    # --- Success / Error / Warning labels ---
     style.configure(
         "Success.TLabel",
         foreground=COLORS["success"],
@@ -184,23 +201,12 @@ def apply_theme(root: tk.Tk) -> None:
         font=FONTS["body"],
     )
 
-    # --- Header bar (Clean White) ---
-    style.configure(
-        "Header.TFrame",
-        background=COLORS["background"],
-    )
-    # Styles for the split logo
+    style.configure("Header.TFrame", background=COLORS["background"])
     style.configure(
         "LogoBold.TLabel",
         background=COLORS["background"],
         foreground=COLORS["text_primary"],
         font=FONTS["logo_bold"],
-    )
-    style.configure(
-        "LogoLight.TLabel",
-        background=COLORS["background"],
-        foreground=COLORS["text_primary"],
-        font=FONTS["logo_light"],
     )
     style.configure(
         "HeaderInfo.TLabel",

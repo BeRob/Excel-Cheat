@@ -1,17 +1,16 @@
-"""Excel-Lesefunktionen: Header lesen, Sheet-Erkennung, Validierung."""
+"""Excel-Dateien einlesen (Header-Erkennung und vollständiger Datenabzug)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import openpyxl
 
 
 @dataclass
 class ExcelReadResult:
-    """Ergebnis des Header-Lesens aus einer Excel-Datei."""
-
     sheet_names: list[str] = field(default_factory=list)
     headers: list[str] = field(default_factory=list)
     header_column_map: dict[str, int] = field(default_factory=dict)
@@ -23,15 +22,10 @@ def read_excel_headers(
     sheet_name: str | None = None,
     header_row: int = 1,
 ) -> ExcelReadResult:
-    """Liest Header aus einer Excel-Datei.
+    """Liest die Headerzeile aus einer Excel-Datei.
 
-    Args:
-        filepath: Pfad zur .xlsx Datei.
-        sheet_name: Name des Arbeitsblatts. None = erstes Blatt.
-        header_row: Zeile mit den Spaltenüberschriften (1-basiert).
-
-    Returns:
-        ExcelReadResult mit Headers, Spalten-Map und ggf. Fehlern.
+    Ohne `sheet_name` wird das erste Arbeitsblatt genommen. `header_row`
+    ist 1-basiert.
     """
     result = ExcelReadResult()
 
@@ -83,17 +77,8 @@ def read_all_data(
     filepath: str | Path,
     sheet_name: str | None = None,
     header_row: int = 1,
-) -> list[dict[str, any]]:
-    """Liest alle Daten aus einer Excel-Datei.
-
-    Args:
-        filepath: Pfad zur .xlsx Datei.
-        sheet_name: Name des Arbeitsblatts. None = erstes Blatt.
-        header_row: Zeile mit den Spaltenüberschriften (1-basiert).
-
-    Returns:
-        Liste von Dictionaries (Spaltenname -> Wert).
-    """
+) -> list[dict[str, Any]]:
+    """Liest alle Zeilen und gibt sie als Liste von Dicts zurück."""
     try:
         wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
     except Exception:
@@ -105,28 +90,26 @@ def read_all_data(
             return []
 
         ws = wb[target_sheet]
-        
-        # Get headers first
+
         raw_headers: list = []
         for row in ws.iter_rows(min_row=header_row, max_row=header_row, values_only=True):
             raw_headers = list(row)
             break
-            
         if not raw_headers:
             return []
-            
+
         headers, _, _ = _clean_headers(raw_headers)
-        
-        data = []
-        # Iterate through all data rows after header
+
+        data: list[dict[str, Any]] = []
         for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
-            if any(cell is not None for cell in row):
-                row_dict = {}
-                for idx, value in enumerate(row):
-                    if idx < len(headers):
-                        row_dict[headers[idx]] = value
-                data.append(row_dict)
-        
+            if not any(cell is not None for cell in row):
+                continue
+            row_dict: dict[str, Any] = {}
+            for idx, value in enumerate(row):
+                if idx < len(headers):
+                    row_dict[headers[idx]] = value
+            data.append(row_dict)
+
         return data
     finally:
         wb.close()
@@ -135,21 +118,14 @@ def read_all_data(
 def _clean_headers(
     raw_headers: list,
 ) -> tuple[list[str], dict[str, int], list[str]]:
-    """Bereinigt und validiert Header-Werte.
-
-    - Leere Zellen erzeugen einen Fehler.
-    - Duplikate erhalten Suffix _2, _3 usw.
-
-    Returns:
-        Tuple aus (bereinigte Header, Spalten-Map, Fehlerliste).
-    """
+    """Bereinigt Header: leere Zellen erzeugen Fehler, Duplikate bekommen _2, _3 ..."""
     headers: list[str] = []
     col_map: dict[str, int] = {}
     errors: list[str] = []
     seen: dict[str, int] = {}
 
     for idx, value in enumerate(raw_headers):
-        col_num = idx + 1  # 1-basiert
+        col_num = idx + 1
 
         if value is None or str(value).strip() == "":
             errors.append(f"Spalte {col_num} hat keinen Header.")

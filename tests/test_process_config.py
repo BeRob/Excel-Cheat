@@ -1,4 +1,4 @@
-"""Tests fuer die Prozesskonfiguration."""
+"""Tests für die Prozesskonfiguration."""
 
 import json
 import tempfile
@@ -329,13 +329,13 @@ class TestLoadRealConfig(unittest.TestCase):
         ipc2 = ref.processes[1]
         self.assertEqual(ipc2.row_group_size, 3)
 
-        # FA-Nr. pruefen
+        # FA-Nr. prüfen
         fa = get_field_by_id(ipc1, "fa_nr")
         self.assertIsNotNone(fa)
         self.assertTrue(fa.persistent)
         self.assertEqual(fa.role, "context")
 
-        # Feld-Rollen pruefen
+        # Feld-Rollen prüfen
         lot = get_field_by_id(ipc1, "lot_nr")
         self.assertIsNotNone(lot)
         self.assertTrue(lot.persistent)

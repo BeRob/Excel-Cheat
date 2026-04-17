@@ -1,4 +1,4 @@
-"""Tests fuer den Excel-Writer (neue config-basierte API)."""
+"""Tests für den Excel-Writer (neue config-basierte API)."""
 
 import shutil
 import tempfile

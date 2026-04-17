@@ -1,4 +1,4 @@
-"""Tests fuer die Excel-Dateierstellung."""
+"""Tests für die Excel-Dateierstellung."""
 
 import shutil
 import tempfile

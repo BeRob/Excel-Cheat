@@ -1,4 +1,4 @@
-"""Serialisierung und Validierung von Produktkonfigurationen."""
+"""Serialisierung und Validierung von Produkt-JSONs."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from src.config.process_config import FieldDef, ProcessConfig, ProductConfig
 
 
 def field_to_dict(field: FieldDef) -> dict:
-    """Konvertiert ein FieldDef in ein JSON-serialisierbares Dict."""
     d: dict = {
         "id": field.id,
         "display_name": field.display_name,
@@ -33,7 +32,6 @@ def field_to_dict(field: FieldDef) -> dict:
 
 
 def process_to_dict(process: ProcessConfig) -> dict:
-    """Konvertiert ein ProcessConfig in ein JSON-serialisierbares Dict."""
     d: dict = {
         "template_id": process.template_id,
         "display_name": process.display_name,
@@ -45,7 +43,6 @@ def process_to_dict(process: ProcessConfig) -> dict:
 
 
 def product_to_dict(product: ProductConfig) -> dict:
-    """Konvertiert ein ProductConfig in ein JSON-serialisierbares Dict."""
     d: dict = {
         "product_id": product.product_id,
         "display_name": product.display_name,
@@ -57,7 +54,7 @@ def product_to_dict(product: ProductConfig) -> dict:
 
 
 def validate_product_config(product: ProductConfig) -> list[str]:
-    """Validiert eine ProductConfig. Gibt eine Liste von Fehlerstrings zurueck (leer = OK)."""
+    """Prüft eine ProductConfig und liefert eine Liste der Fehler (leer = OK)."""
     errors: list[str] = []
 
     if not product.product_id.strip():
@@ -96,12 +93,10 @@ def validate_product_config(product: ProductConfig) -> list[str]:
             if not field.display_name.strip():
                 errors.append(f"{fp}: Anzeigename darf nicht leer sein.")
             if field.type not in ("text", "number", "choice"):
-                errors.append(f"{fp}: Ungueltiger Typ '{field.type}'.")
+                errors.append(f"{fp}: Ungültiger Typ '{field.type}'.")
             if field.role not in ("context", "measurement", "auto"):
-                errors.append(f"{fp}: Ungueltige Rolle '{field.role}'.")
-            if field.type == "choice" and (
-                not field.options or len(field.options) == 0
-            ):
+                errors.append(f"{fp}: Ungültige Rolle '{field.role}'.")
+            if field.type == "choice" and not field.options:
                 errors.append(f"{fp}: Choice-Feld braucht mindestens eine Option.")
             if field.spec_min is not None and field.spec_max is not None:
                 if field.spec_min > field.spec_max:
@@ -112,13 +107,13 @@ def validate_product_config(product: ProductConfig) -> list[str]:
                 if field.spec_min is not None and field.spec_target < field.spec_min:
                     errors.append(f"{fp}: spec_target unter spec_min.")
                 if field.spec_max is not None and field.spec_target > field.spec_max:
-                    errors.append(f"{fp}: spec_target ueber spec_max.")
+                    errors.append(f"{fp}: spec_target über spec_max.")
 
     return errors
 
 
 def save_product_config(product: ProductConfig, products_dir: Path) -> Path:
-    """Speichert eine ProductConfig als JSON. Gibt den Dateipfad zurueck."""
+    """Speichert eine ProductConfig als JSON und liefert den Dateipfad."""
     products_dir.mkdir(parents=True, exist_ok=True)
     path = products_dir / f"{product.product_id}.json"
     data = product_to_dict(product)

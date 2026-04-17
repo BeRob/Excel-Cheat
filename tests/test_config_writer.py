@@ -1,4 +1,4 @@
-"""Tests fuer config_writer (Serialisierung, Validierung, Speichern)."""
+"""Tests für config_writer (Serialisierung, Validierung, Speichern)."""
 
 import json
 import shutil
@@ -22,7 +22,7 @@ from src.config.process_config import (
 
 
 def _make_valid_product() -> ProductConfig:
-    """Erzeugt ein gueltiges Beispiel-Produkt."""
+    """Erzeugt ein gültiges Beispiel-Produkt."""
     return ProductConfig(
         product_id="TEST001",
         display_name="Test Produkt",

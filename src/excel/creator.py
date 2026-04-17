@@ -1,4 +1,4 @@
-"""Excel-Dateien aus Prozesskonfiguration erstellen."""
+"""Excel-Dateien aus einer Prozesskonfiguration erstellen."""
 
 from __future__ import annotations
 
@@ -11,12 +11,22 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from src.config.process_config import ProcessConfig, get_all_headers
 from src.config.settings import HEADER_ROW
 
+
 HEADER_FONT = Font(bold=True, size=11)
 HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrapText=True)
 THIN_BORDER = Border(
     left=Side("thin"), right=Side("thin"),
     top=Side("thin"), bottom=Side("thin"),
 )
+INFO_LABEL_FONT = Font(bold=True, size=10)
+
+SHEET_PROTECTION_PASSWORD = "hexhex"
+
+
+def _apply_sheet_protection(ws) -> None:
+    """Sperrt das Blatt in Excel gegen Änderungen (Lesen bleibt möglich)."""
+    ws.protection.sheet = True
+    ws.protection.password = SHEET_PROTECTION_PASSWORD
 
 
 def generate_file_name(
@@ -25,20 +35,13 @@ def generate_file_name(
     shift: str,
     dt: date,
 ) -> str:
-    """Erzeugt den standardisierten Dateinamen.
-
-    Format: {template_id}_{product_id}_Schicht{shift}_{YYYY-MM-DD}.xlsx
-    """
+    """Format: {template_id}_{product_id}_Schicht{shift}_{YYYY-MM-DD}.xlsx"""
     date_str = dt.strftime("%Y-%m-%d")
     return f"{process.template_id}_{product_id}_Schicht{shift}_{date_str}.xlsx"
 
 
 def get_shift_date(now: datetime, shift: str) -> date:
-    """Bestimmt das Datum fuer die Datei.
-
-    Fuer Schicht 3 (Nachtschicht nach Mitternacht) wird das Datum
-    des Vortages verwendet, da die Schicht vor Mitternacht begann.
-    """
+    """Für Schicht 3 nach Mitternacht wird der Vortag verwendet."""
     if shift == "3" and now.hour < 6:
         return (now - timedelta(days=1)).date()
     return now.date()
@@ -51,7 +54,6 @@ def find_existing_file(
     shift: str,
     dt: date,
 ) -> Path | None:
-    """Prüft ob eine Datei fuer diese Kombination bereits existiert."""
     name = generate_file_name(process, product_id, shift, dt)
     path = output_dir / name
     return path if path.exists() else None
@@ -64,18 +66,7 @@ def create_measurement_file(
     shift: str,
     dt: date,
 ) -> Path:
-    """Erstellt eine neue Excel-Datei mit Header-Zeile.
-
-    Args:
-        process: Prozesskonfiguration.
-        product_id: Produkt-ID fuer Dateinamen.
-        output_dir: Ausgabeverzeichnis.
-        shift: Schichtnummer ("1", "2", "3").
-        dt: Datum fuer Dateinamen.
-
-    Returns:
-        Pfad zur erstellten Datei.
-    """
+    """Legt eine neue Excel-Datei mit Kopfzeile an und gibt den Pfad zurück."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
     name = generate_file_name(process, product_id, shift, dt)
@@ -92,10 +83,10 @@ def create_measurement_file(
         cell.alignment = HEADER_ALIGN
         cell.border = THIN_BORDER
 
-    # Spaltenbreiten anpassen
-    for col_idx, header in enumerate(headers, 1):
         width = max(len(header) + 4, 14)
         ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
+
+    _apply_sheet_protection(ws)
 
     wb.save(path)
     wb.close()
@@ -104,10 +95,10 @@ def create_measurement_file(
 
 
 def count_data_rows(filepath: Path) -> int:
-    """Zaehlt vorhandene Datenzeilen (ohne Info-Block und Header).
+    """Zählt Datenzeilen (ohne Info-Block und ohne Headerzeile).
 
-    Nuetzlich fuer Resume: Sequenz-Counter (Pruefmuster) und
-    Row-Group-Counter (Nutzen) initialisieren.
+    Wird beim Resume gebraucht, um Sequenz- und Nutzen-Zähler korrekt
+    weiterzuführen.
     """
     try:
         wb = openpyxl.load_workbook(filepath, read_only=True)
@@ -119,9 +110,6 @@ def count_data_rows(filepath: Path) -> int:
         return 0
 
 
-INFO_LABEL_FONT = Font(bold=True, size=10)
-
-
 def write_info_header(
     filepath: Path,
     product_name: str,
@@ -130,10 +118,10 @@ def write_info_header(
     shift: str,
     dt: date,
 ) -> None:
-    """Schreibt den Info-Header-Block in Zeilen 1-5 der Excel-Datei.
+    """Schreibt den Info-Block in die Zeilen 1-5.
 
-    Wird nach dem Setzen der Kontextwerte aufgerufen, da FA-Nr.
-    erst dann bekannt ist.
+    Wird nach dem Setzen der Kontextwerte aufgerufen, da die FA-Nr. erst
+    dann bekannt ist.
     """
     try:
         wb = openpyxl.load_workbook(filepath)
@@ -142,7 +130,6 @@ def write_info_header(
 
     try:
         ws = wb.active
-
         info_rows = [
             ("Produkt:", product_name),
             ("Prozess:", process_name),

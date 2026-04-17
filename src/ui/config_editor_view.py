@@ -1,10 +1,9 @@
-"""Admin-Produktkonfigurations-Editor."""
+"""Admin-Editor für Produktkonfigurationen."""
 
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from pathlib import Path
 
 from src.config.config_writer import (
     save_product_config,
@@ -22,7 +21,7 @@ from src.ui.theme import COLORS, FONTS
 
 
 class ConfigEditorView(ttk.Frame):
-    """Editor zum Erstellen und Bearbeiten von Produkt-JSON-Konfigurationen."""
+    """Erstellt und bearbeitet die Produkt-JSONs unter data/products/."""
 
     def __init__(self, parent, app_state):
         super().__init__(parent)
@@ -35,18 +34,14 @@ class ConfigEditorView(ttk.Frame):
         self._build_ui()
         self._load_product_list()
 
-    # ── UI aufbauen ──────────────────────────────────────────────────
-
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        # --- Produkt-Bereich ---
         product_frame = ttk.LabelFrame(self, text="Produkt", padding=10)
         product_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
         product_frame.columnconfigure(1, weight=1)
 
-        # Zeile 0: Auswahl bestehender Produkte
         load_frame = ttk.Frame(product_frame)
         load_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 8))
         load_frame.columnconfigure(0, weight=1)
@@ -64,7 +59,6 @@ class ConfigEditorView(ttk.Frame):
             row=0, column=3, padx=2
         )
 
-        # Zeile 1-3: Produkt-Felder
         ttk.Label(product_frame, text="Produkt-ID:").grid(
             row=1, column=0, sticky="w", pady=2
         )
@@ -95,17 +89,15 @@ class ConfigEditorView(ttk.Frame):
         ttk.Entry(dir_frame, textvariable=self._output_dir_var).grid(
             row=0, column=0, sticky="ew", padx=(0, 5)
         )
-        ttk.Button(dir_frame, text="Waehlen...", command=self._choose_output_dir).grid(
+        ttk.Button(dir_frame, text="Wählen...", command=self._choose_output_dir).grid(
             row=0, column=1
         )
 
-        # --- Prozesse-Bereich ---
         proc_frame = ttk.LabelFrame(self, text="Prozesse", padding=10)
         proc_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
         proc_frame.columnconfigure(1, weight=1)
         proc_frame.rowconfigure(0, weight=1)
 
-        # Linkes Panel: Prozessliste
         left = ttk.Frame(proc_frame)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left.rowconfigure(0, weight=1)
@@ -141,13 +133,11 @@ class ConfigEditorView(ttk.Frame):
             proc_btn_frame, text="\u2193", width=3, command=self._move_process_down
         ).pack(side="left", padx=2)
 
-        # Rechtes Panel: Prozessdetails + Felder
         self._right_panel = ttk.Frame(proc_frame)
         self._right_panel.grid(row=0, column=1, sticky="nsew")
         self._right_panel.columnconfigure(0, weight=1)
         self._right_panel.rowconfigure(1, weight=1)
 
-        # Prozessdetails
         detail_frame = ttk.Frame(self._right_panel)
         detail_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         detail_frame.columnconfigure(1, weight=1)
@@ -182,13 +172,11 @@ class ConfigEditorView(ttk.Frame):
         self._row_group_entry.grid(row=2, column=1, sticky="w", pady=2)
         self._row_group_entry.bind("<FocusOut>", lambda e: self._sync_process_details())
 
-        # Felder-Bereich
         fields_frame = ttk.LabelFrame(self._right_panel, text="Felder", padding=5)
         fields_frame.grid(row=1, column=0, sticky="nsew")
         fields_frame.columnconfigure(0, weight=1)
         fields_frame.rowconfigure(0, weight=1)
 
-        # Treeview fuer Felder
         tree_container = ttk.Frame(fields_frame)
         tree_container.grid(row=0, column=0, sticky="nsew")
         tree_container.columnconfigure(0, weight=1)
@@ -221,12 +209,11 @@ class ConfigEditorView(ttk.Frame):
         vsb.grid(row=0, column=1, sticky="ns")
         self._fields_tree.configure(yscrollcommand=vsb.set)
 
-        # Feld-Buttons
         field_btn_frame = ttk.Frame(fields_frame)
         field_btn_frame.grid(row=1, column=0, pady=(5, 0))
 
         ttk.Button(
-            field_btn_frame, text="Hinzufuegen", command=self._add_field
+            field_btn_frame, text="Hinzufügen", command=self._add_field
         ).pack(side="left", padx=2)
         ttk.Button(
             field_btn_frame, text="Bearbeiten", command=self._edit_field
@@ -241,14 +228,12 @@ class ConfigEditorView(ttk.Frame):
             field_btn_frame, text="\u2193", width=3, command=self._move_field_down
         ).pack(side="left", padx=2)
 
-        # Placeholder wenn kein Prozess ausgewaehlt
         self._no_proc_label = ttk.Label(
             self._right_panel,
-            text="Prozess in der Liste links auswaehlen oder neuen Prozess hinzufuegen.",
+            text="Prozess in der Liste links auswählen oder neuen Prozess hinzufügen.",
             foreground=COLORS["text_secondary"],
         )
 
-        # --- Status + Speichern ---
         bottom_frame = ttk.Frame(self)
         bottom_frame.grid(row=2, column=0, padx=10, pady=(5, 10), sticky="ew")
         bottom_frame.columnconfigure(0, weight=1)
@@ -264,10 +249,7 @@ class ConfigEditorView(ttk.Frame):
             command=self._on_save,
         ).grid(row=0, column=1, padx=(10, 0))
 
-        # Initial: rechtes Panel verstecken, Placeholder anzeigen
         self._show_right_panel(False)
-
-    # ── Produkt laden/neu/kopieren ───────────────────────────────────
 
     def _load_product_list(self) -> None:
         if not PRODUCTS_DIR.exists():
@@ -322,18 +304,14 @@ class ConfigEditorView(ttk.Frame):
         self._dirty = True
         self._status_var.set(f"Kopie von {name} erstellt. Neue Produkt-ID vergeben.")
 
-    # ── Produkt in UI laden / aus UI lesen ───────────────────────────
-
     def _populate_ui_from_product(self, product: ProductConfig) -> None:
         self._product = product
         self._selected_process_idx = None
 
-        # Produkt-Felder
         self._product_id_var.set(product.product_id)
         self._product_name_var.set(product.display_name)
         self._output_dir_var.set(product.output_dir or "")
 
-        # Prozessliste
         self._proc_listbox.delete(0, tk.END)
         for proc in product.processes:
             self._proc_listbox.insert(tk.END, proc.display_name or proc.template_id)
@@ -350,8 +328,6 @@ class ConfigEditorView(ttk.Frame):
             processes=list(self._product.processes) if self._product else [],
             output_dir=output_dir,
         )
-
-    # ── Prozess-Verwaltung ──────────────────────────────────────────
 
     def _on_process_selected(self, event=None) -> None:
         sel = self._proc_listbox.curselection()
@@ -393,7 +369,6 @@ class ConfigEditorView(ttk.Frame):
         else:
             proc.row_group_size = None
 
-        # Listbox-Eintrag aktualisieren
         display = proc.display_name or proc.template_id
         self._proc_listbox.delete(self._selected_process_idx)
         self._proc_listbox.insert(self._selected_process_idx, display)
@@ -419,7 +394,6 @@ class ConfigEditorView(ttk.Frame):
         self._product.processes.append(proc)
         self._proc_listbox.insert(tk.END, proc.display_name)
 
-        # Neuen Prozess auswaehlen
         idx = len(self._product.processes) - 1
         self._proc_listbox.selection_clear(0, tk.END)
         self._proc_listbox.selection_set(idx)
@@ -431,7 +405,7 @@ class ConfigEditorView(ttk.Frame):
             return
         if not messagebox.askyesno(
             "Prozess entfernen",
-            "Soll der ausgewaehlte Prozess wirklich entfernt werden?",
+            "Soll der ausgewählte Prozess wirklich entfernt werden?",
         ):
             return
 
@@ -460,7 +434,6 @@ class ConfigEditorView(ttk.Frame):
         procs = self._product.processes
         procs[idx], procs[new_idx] = procs[new_idx], procs[idx]
 
-        # Listbox aktualisieren
         self._proc_listbox.delete(0, tk.END)
         for p in procs:
             self._proc_listbox.insert(tk.END, p.display_name or p.template_id)
@@ -468,8 +441,6 @@ class ConfigEditorView(ttk.Frame):
         self._selected_process_idx = new_idx
         self._proc_listbox.selection_set(new_idx)
         self._mark_dirty()
-
-    # ── Felder-Verwaltung ───────────────────────────────────────────
 
     def _refresh_fields_tree(self) -> None:
         self._fields_tree.delete(*self._fields_tree.get_children())
@@ -533,7 +504,7 @@ class ConfigEditorView(ttk.Frame):
             return
         if not messagebox.askyesno(
             "Feld entfernen",
-            "Soll das ausgewaehlte Feld wirklich entfernt werden?",
+            "Soll das ausgewählte Feld wirklich entfernt werden?",
         ):
             return
 
@@ -563,12 +534,9 @@ class ConfigEditorView(ttk.Frame):
         self._refresh_fields_tree()
         self._mark_dirty()
 
-        # Neue Position auswaehlen
         children = self._fields_tree.get_children()
         if 0 <= new_fi < len(children):
             self._fields_tree.selection_set(children[new_fi])
-
-    # ── Speichern ───────────────────────────────────────────────────
 
     def _on_save(self) -> None:
         if not self._product:
@@ -585,17 +553,15 @@ class ConfigEditorView(ttk.Frame):
             )
             return
 
-        # Warnung bei Ueberschreiben
         target = PRODUCTS_DIR / f"{product.product_id}.json"
         if target.exists():
-            # Pruefen ob es ein anderes Produkt ist
             is_same = (
                 self._product
                 and self._product.product_id == product.product_id
             )
             if not is_same and not messagebox.askyesno(
-                "Datei ueberschreiben",
-                f"Die Datei {target.name} existiert bereits.\nUeberschreiben?",
+                "Datei überschreiben",
+                f"Die Datei {target.name} existiert bereits.\nÜberschreiben?",
             ):
                 return
 
@@ -603,13 +569,10 @@ class ConfigEditorView(ttk.Frame):
         self._product = product
         self._dirty = False
 
-        # App-Config neu laden
         self.app_state.app_config = load_app_config(APP_CONFIG_PATH, PRODUCTS_DIR)
 
         self._load_product_list()
         self._status_var.set(f"Gespeichert: {path}")
-
-    # ── Hilfsfunktionen ─────────────────────────────────────────────
 
     def _show_right_panel(self, show: bool) -> None:
         if show:
@@ -618,7 +581,6 @@ class ConfigEditorView(ttk.Frame):
                 if child != self._no_proc_label:
                     child.grid()
         else:
-            # Alle Kinder ausblenden ausser Placeholder
             for child in self._right_panel.winfo_children():
                 if child != self._no_proc_label:
                     child.grid_remove()
@@ -629,7 +591,7 @@ class ConfigEditorView(ttk.Frame):
             self._row_group_var.set("")
 
     def _choose_output_dir(self) -> None:
-        path = filedialog.askdirectory(title="Ausgabeverzeichnis waehlen")
+        path = filedialog.askdirectory(title="Ausgabeverzeichnis wählen")
         if path:
             self._output_dir_var.set(path)
 
@@ -638,12 +600,9 @@ class ConfigEditorView(ttk.Frame):
 
     def _confirm_discard(self) -> bool:
         return messagebox.askyesno(
-            "Ungespeicherte Aenderungen",
-            "Es gibt ungespeicherte Aenderungen. Verwerfen?",
+            "Ungespeicherte Änderungen",
+            "Es gibt ungespeicherte Änderungen. Verwerfen?",
         )
-
-
-# ── Feld-Editor Dialog ──────────────────────────────────────────────
 
 
 class FieldEditorDialog(tk.Toplevel):
@@ -676,7 +635,6 @@ class FieldEditorDialog(tk.Toplevel):
 
         row = 0
 
-        # ID
         ttk.Label(main, text="ID:").grid(row=row, column=0, sticky="w", pady=3)
         self._id_var = tk.StringVar(value=field.id if field else "")
         ttk.Entry(main, textvariable=self._id_var, width=30).grid(
@@ -684,7 +642,6 @@ class FieldEditorDialog(tk.Toplevel):
         )
         row += 1
 
-        # Anzeigename
         ttk.Label(main, text="Anzeigename:").grid(
             row=row, column=0, sticky="w", pady=3
         )
@@ -694,7 +651,6 @@ class FieldEditorDialog(tk.Toplevel):
         )
         row += 1
 
-        # Typ
         ttk.Label(main, text="Typ:").grid(row=row, column=0, sticky="w", pady=3)
         self._type_var = tk.StringVar(value=field.type if field else "text")
         type_combo = ttk.Combobox(
@@ -708,7 +664,6 @@ class FieldEditorDialog(tk.Toplevel):
         type_combo.bind("<<ComboboxSelected>>", lambda e: self._on_type_changed())
         row += 1
 
-        # Rolle
         ttk.Label(main, text="Rolle:").grid(row=row, column=0, sticky="w", pady=3)
         self._role_var = tk.StringVar(value=field.role if field else "measurement")
         ttk.Combobox(
@@ -720,7 +675,6 @@ class FieldEditorDialog(tk.Toplevel):
         ).grid(row=row, column=1, sticky="w", pady=3)
         row += 1
 
-        # Persistent
         self._persistent_var = tk.BooleanVar(
             value=field.persistent if field else False
         )
@@ -729,14 +683,12 @@ class FieldEditorDialog(tk.Toplevel):
         ).grid(row=row, column=0, columnspan=2, sticky="w", pady=3)
         row += 1
 
-        # Optional
         self._optional_var = tk.BooleanVar(value=field.optional if field else False)
         ttk.Checkbutton(main, text="Optional", variable=self._optional_var).grid(
             row=row, column=0, columnspan=2, sticky="w", pady=3
         )
         row += 1
 
-        # --- Spezifikation (number) ---
         self._spec_frame = ttk.LabelFrame(main, text="Spezifikation", padding=8)
         self._spec_frame.grid(
             row=row, column=0, columnspan=2, sticky="ew", pady=(8, 3)
@@ -775,7 +727,6 @@ class FieldEditorDialog(tk.Toplevel):
             row=2, column=1, sticky="w", pady=2
         )
 
-        # --- Optionen (choice) ---
         self._options_frame = ttk.LabelFrame(main, text="Optionen", padding=8)
         self._options_frame.grid(
             row=row, column=0, columnspan=2, sticky="ew", pady=(8, 3)
@@ -811,13 +762,12 @@ class FieldEditorDialog(tk.Toplevel):
         opt_entry.bind("<Return>", lambda e: self._add_option())
 
         ttk.Button(
-            opt_input_frame, text="Hinzufuegen", command=self._add_option
+            opt_input_frame, text="Hinzufügen", command=self._add_option
         ).grid(row=0, column=1, padx=2)
         ttk.Button(
             opt_input_frame, text="Entfernen", command=self._remove_option
         ).grid(row=0, column=2, padx=2)
 
-        # --- Buttons ---
         btn_frame = ttk.Frame(main)
         btn_frame.grid(row=row, column=0, columnspan=2, pady=(15, 0), sticky="e")
 
@@ -828,7 +778,6 @@ class FieldEditorDialog(tk.Toplevel):
             btn_frame, text="Speichern", style="Accent.TButton", command=self._save
         ).pack(side="left")
 
-        # Sichtbarkeit je nach Typ
         self._on_type_changed()
 
     def _on_type_changed(self) -> None:

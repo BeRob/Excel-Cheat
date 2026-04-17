@@ -8,29 +8,28 @@ from tkinter import ttk
 from src.auth.login import AuthService
 from src.config.settings import USERS_KV_PATH
 from src.ui.base_view import BaseView
+from src.ui.theme import COLORS
 
 
 class LoginView(BaseView):
-    """Anmeldebildschirm mit Tabs fuer Passwort und QR-Code."""
-
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
-        self.auth = AuthService(USERS_KV_PATH)
+        qr_prefix = getattr(app_state.app_config, "qr_prefix", "")
+        self.auth = AuthService(USERS_KV_PATH, qr_prefix=qr_prefix)
         self._build_ui()
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        # Titel
-        title = ttk.Label(self, text="Anmeldung", style="Title.TLabel")
-        title.grid(row=0, column=0, pady=(20, 10))
+        ttk.Label(self, text="Anmeldung", style="Title.TLabel").grid(
+            row=0, column=0, pady=(20, 10)
+        )
 
-        # Notebook mit Tabs
         self.notebook = ttk.Notebook(self)
         self.notebook.grid(row=1, column=0, padx=40, pady=10, sticky="n")
 
-        # --- Tab 1: Passwort ---
+        # Tab: Passwort
         pw_frame = ttk.Frame(self.notebook, padding=20)
         self.notebook.add(pw_frame, text="Passwort")
 
@@ -56,11 +55,10 @@ class LoginView(BaseView):
         )
         self.pw_login_btn.grid(row=4, column=0)
 
-        # Enter-Taste: Username -> Passwort-Feld, Passwort -> Login
         self.username_entry.bind("<Return>", lambda e: self.password_entry.focus_set())
         self.password_entry.bind("<Return>", lambda e: self._login_password())
 
-        # --- Tab 2: QR-Code ---
+        # Tab: QR-Code
         qr_frame = ttk.Frame(self.notebook, padding=20)
         self.notebook.add(qr_frame, text="QR-Code")
 
@@ -74,34 +72,29 @@ class LoginView(BaseView):
         ttk.Label(
             qr_frame,
             text="Bitte QR-Code mit Handscanner scannen.",
-            foreground="gray",
+            foreground=COLORS["text_secondary"],
         ).grid(row=2, column=0, pady=(0, 15))
 
-        # Enter-Taste fuer QR-Login (Scanner sendet Enter)
+        # Handscanner schickt Enter am Zeilenende
         self.qr_entry.bind("<Return>", lambda e: self._login_qr())
 
-        # Tab-Wechsel: Fokus setzen
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
-        # --- Status-Meldung ---
         self.status_var = tk.StringVar()
-        self.status_label = ttk.Label(
+        ttk.Label(
             self, textvariable=self.status_var, style="Error.TLabel"
-        )
-        self.status_label.grid(row=2, column=0, pady=10)
+        ).grid(row=2, column=0, pady=10)
 
     def on_show(self) -> None:
         self.username_var.set("")
         self.password_var.set("")
         self.qr_var.set("")
         self.status_var.set("")
-        # Passwort-Tab als Standard
         self.notebook.select(0)
-        # Fokus mit Verzoegerung (sicherstellen, dass Widget sichtbar ist)
+        # Kleiner Delay, damit der Fokus erst gesetzt wird, wenn das Widget sichtbar ist
         self.after(100, lambda: self.username_entry.focus_force())
 
     def _on_tab_changed(self, event=None) -> None:
-        """Setzt den Fokus passend zum aktiven Tab."""
         tab_id = self.notebook.index(self.notebook.select())
         if tab_id == 0:
             self.after(50, lambda: self.username_entry.focus_force())

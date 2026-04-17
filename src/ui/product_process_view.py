@@ -1,4 +1,4 @@
-"""Produkt- und Prozessauswahl-Bildschirm."""
+"""Produkt- und Prozessauswahl."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from src.config.process_config import (
     get_auto_fields,
     get_persistent_context_fields,
 )
-from src.config.settings import OUTPUT_DIR
+from src.config.settings import APP_ROOT
 from src.excel.creator import (
     create_measurement_file,
     find_existing_file,
@@ -29,8 +29,6 @@ from src.ui.theme import COLORS, FONTS
 
 
 class ProductProcessView(BaseView):
-    """Bildschirm zur Auswahl von Produkt und Prozess."""
-
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
         self._build_ui()
@@ -39,7 +37,6 @@ class ProductProcessView(BaseView):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
 
-        # --- Obere Leiste ---
         top_bar = ttk.Frame(self)
         top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         top_bar.columnconfigure(0, weight=1)
@@ -51,25 +48,21 @@ class ProductProcessView(BaseView):
             row=0, column=1
         )
 
-        # --- Hauptcontainer (wird in on_show befuellt) ---
+        # Je nach Admin-Flag wird in on_show ein Notebook oder nur die Auswahl angezeigt
         self.main_container = ttk.Frame(self)
         self.main_container.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
         self.main_container.columnconfigure(0, weight=1)
         self.main_container.rowconfigure(0, weight=1)
 
     def _build_selection_ui(self, parent: tk.Widget) -> None:
-        """Baut die Auswahl-UI in den gegebenen Container."""
         frame = ttk.Frame(parent, padding=20)
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(1, weight=1)
 
-        # Titel
-        ttk.Label(frame, text="Produkt und Prozess waehlen",
-                  style="Subtitle.TLabel").grid(
-            row=0, column=0, columnspan=2, pady=(0, 20)
-        )
+        ttk.Label(
+            frame, text="Produkt und Prozess wählen", style="Subtitle.TLabel"
+        ).grid(row=0, column=0, columnspan=2, pady=(0, 20))
 
-        # --- Produkt-Auswahl ---
         ttk.Label(frame, text="Produkt:", font=FONTS["body"]).grid(
             row=1, column=0, sticky="w", padx=(0, 10), pady=5
         )
@@ -80,7 +73,6 @@ class ProductProcessView(BaseView):
         self.product_combo.grid(row=1, column=1, sticky="ew", pady=5)
         self.product_combo.bind("<<ComboboxSelected>>", self._on_product_selected)
 
-        # --- Prozess-Auswahl ---
         ttk.Label(frame, text="Prozess:", font=FONTS["body"]).grid(
             row=2, column=0, sticky="w", padx=(0, 10), pady=5
         )
@@ -91,14 +83,12 @@ class ProductProcessView(BaseView):
         self.process_combo.grid(row=2, column=1, sticky="ew", pady=5)
         self.process_combo.bind("<<ComboboxSelected>>", self._on_process_selected)
 
-        # --- Schicht-Anzeige ---
         ttk.Label(frame, text="Schicht:", font=FONTS["body"]).grid(
             row=3, column=0, sticky="w", padx=(0, 10), pady=5
         )
         self.shift_label = ttk.Label(frame, text="", font=FONTS["body"])
         self.shift_label.grid(row=3, column=1, sticky="w", pady=5)
 
-        # --- Info-Bereich ---
         info_frame = ttk.LabelFrame(frame, text="Prozess-Details", padding=10)
         info_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(15, 5))
         info_frame.columnconfigure(0, weight=1)
@@ -110,13 +100,11 @@ class ProductProcessView(BaseView):
         )
         self.info_text.pack(fill="both", expand=True)
 
-        # --- Status ---
         self.status_var = tk.StringVar()
-        self.status_label = ttk.Label(frame, textvariable=self.status_var,
-                                      foreground=COLORS["text_secondary"])
-        self.status_label.grid(row=5, column=0, columnspan=2, pady=5)
+        ttk.Label(
+            frame, textvariable=self.status_var, foreground=COLORS["text_secondary"]
+        ).grid(row=5, column=0, columnspan=2, pady=5)
 
-        # --- Weiter-Button ---
         self.next_btn = ttk.Button(
             frame, text="Weiter", command=self._go_next,
             state="disabled", style="Accent.TButton",
@@ -136,9 +124,9 @@ class ProductProcessView(BaseView):
             notebook.pack(fill="both", expand=True)
 
             selection_tab = ttk.Frame(notebook)
-            analysis_tab = AnalysisView(notebook, self.app_state)
-
             notebook.add(selection_tab, text="Produkt/Prozess")
+
+            analysis_tab = AnalysisView(notebook, self.app_state)
             notebook.add(analysis_tab, text="Datenauswertung")
 
             config_editor_tab = ConfigEditorView(notebook, self.app_state)
@@ -150,13 +138,11 @@ class ProductProcessView(BaseView):
 
         self.user_label.config(text=f"Angemeldet als: {user.display_name}")
 
-        # Produkte laden
         config = self.app_state.app_config
         if config and config.products:
             product_names = [p.display_name for p in config.products]
             self.product_combo["values"] = product_names
 
-            # Vorherige Auswahl wiederherstellen
             if self.app_state.selected_product:
                 prev = self.app_state.selected_product.display_name
                 if prev in product_names:
@@ -165,11 +151,9 @@ class ProductProcessView(BaseView):
         else:
             self.status_var.set("Keine Produkte konfiguriert.")
 
-        # Schicht anzeigen
         self._update_shift()
 
     def _update_shift(self) -> None:
-        """Aktualisiert die Schicht-Anzeige."""
         config = self.app_state.app_config
         if config and config.shifts:
             now = datetime.now()
@@ -179,7 +163,6 @@ class ProductProcessView(BaseView):
             self.shift_label.config(text="Nicht konfiguriert")
 
     def _on_product_selected(self, event=None) -> None:
-        """Wird aufgerufen wenn ein Produkt gewaehlt wird."""
         config = self.app_state.app_config
         if not config:
             return
@@ -194,7 +177,6 @@ class ProductProcessView(BaseView):
         process_names = [p.display_name for p in product.processes]
         self.process_combo["values"] = process_names
 
-        # Vorherige Prozess-Auswahl wiederherstellen
         if self.app_state.selected_process:
             prev = self.app_state.selected_process.display_name
             if prev in process_names:
@@ -207,7 +189,6 @@ class ProductProcessView(BaseView):
         self.next_btn.config(state="disabled")
 
     def _on_process_selected(self, event=None) -> None:
-        """Wird aufgerufen wenn ein Prozess gewaehlt wird."""
         config = self.app_state.app_config
         if not config:
             return
@@ -228,12 +209,11 @@ class ProductProcessView(BaseView):
         self.next_btn.config(state="normal" if process else "disabled")
 
     def _update_info(self, process) -> None:
-        """Zeigt die Feld-Uebersicht des gewaehlten Prozesses."""
         self.info_text.config(state="normal")
         self.info_text.delete("1.0", "end")
 
         if not process:
-            self.info_text.insert("1.0", "Bitte Prozess waehlen.")
+            self.info_text.insert("1.0", "Bitte Prozess wählen.")
             self.info_text.config(state="disabled")
             return
 
@@ -275,12 +255,10 @@ class ProductProcessView(BaseView):
         self.info_text.config(state="disabled")
 
     def _go_next(self) -> None:
-        """Produkt/Prozess setzen, Datei erstellen/finden, weiter zum Kontext."""
         config = self.app_state.app_config
         if not config:
             return
 
-        # Produkt + Prozess finden
         product_name = self.product_var.get()
         product = next(
             (p for p in config.products if p.display_name == product_name), None
@@ -295,24 +273,21 @@ class ProductProcessView(BaseView):
         if not process:
             return
 
-        # Schicht bestimmen
         now = datetime.now()
         shift = determine_shift(now.hour, config.shifts) if config.shifts else "1"
         shift_date = get_shift_date(now, shift)
 
-        # Output-Dir (per-product with global fallback)
+        # Output-Dir: zuerst Produkt-spezifisch, dann globale Einstellung
         raw_output = product.output_dir if product.output_dir else config.output_dir
         output_dir = Path(raw_output)
         if not output_dir.is_absolute():
-            from src.config.settings import APP_ROOT
             output_dir = APP_ROOT / output_dir
 
-        # Datei suchen oder erstellen
         existing = find_existing_file(process, product.product_id, output_dir, shift, shift_date)
         if existing:
             filepath = existing
             row_count = count_data_rows(filepath)
-            self.status_var.set(f"Bestehende Datei gefunden ({row_count} Eintraege)")
+            self.status_var.set(f"Bestehende Datei gefunden ({row_count} Einträge)")
         else:
             filepath = create_measurement_file(
                 process, product.product_id, output_dir, shift, shift_date
@@ -320,7 +295,6 @@ class ProductProcessView(BaseView):
             row_count = 0
             self.status_var.set("Neue Datei erstellt")
 
-        # AppState aktualisieren
         self.app_state.selected_product = product
         self.app_state.selected_process = process
         self.app_state.current_shift = shift
@@ -334,7 +308,7 @@ class ProductProcessView(BaseView):
             f.display_name for f in get_measurement_fields(process)
         ]
 
-        # Zaehler initialisieren (fuer Resume)
+        # Zaehler fuer Resume initialisieren
         self.app_state.auto_sequence = row_count
         if process.row_group_size:
             self.app_state.row_group_counter = row_count % process.row_group_size

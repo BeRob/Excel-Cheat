@@ -15,16 +15,14 @@ from src.config.process_config import (
     get_auto_fields,
     FieldDef,
 )
-from src.domain.validation import validate_measurements, parse_numeric
+from src.domain.validation import parse_numeric
 from src.excel.writer import write_measurement_row
 from src.ui.base_view import BaseView
 from src.ui.review_dialog import ReviewDialog
-from src.ui.theme import COLORS, FONTS
+from src.ui.theme import COLORS
 
 
 class FormView(BaseView):
-    """Bildschirm zur Erfassung von Messwerten."""
-
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
         self.field_vars: dict[str, tk.StringVar] = {}
@@ -33,6 +31,7 @@ class FormView(BaseView):
         self._persistent_field_defs: list[FieldDef] = []
         self._last_fields_key: str = ""
         self._history: deque = deque(maxlen=10)
+        self._first_focus_widget: tk.Widget | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -40,7 +39,6 @@ class FormView(BaseView):
         self.rowconfigure(2, weight=1)
         self.rowconfigure(5, weight=0)
 
-        # --- Obere Leiste ---
         top_bar = ttk.Frame(self)
         top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         top_bar.columnconfigure(0, weight=1)
@@ -55,14 +53,13 @@ class FormView(BaseView):
                                      command=self._toggle_layout)
         self.layout_btn.pack(side="left", padx=(5, 0))
 
-        ttk.Button(btn_frame, text="Kontext aendern",
+        ttk.Button(btn_frame, text="Kontext ändern",
                    command=self._change_context).pack(side="left", padx=(5, 0))
         ttk.Button(btn_frame, text="Prozess wechseln",
                    command=self._change_process).pack(side="left", padx=(5, 0))
         ttk.Button(btn_frame, text="Abmelden",
                    command=self._logout).pack(side="left", padx=(5, 0))
 
-        # --- Titel + Row-Group Anzeige ---
         title_frame = ttk.Frame(self)
         title_frame.grid(row=1, column=0, pady=(5, 5))
         ttk.Label(title_frame, text="Messwerte erfassen",
@@ -70,7 +67,6 @@ class FormView(BaseView):
         self.group_label = ttk.Label(title_frame, text="", foreground=COLORS["accent"])
         self.group_label.pack(side="left", padx=(15, 0))
 
-        # --- Scrollbarer Bereich ---
         scroll_container = ttk.Frame(self)
         scroll_container.grid(row=2, column=0, sticky="nsew", padx=40, pady=5)
         scroll_container.columnconfigure(0, weight=1)
@@ -101,13 +97,11 @@ class FormView(BaseView):
         self.canvas.bind("<Enter>", self._bind_mousewheel)
         self.canvas.bind("<Leave>", self._unbind_mousewheel)
 
-        # --- Status-Zeile ---
         self.status_var = tk.StringVar()
         self.status_label = ttk.Label(self, textvariable=self.status_var,
                                       style="Success.TLabel")
         self.status_label.grid(row=3, column=0, pady=5)
 
-        # --- Untere Leiste ---
         bottom_bar = ttk.Frame(self)
         bottom_bar.grid(row=4, column=0, pady=(5, 10))
 
@@ -116,7 +110,6 @@ class FormView(BaseView):
         ttk.Button(bottom_bar, text="Speichern", command=self._save,
                    style="Accent.TButton").pack(side="left", padx=10)
 
-        # --- History-Bereich ---
         history_frame = ttk.LabelFrame(self, text="Letzte 10 Messungen", padding=10)
         history_frame.grid(row=5, column=0, sticky="ew", padx=40, pady=(5, 15))
         history_frame.columnconfigure(0, weight=1)
@@ -147,7 +140,6 @@ class FormView(BaseView):
         history_scrollbar.grid(row=0, column=1, sticky="ns")
 
     def _update_scroll_region(self) -> None:
-        """Aktualisiert Scrollregion und blendet Scrollbar bei Bedarf ein/aus."""
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         if self.scrollable_frame.winfo_reqheight() <= self.canvas.winfo_height():
             self.scrollbar.grid_remove()
@@ -161,7 +153,6 @@ class FormView(BaseView):
         self.canvas.unbind_all("<MouseWheel>")
 
     def _on_mousewheel(self, event) -> None:
-        # Nur scrollen wenn Inhalt groesser als sichtbarer Bereich
         if self.scrollable_frame.winfo_reqheight() <= self.canvas.winfo_height():
             return
         self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
@@ -188,16 +179,23 @@ class FormView(BaseView):
         mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
         self.layout_btn.config(text=f"Layout: {mode_text}")
 
-        # Row-Group Anzeige
         self._update_group_label()
 
-        # Felder generieren
         fields_key = f"{process_name}_{self.app_state.layout_mode}"
         if fields_key != self._last_fields_key:
             self._generate_fields()
             self._last_fields_key = fields_key
+        else:
+            self._set_initial_focus()
 
         self.status_var.set("")
+
+    def _set_initial_focus(self) -> None:
+        if self._first_focus_widget is not None:
+            try:
+                self._first_focus_widget.focus_set()
+            except tk.TclError:
+                pass
 
     def _update_group_label(self) -> None:
         process = self.app_state.selected_process
@@ -227,23 +225,25 @@ class FormView(BaseView):
         self.persistent_vars.clear()
         self._field_defs.clear()
         self._persistent_field_defs.clear()
+        self._first_focus_widget = None
 
         process = self.app_state.selected_process
         if not process:
             return
 
-        # Persistente Kontext-Felder (eigener Block)
         persistent_fields = get_persistent_context_fields(process)
         self._persistent_field_defs = persistent_fields
 
-        # Per-measurement Kontext-Felder + Messwert-Felder (Hauptblock)
         per_meas_ctx = get_per_measurement_context_fields(process)
         measurement = get_measurement_fields(process)
-        all_fields = per_meas_ctx + measurement
-        self._field_defs = all_fields
+        # Reihenfolge im Formular: zuerst Dropdowns, dann andere Felder.
+        # Die Excel-Spaltenreihenfolge folgt weiterhin process.fields (JSON).
+        all_fields_original = per_meas_ctx + measurement
+        choice_fields = [f for f in all_fields_original if f.type == "choice"]
+        other_fields = [f for f in all_fields_original if f.type != "choice"]
+        display_fields = choice_fields + other_fields
+        self._field_defs = display_fields
 
-        # --- Block: Feste Werte ---
-        first_widget = None
         if persistent_fields:
             ctx_frame = ttk.LabelFrame(
                 self.scrollable_frame, text="Feste Werte", padding=10,
@@ -269,38 +269,37 @@ class FormView(BaseView):
 
                 widget.grid(row=i, column=1, sticky="w", pady=3)
                 self.persistent_vars[fd.display_name] = var
-                if i == 0:
-                    first_widget = widget
 
-        # --- Block: Messwerte ---
         meas_frame = ttk.LabelFrame(
             self.scrollable_frame, text="Messwerte", padding=10,
         )
         meas_frame.pack(fill="x", padx=5, pady=(0, 5))
 
         if self.app_state.layout_mode == "vertical":
-            first_meas = self._generate_vertical_fields(all_fields, meas_frame)
+            first_meas, first_choice = self._generate_vertical_fields(
+                display_fields, meas_frame,
+            )
         else:
-            first_meas = self._generate_horizontal_fields(all_fields, meas_frame)
+            first_meas, first_choice = self._generate_horizontal_fields(
+                display_fields, meas_frame,
+            )
 
-        if first_widget is None:
-            first_widget = first_meas
-        if first_widget:
-            first_widget.focus_set()
+        self._first_focus_widget = first_choice or first_meas
+        self._set_initial_focus()
 
         self.canvas.yview_moveto(0)
 
     def _generate_vertical_fields(
         self, fields: list[FieldDef], parent: tk.Widget,
-    ) -> tk.Widget | None:
+    ) -> tuple[tk.Widget | None, tk.Widget | None]:
         parent.columnconfigure(0, weight=0)
         parent.columnconfigure(1, weight=1)
         parent.columnconfigure(2, weight=0)
 
         first_widget = None
+        first_choice = None
         for i, fd in enumerate(fields):
-            label_text = f"{fd.display_name}:"
-            ttk.Label(parent, text=label_text).grid(
+            ttk.Label(parent, text=f"{fd.display_name}:").grid(
                 row=i, column=0, sticky="w", pady=5, padx=(5, 15),
             )
 
@@ -322,20 +321,23 @@ class FormView(BaseView):
             self.field_vars[fd.display_name] = var
             if i == 0:
                 first_widget = widget
+            if first_choice is None and fd.type == "choice":
+                first_choice = widget
 
-        return first_widget
+        return first_widget, first_choice
 
     def _generate_horizontal_fields(
         self, fields: list[FieldDef], parent: tk.Widget,
-    ) -> tk.Widget | None:
-        MAX_COLS = 4
-        for i in range(MAX_COLS):
+    ) -> tuple[tk.Widget | None, tk.Widget | None]:
+        max_cols = 4
+        for i in range(max_cols):
             parent.columnconfigure(i, weight=1)
 
         first_widget = None
+        first_choice = None
         for i, fd in enumerate(fields):
-            row = i // MAX_COLS
-            col = i % MAX_COLS
+            row = i // max_cols
+            col = i % max_cols
 
             cell = ttk.Frame(parent, padding=5)
             cell.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
@@ -357,26 +359,25 @@ class FormView(BaseView):
             self.field_vars[fd.display_name] = var
             if i == 0:
                 first_widget = widget
+            if first_choice is None and fd.type == "choice":
+                first_choice = widget
 
-        return first_widget
+        return first_widget, first_choice
 
     def _create_field_widget(
         self, parent: tk.Widget, fd: FieldDef, var: tk.StringVar
     ) -> tk.Widget:
-        """Erstellt das passende Widget basierend auf dem Feldtyp."""
         if fd.type == "choice" and fd.options:
             widget = ttk.Combobox(
                 parent, textvariable=var, values=fd.options,
                 state="readonly", width=23,
             )
-            # Enter navigiert zum naechsten Feld (Up/Down fuer Combobox-Auswahl)
             widget.bind("<Return>", self._focus_next)
         else:
             widget = ttk.Entry(parent, textvariable=var, width=25)
             widget.bind("<Return>", self._focus_next)
             widget.bind("<Down>", self._focus_next)
             widget.bind("<Up>", self._focus_prev)
-            # Spec-Feedback bei Zahlenfeldern
             if fd.type == "number" and fd.spec_min is not None:
                 widget.bind("<FocusOut>", lambda e, w=widget, f=fd, v=var:
                             self._on_spec_check(w, f, v))
@@ -384,17 +385,14 @@ class FormView(BaseView):
         return widget
 
     def _focus_next(self, event) -> str:
-        """Fokus zum naechsten Widget in Tab-Reihenfolge."""
         event.widget.tk_focusNext().focus_set()
         return "break"
 
     def _focus_prev(self, event) -> str:
-        """Fokus zum vorherigen Widget in Tab-Reihenfolge."""
         event.widget.tk_focusPrev().focus_set()
         return "break"
 
     def _on_spec_check(self, widget: ttk.Entry, fd: FieldDef, var: tk.StringVar) -> None:
-        """Prueft Spec-Limits und faerbt das Feld entsprechend."""
         value = var.get().strip()
         if not value:
             widget.configure(style="TEntry")
@@ -413,23 +411,16 @@ class FormView(BaseView):
             widget.configure(foreground=COLORS["error"])
 
     def _clear_fields(self) -> None:
-        process = self.app_state.selected_process
         for name, var in self.field_vars.items():
-            # Per-measurement Kontext nicht leeren
             fd = next((f for f in self._field_defs if f.display_name == name), None)
-            if fd and fd.role == "context":
+            # Kontextfelder und Dropdowns behalten ihren Wert über Messungen hinweg.
+            if fd and (fd.role == "context" or fd.type == "choice"):
                 continue
             var.set("")
         self.status_var.set("")
-        children = self.scrollable_frame.winfo_children()
-        for child in children:
-            if isinstance(child, (ttk.Entry, ttk.Combobox)):
-                child.focus_set()
-                break
+        self._set_initial_focus()
 
     def _save(self) -> None:
-        """Oeffnet den Review-Dialog vor dem Schreiben."""
-        # Persistente Werte aktualisieren
         for header, var in self.persistent_vars.items():
             self.app_state.persistent_values[header] = var.get().strip()
 
@@ -444,7 +435,6 @@ class FormView(BaseView):
         )
 
     def _do_write(self, normalized_values: dict[str, float | str | None]) -> None:
-        """Schreibt die Messwerte in die Excel-Datei."""
         process = self.app_state.selected_process
         if not process:
             return
@@ -458,7 +448,6 @@ class FormView(BaseView):
                 details={"measurement_count": len(normalized_values)},
             )
 
-        # Werte aufteilen nach Rolle
         context_values: dict[str, str] = {}
         measurement_values: dict[str, float | str | None] = {}
 
@@ -469,10 +458,8 @@ class FormView(BaseView):
             else:
                 measurement_values[fd.display_name] = val
 
-        # Persistente Kontext-Werte hinzufuegen
         context_values.update(self.app_state.persistent_values)
 
-        # Auto-Werte berechnen
         auto_values: dict[str, str | float | None] = {}
         now = datetime.now()
         for fd in get_auto_fields(process):
@@ -497,7 +484,6 @@ class FormView(BaseView):
         )
 
         if result.success:
-            # Zaehler aktualisieren
             self.app_state.row_group_counter += 1
             self._update_group_label()
 
@@ -520,7 +506,7 @@ class FormView(BaseView):
             self.status_var.set(f"Fehler: {result.error}")
             self.status_label.config(style="Error.TLabel")
 
-            # Auto-Sequence zuruecksetzen wenn fehlgeschlagen
+            # Sequenz zuruecknehmen, wenn das Schreiben fehlschlug
             if "pruefmuster" in [f.id for f in get_auto_fields(process)]:
                 self.app_state.auto_sequence -= 1
 
@@ -539,10 +525,11 @@ class FormView(BaseView):
         pv = self.app_state.persistent_values
         kontext = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else "-"
 
-        werte_list = []
-        for header, value in measurements.items():
-            if value is not None:
-                werte_list.append(f"{header}: {value}")
+        werte_list = [
+            f"{header}: {value}"
+            for header, value in measurements.items()
+            if value is not None
+        ]
         werte = ", ".join(werte_list) if werte_list else "-"
 
         self._history.append((timestamp, kontext, werte))

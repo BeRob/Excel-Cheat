@@ -1,5 +1,6 @@
 {
   "output_dir": "output",
+  "qr_prefix": "WF2 ",
   "shifts": [
     {"name": "1", "start_hour": 6, "end_hour": 14},
     {"name": "2", "start_hour": 14, "end_hour": 22},

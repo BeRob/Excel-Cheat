@@ -1,4 +1,4 @@
-"""Tests fuer die Messwert-Validierung."""
+"""Tests für die Messwert-Validierung."""
 
 import unittest
 
@@ -54,7 +54,7 @@ class TestParseNumeric(unittest.TestCase):
 
 
 class TestValidateMeasurementsLegacy(unittest.TestCase):
-    """Tests ohne field_defs (Rueckwaertskompatibilitaet)."""
+    """Tests ohne field_defs (Rückwärtskompatibilität)."""
 
     def test_valid_values(self):
         result = validate_measurements({"Laenge": "3,4", "Breite": "5.1"})
@@ -115,7 +115,7 @@ class TestValidateWithFieldDefs(unittest.TestCase):
         result = validate_measurements({"Breite 1": "200"}, field_defs=fields)
         self.assertFalse(result.has_errors)
         self.assertEqual(len(result.warnings), 1)
-        self.assertIn("ueber Maximum", result.warnings[0])
+        self.assertIn("über Maximum", result.warnings[0])
 
     def test_number_invalid(self):
         fields = self._make_fields()
@@ -133,7 +133,7 @@ class TestValidateWithFieldDefs(unittest.TestCase):
         fields = self._make_fields()
         result = validate_measurements({"ASK": "Vielleicht"}, field_defs=fields)
         self.assertTrue(result.has_errors)
-        self.assertIn("keine gueltige Auswahl", result.errors[0])
+        self.assertIn("keine gültige Auswahl", result.errors[0])
 
     def test_text_passthrough(self):
         fields = self._make_fields()

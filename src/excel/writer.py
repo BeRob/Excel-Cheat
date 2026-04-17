@@ -1,8 +1,8 @@
-"""Excel-Schreibfunktionen: Zeile anhaengen basierend auf Prozesskonfiguration."""
+"""Messzeile an eine bestehende Excel-Datei anhängen."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import openpyxl
@@ -12,8 +12,6 @@ from src.config.process_config import ProcessConfig
 
 @dataclass
 class WriteResult:
-    """Ergebnis eines Schreibvorgangs."""
-
     success: bool = False
     row_number: int | None = None
     error: str | None = None
@@ -26,20 +24,7 @@ def write_measurement_row(
     measurements: dict[str, float | str | None],
     auto_values: dict[str, str | float | None],
 ) -> WriteResult:
-    """Haengt eine neue Messzeile an die Excel-Datei an.
-
-    Die Spaltenreihenfolge ergibt sich aus process.fields.
-
-    Args:
-        filepath: Pfad zur .xlsx Datei.
-        process: Prozesskonfiguration (definiert Spaltenreihenfolge).
-        context_values: Kontext-Werte (display_name -> Wert).
-        measurements: Messwerte (display_name -> Wert).
-        auto_values: Auto-Werte (display_name -> Wert).
-
-    Returns:
-        WriteResult mit Erfolg/Fehler-Status.
-    """
+    """Hängt eine Messzeile an. Die Spaltenreihenfolge folgt `process.fields`."""
     result = WriteResult()
 
     try:
@@ -51,25 +36,20 @@ def write_measurement_row(
         result.error = f"Datei nicht gefunden: {filepath}"
         return result
     except Exception as e:
-        result.error = f"Datei konnte nicht geoeffnet werden: {e}"
+        result.error = f"Datei konnte nicht geöffnet werden: {e}"
         return result
 
     try:
         ws = wb.active
         next_row = ws.max_row + 1
 
-        # Spalten-Map aus Prozesskonfiguration aufbauen
-        col_map: dict[str, int] = {}
-        for idx, fd in enumerate(process.fields, 1):
-            col_map[fd.display_name] = idx
+        col_map = {fd.display_name: idx for idx, fd in enumerate(process.fields, 1)}
 
-        # Alle Wert-Quellen zusammenfuehren
         all_values: dict[str, str | float | None] = {}
         all_values.update(context_values)
         all_values.update(measurements)
         all_values.update(auto_values)
 
-        # Werte in die richtige Spalte schreiben
         for display_name, col_idx in col_map.items():
             value = all_values.get(display_name)
             if value is not None:

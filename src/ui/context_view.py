@@ -1,11 +1,10 @@
-"""Kontext-Bildschirm: Persistente Werte setzen (z.B. LOT Nr.)."""
+"""Kontext-Bildschirm: Persistente Werte (z.B. FA-Nr., LOT) setzen."""
 
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
-
 from datetime import datetime
 
 from src.config.process_config import get_persistent_context_fields
@@ -15,8 +14,6 @@ from src.ui.theme import COLORS
 
 
 class ContextView(BaseView):
-    """Bildschirm zum Setzen der festen Werte (persistent headers)."""
-
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
         self.field_vars: dict[str, tk.StringVar] = {}
@@ -26,7 +23,6 @@ class ContextView(BaseView):
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
 
-        # --- Obere Leiste ---
         top_bar = ttk.Frame(self)
         top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         top_bar.columnconfigure(0, weight=1)
@@ -41,25 +37,21 @@ class ContextView(BaseView):
         ttk.Button(btn_frame, text="Abmelden",
                    command=self._logout).pack(side="left", padx=(5, 0))
 
-        # --- Titel ---
         ttk.Label(self, text="Feste Werte setzen", style="Subtitle.TLabel").grid(
             row=1, column=0, pady=(10, 5)
         )
 
-        # --- Dynamischer Formular-Container ---
         self.form_frame = ttk.Frame(self)
         self.form_frame.grid(row=2, column=0, padx=40, pady=10)
 
-        # --- Hinweis bei 0 festen Werten ---
         self.no_fields_label = ttk.Label(
             self,
-            text="Keine festen Werte definiert. Sie koennen direkt weiter zur Messung.",
+            text="Keine festen Werte definiert. Sie können direkt weiter zur Messung.",
             foreground=COLORS["text_secondary"],
         )
         self.no_fields_label.grid(row=3, column=0, padx=40, pady=5)
         self.no_fields_label.grid_remove()
 
-        # --- Weiter-Button ---
         self.next_btn = ttk.Button(
             self, text="Weiter zur Messung", command=self._go_next,
             style="Accent.TButton",
@@ -96,7 +88,6 @@ class ContextView(BaseView):
             return
 
         fields = get_persistent_context_fields(process)
-
         if not fields:
             self.no_fields_label.grid()
             self.next_btn.config(state="normal")
@@ -110,7 +101,6 @@ class ContextView(BaseView):
             )
             var = tk.StringVar()
 
-            # Vorausfuellen wenn bereits Werte vorhanden
             if field_def.display_name in self.app_state.persistent_values:
                 var.set(self.app_state.persistent_values[field_def.display_name])
 
@@ -124,7 +114,6 @@ class ContextView(BaseView):
             else:
                 widget = ttk.Entry(self.form_frame, textvariable=var, width=30)
 
-            # Enter navigiert zum naechsten Feld
             widget.bind("<Return>", lambda e: e.widget.tk_focusNext().focus_set() or "break")
             widget.grid(row=i, column=1, pady=5)
             self.field_vars[field_def.display_name] = var
@@ -147,7 +136,6 @@ class ContextView(BaseView):
             h: var.get().strip() for h, var in self.field_vars.items()
         }
 
-        # Info-Header in Excel schreiben (Produkt, Prozess, FA-Nr. etc.)
         if self.app_state.current_file and self.app_state.current_file.exists():
             product = self.app_state.selected_product
             process = self.app_state.selected_process
