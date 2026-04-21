@@ -18,7 +18,8 @@ QAInput/
 |-- data/
 |   |-- app_config.json             Globale Einstellungen (Schichten, Ausgabeverzeichnis)
 |   |-- products/
-|   |   |-- REF31962.json           Produktkonfiguration mit allen Prozessen
+|   |   |-- REF31962.json           Sugi Instrument Wipe, 80×80 mm, 250 Stk.
+|   |   |-- REF31963.json           Sugi Instrument Wipe Xtra, 80×80 mm, 250 Stk.
 |   |   |-- (weitere Produkte...)
 |   |-- users.kv                    Benutzerliste (Passwort, QR-Code, Name)
 |-- src/
@@ -146,11 +147,12 @@ Die Zeilen 1-5 bilden den Info-Header-Block. Er wird beim ersten Setzen der fest
 
 ### Ausgabeverzeichnis
 
-Das Ausgabeverzeichnis kann auf drei Ebenen konfiguriert werden:
+Das Ausgabeverzeichnis wird in dieser Reihenfolge bestimmt:
 
-1. **Pro Produkt** -- Im Feld `output_dir` der Produkt-JSON-Datei (höchste Priorität)
-2. **Global** -- Im Feld `output_dir` in `app_config.json` (Fallback)
-3. **Standard** -- `output/` im Anwendungsverzeichnis (wenn nichts konfiguriert)
+1. **Pro Produkt** -- Im Feld `output_dir` der Produkt-JSON-Datei (absoluter Pfad oder relativ zum Anwendungsverzeichnis)
+2. **Ordner-Dialog** -- Wenn `output_dir` leer ist, erscheint beim Prozessstart ein Ordner-Auswahl-Dialog
+
+Es gibt kein globales Fallback-Verzeichnis mehr. Produkte ohne `output_dir` fordern den Bediener beim Start aktiv zur Auswahl auf.
 
 ---
 
@@ -187,10 +189,11 @@ Jedes Produkt hat eine eigene JSON-Datei. Diese definiert alle Prozesse (IPC1 bi
 - **display_name** -- Anzeigename (z.B. `"Breite 1"`)
 - **type** -- `"text"`, `"number"` oder `"choice"` (Dropdown)
 - **role** -- `"context"` (Kontext), `"measurement"` (Messwert) oder `"auto"` (automatisch)
-- **persistent** -- `true` wenn der Wert über mehrere Messungen gleich bleibt (z.B. FA-Nr., LOT Nr.)
+- **persistent** -- `true` wenn der Wert über mehrere Messungen gleich bleibt (z.B. FA-Nr., LOT Nr., Messmittel)
 - **spec_min/spec_max/spec_target** -- Spezifikationsgrenzen und Zielwert für Zahlenfelder
 - **options** -- Auswahlliste für Choice-Felder (z.B. `["Ja", "Nein"]`)
 - **optional** -- `true` wenn das Feld leer bleiben darf
+- **default_value** -- Standardwert, mit dem das Feld vorausgefüllt wird (z.B. `"n/a"` für Bemerkungen); wird nach jeder Messung wiederhergestellt
 
 Optionales Top-Level-Feld:
 - **output_dir** -- Ausgabeverzeichnis für dieses Produkt (überschreibt den globalen Wert)
@@ -198,6 +201,12 @@ Optionales Top-Level-Feld:
 Besonderheiten einzelner Prozesse:
 - **IPC2 Schaelen** hat `row_group_size: 3` -- das bedeutet, es gibt 3 Nutzen pro Rolle. Die App zählt automatisch "Nutzen 1 von 3", "Nutzen 2 von 3", etc.
 - **IPC4 Stanzen** hat ein Auto-Feld "Prüfmuster", das bei jeder Messung hochzählt.
+
+Standard-Kontextfelder in allen Prozessen beider Produkte (persistent):
+- **FA-Nr.** -- Fertigungsauftragsnummer
+- **LOT Nr.** -- Losnummer
+- **Messmittel** -- Verwendetes Messinstrument
+- **Verwendbarkeitsdatum** -- Verfallsdatum des Messmittels
 
 Um ein neues Produkt hinzuzufügen gibt es zwei Wege:
 1. **Admin-Editor** -- Im Tab "Produktkonfiguration" direkt in der App anlegen
@@ -237,15 +246,15 @@ Gegenstück zu `process_config.py`: Konvertiert die Datenklassen zurück in JSON
 - `validate_product_config()` -- Prüft: Pflichtfelder ausgefüllt, IDs eindeutig, Spec-Grenzen logisch, Choice-Felder mit Optionen. Gibt eine Liste von Fehlertexten zurück (leer = alles OK)
 - `save_product_config()` -- Schreibt die JSON-Datei in den Produkt-Ordner
 
-### `src/config/settings.py` -- Konstanten
+### `src/config/settings.py` -- Pfade und Konstanten
 
-Feste Werte, die nicht in der JSON-Konfiguration stehen:
+Löst alle Dateisystempfade zur Laufzeit auf. Priorität je Verzeichnis:
 
-- Fenstertitel und -größe
-- Pfade zu Benutzerdatei, Audit-Log, Konfiguration und Produktordner
-- Ausgabeverzeichnis
-- Info-Header-Konfiguration (`INFO_HEADER_ROWS = 5`, `HEADER_ROW = 6`)
-- Automatisch generierte Spaltennamen (`Datum`, `Bearbeiter`)
+1. Umgebungsvariable (`QAINPUT_USERS_DIR`, `QAINPUT_CONFIG_DIR`, `QAINPUT_PRODUCTS_DIR`, `QAINPUT_AUDIT_DIR`)
+2. Bootstrap-Datei `config.json` neben der exe mit Schlüsseln `users_dir`, `config_dir`, `products_dir`, `audit_dir`
+3. Standard: Unterordner von `<APP_ROOT>/data`
+
+Exportierte Konstanten: `USERS_DIR`, `CONFIG_DIR`, `PRODUCTS_DIR`, `AUDIT_DIR`, `USERS_KV_PATH`, `APP_CONFIG_PATH`, `AUDIT_LOG_PATH`, `HEADER_ROW`, Fenstertitel und -größe.
 
 ### `src/domain/state.py` -- Anwendungszustand
 
@@ -507,7 +516,7 @@ Die JSON-Datei aus `data/products/` auf einen USB-Stick kopieren und auf dem Zie
 
 ## Abhängigkeiten
 
-- **Python 3.12+** (nutzt `X | None`-Syntax)
+- **Python 3.11+** (nutzt `X | Y`-Union-Syntax via `from __future__ import annotations`)
 - **openpyxl** -- Excel-Dateien lesen und schreiben
 - **tkinter** -- GUI (in Python enthalten)
 
@@ -515,8 +524,19 @@ Die JSON-Datei aus `data/products/` auf einen USB-Stick kopieren und auf dem Zie
 
 ## Build (Windows EXE)
 
-```bash
-pyinstaller build_exe.spec
+Der Build läuft aus dem `deployment/`-Ordner:
+
+```bat
+cd deployment
+build.bat
 ```
 
-Erzeugt im `dist/`-Ordner eine ausführbare Datei. Der `data/`-Ordner und das Logo werden automatisch mit eingepackt.
+`build.bat` bereinigt alte Artefakte, ruft PyInstaller mit `build_exe.spec` auf, kopiert `data/app_config.json` und `data/products/` in das Output-Verzeichnis und legt `config.json` neben die exe.
+
+Ausgabe: `deployment/dist/QAInput/` -- dieser Ordner wird auf den Produktionsserver kopiert.
+
+Für Entwicklung (direkter Start):
+
+```bash
+python app.py
+```

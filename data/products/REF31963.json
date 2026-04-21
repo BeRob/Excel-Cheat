@@ -1,6 +1,6 @@
 {
-  "product_id": "REF31962",
-  "display_name": "REF 31962 - Sugi Instrument Wipe, 80x80mm, non-sterile, 250 pcs.",
+  "product_id": "REF31963",
+  "display_name": "REF 31963 - Sugi Instrument Wipe Xtra, 80x80mm, none-sterile, 250 pcs.",
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -11,7 +11,7 @@
         {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true},
         {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "text", "role": "context", "persistent": true},
         {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "ask", "display_name": "ASK Soll >=1000%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "ask", "display_name": "ASK Soll ≥1000%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
         {"id": "breite_1", "display_name": "Breite 1", "type": "number", "role": "measurement", "persistent": false, "spec_target": 185, "spec_min": 180, "spec_max": 190},
         {"id": "breite_2", "display_name": "Breite 2", "type": "number", "role": "measurement", "persistent": false, "spec_target": 185, "spec_min": 180, "spec_max": 190},
         {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
@@ -21,7 +21,7 @@
     },
     {
       "template_id": "IPC2_Schaelen",
-      "display_name": "IPC2 Schaelen",
+      "display_name": "IPC2 Schälen",
       "row_group_size": 3,
       "fields": [
         {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true},
@@ -32,7 +32,8 @@
         {"id": "nutzen", "display_name": "Nutzen", "type": "number", "role": "auto", "persistent": false},
         {"id": "schalspalt_oben", "display_name": "Schalspalt oben", "type": "number", "role": "measurement", "persistent": false},
         {"id": "schalspalt_unten", "display_name": "Schalspalt unten", "type": "number", "role": "measurement", "persistent": false},
-        {"id": "flaechengewicht", "display_name": "Flaechengewicht", "type": "number", "role": "measurement", "persistent": false, "spec_target": 150, "spec_min": 130, "spec_max": 170},
+        {"id": "schichtdicke_nass", "display_name": "Schichtdicke Nass", "type": "number", "role": "measurement", "persistent": false, "spec_min": 2},
+        {"id": "flaechengewicht", "display_name": "Flaechengewicht", "type": "number", "role": "measurement", "persistent": false, "spec_target": 300, "spec_min": 270, "spec_max": 330},
         {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
@@ -63,9 +64,9 @@
         {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true},
         {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "text", "role": "context", "persistent": true},
         {"id": "rolle_bahn_nutzen", "display_name": "Roll/Bahn/Nutzen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "pruefmuster", "display_name": "Pruefmuster", "type": "number", "role": "auto", "persistent": false},
+        {"id": "pruefmuster", "display_name": "Prüfmuster", "type": "number", "role": "auto", "persistent": false},
         {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 80, "spec_min": 78, "spec_max": 82},
-        {"id": "laenge", "display_name": "Laenge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 80, "spec_min": 78, "spec_max": 82},
+        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 80, "spec_min": 78, "spec_max": 82},
         {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}

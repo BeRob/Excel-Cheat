@@ -6,7 +6,7 @@ from pathlib import Path
 from src.excel.reader import read_excel_headers, _clean_headers
 
 
-SAMPLE_FILE = Path(__file__).resolve().parent.parent / "Beispiel_Messwerte_Prozess.xlsx"
+SAMPLE_FILE = Path(__file__).resolve().parent / "fixtures" / "sample_reader.xlsx"
 
 
 class TestExcelReader(unittest.TestCase):

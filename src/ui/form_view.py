@@ -306,6 +306,8 @@ class FormView(BaseView):
             var = tk.StringVar()
             if fd.role == "context" and fd.display_name in self.app_state.persistent_values:
                 var.set(self.app_state.persistent_values[fd.display_name])
+            elif fd.default_value is not None:
+                var.set(fd.default_value)
 
             widget = self._create_field_widget(parent, fd, var)
             widget.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
@@ -352,6 +354,8 @@ class FormView(BaseView):
             var = tk.StringVar()
             if fd.role == "context" and fd.display_name in self.app_state.persistent_values:
                 var.set(self.app_state.persistent_values[fd.display_name])
+            elif fd.default_value is not None:
+                var.set(fd.default_value)
 
             widget = self._create_field_widget(cell, fd, var)
             widget.grid(row=1, column=0, sticky="ew", pady=(2, 0))
@@ -416,7 +420,7 @@ class FormView(BaseView):
             # Kontextfelder und Dropdowns behalten ihren Wert über Messungen hinweg.
             if fd and (fd.role == "context" or fd.type == "choice"):
                 continue
-            var.set("")
+            var.set(fd.default_value if fd and fd.default_value is not None else "")
         self.status_var.set("")
         self._set_initial_focus()
 

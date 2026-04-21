@@ -4,6 +4,8 @@ __pycache__/
 .claude/
 output/
 data/audit_log.jsonl
+data/users.kv
+data/configs/
 *.egg-info/
 dist/
 build/

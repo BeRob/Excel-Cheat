@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from datetime import datetime
 from pathlib import Path
 
@@ -277,11 +277,20 @@ class ProductProcessView(BaseView):
         shift = determine_shift(now.hour, config.shifts) if config.shifts else "1"
         shift_date = get_shift_date(now, shift)
 
-        # Output-Dir: zuerst Produkt-spezifisch, dann globale Einstellung
-        raw_output = product.output_dir if product.output_dir else config.output_dir
-        output_dir = Path(raw_output)
-        if not output_dir.is_absolute():
-            output_dir = APP_ROOT / output_dir
+        # Output-Dir: Produkt-Config hat Vorrang; sonst Ordner-Dialog
+        if product.output_dir:
+            output_dir = Path(product.output_dir)
+            if not output_dir.is_absolute():
+                output_dir = APP_ROOT / output_dir
+        else:
+            chosen = filedialog.askdirectory(
+                title="Speicherort für Messdaten wählen",
+                mustexist=False,
+            )
+            if not chosen:
+                self.status_var.set("Kein Speicherort gewählt.")
+                return
+            output_dir = Path(chosen)
 
         existing = find_existing_file(process, product.product_id, output_dir, shift, shift_date)
         if existing:

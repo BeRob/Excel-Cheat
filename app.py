@@ -15,7 +15,7 @@ if str(_app_root) not in sys.path:
 from src.audit.audit_logger import AuditLogger
 from src.config.settings import (
     APP_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT, AUDIT_LOG_PATH,
-    APP_CONFIG_PATH, PRODUCTS_DIR, OUTPUT_DIR,
+    APP_CONFIG_PATH, PRODUCTS_DIR,
 )
 from src.config.process_config import load_app_config
 from src.domain.state import AppState
@@ -53,8 +53,6 @@ class MeasurementApp:
         self.state = AppState()
         self.state.audit = AuditLogger(AUDIT_LOG_PATH)
         self.state.app_config = load_app_config(APP_CONFIG_PATH, PRODUCTS_DIR)
-
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
         main_frame = tk.Frame(self.root, bg=COLORS["background"])
         main_frame.pack(fill="both", expand=True)

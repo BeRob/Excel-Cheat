@@ -43,8 +43,9 @@ Products and processes are defined in JSON files under `data/products/`. Each pr
 - **persistent**: `true` = value carries across measurements (e.g. FA-Nr.)
 - **spec_min/spec_max/spec_target**: specification limits for number fields
 - **optional**: `true` = may be left empty
+- **default_value**: pre-filled value for the field on load and after every measurement clear (e.g. `"n/a"` for Bemerkungen)
 
-Global settings (shifts, output directory) are in `data/app_config.json`. New products can be added by dropping a JSON file into `data/products/` or via the in-app Admin editor.
+Global settings (shifts) are in `data/app_config.json`. New products can be added by dropping a JSON file into `data/products/` or via the in-app Admin editor.
 
 ### Excel File Generation
 
@@ -55,23 +56,22 @@ Each sheet is password-protected (`SHEET_PROTECTION_PASSWORD = "hexhex"` in `cre
 ### Data Folder
 
 The `data/` folder lives next to `app.py` (or next to the exe when bundled):
-- `data/app_config.json` -- global settings (shifts, output directory)
+- `data/app_config.json` -- global settings (shifts)
 - `data/products/*.json` -- product/process configuration files
 - `data/users.kv` -- user database (gitignored)
 - `data/audit_log.jsonl` -- audit log (gitignored)
-- `data/configs/` -- legacy per-file classification JSONs (unused in current flow)
 
-Both the data directory and the Excel output directory are overridable at deploy time. `src/config/settings.py` resolves them in this priority order:
+All data paths are overridable at deploy time. `src/config/settings.py` resolves each directory in this priority order:
 
-1. **Env var** — `QAINPUT_DATA_DIR` / `QAINPUT_OUTPUT_DIR`.
-2. **Bootstrap config** — `<APP_ROOT>/config.json` with optional keys `data_dir` and `output_dir` (absolute paths, `~` allowed). Malformed JSON → silently falls through to defaults.
-3. **Default** — `<APP_ROOT>/data` / `<APP_ROOT>/output`.
+1. **Env var** — `QAINPUT_USERS_DIR` / `QAINPUT_CONFIG_DIR` / `QAINPUT_PRODUCTS_DIR` / `QAINPUT_AUDIT_DIR` (or `QAINPUT_DATA_DIR` as shared fallback).
+2. **Bootstrap config** — `<APP_ROOT>/config.json` with optional keys `users_dir`, `config_dir`, `products_dir`, `audit_dir` (absolute paths, `~` allowed). Malformed JSON → silently falls through to defaults.
+3. **Default** — subdirectories of `<APP_ROOT>/data`.
 
-The bootstrap `config.json` is intentionally separate from `app_config.json`: `app_config.json` lives inside the resolved `data_dir`, so using it to configure the data directory would be circular. `app_config.json`'s own `output_dir` and per-product `output_dir` keys continue to win over `OUTPUT_DIR` at the call site in `product_process_view.py`.
+The bootstrap `config.json` is intentionally separate from `app_config.json`: `app_config.json` lives inside the resolved `config_dir`, so using it to configure paths would be circular.
 
 ### Deployment Folder
 
-`deployment/` is a local, gitignored copy of the minimum files needed to run the app (app entry, `src/`, `data/app_config.json`, `data/products/`, `data/users.kv`, `QUESTALPHA_StaticLogo_pos_rgb.png`, `Bedienungsanleitung.html`, `app.ico`, `build_exe.spec`, `build.bat`). It exists for packaging/handoff -- do not rely on anything there for development.
+`deployment/` is a local, gitignored copy of everything needed to build the production exe: `app.py`, `src/`, `data/app_config.json`, `data/products/`, `QUESTALPHA_StaticLogo_pos_rgb.png`, `Bedienungsanleitung.html`, `app.ico`, `build_exe.spec`, `build.bat`, `version_info.txt`, `config.json` (production network paths), `CHANGELOG.md`, `DOKUMENTATION.md`. Run `build.bat` from inside `deployment/` to produce `deployment/dist/QAInput/`. Do not rely on anything in `deployment/` for development -- always work from the root.
 
 ### Key Conventions
 
@@ -85,7 +85,7 @@ The bootstrap `config.json` is intentionally separate from `app_config.json`: `a
 - **PyInstaller path handling**: `src/config/settings.py` uses `sys.frozen` / `sys.executable` to resolve `APP_ROOT`. Any code resolving resource paths at module level must follow this pattern.
 - **Shift logic**: Shift 3 (22:00-06:00) crosses midnight. Workers after midnight get the previous day's date in the filename.
 - **Row groups**: Some processes have `row_group_size` (e.g. 3 uses per roll). The app auto-counts "Nutzen 1 von 3" etc.
-- **Output directory priority**: product-level `output_dir` > global `app_config.json` `output_dir` > default `output/`.
+- **Output directory priority**: product-level `output_dir` in the product JSON (absolute or relative to APP_ROOT) → if empty, a folder-picker dialog is shown to the user at process start. There is no global fallback output directory.
 - **Validation fallback**: `validate_measurements()` accepts an optional `field_defs` list. Without it, it falls back to parsing every value as numeric -- legacy path kept for older callers; new code should always pass `field_defs`.
 - **German umlauts in strings**: Tests assert on exact umlaut substrings (e.g. `"über Maximum"`, `"keine gültige Auswahl"`). Don't ASCII-ify error messages or docstrings.
 - **Form display order vs. Excel column order**: `FormView` reorders the measurement-block display so choice (dropdown) fields come first; the Excel column order is unaffected because `write_measurement_row` builds its column map from `process.fields` (JSON order). Don't try to "unify" the two orders.
@@ -96,7 +96,7 @@ The bootstrap `config.json` is intentionally separate from `app_config.json`: `a
 | Layer | Module | Role |
 |-------|--------|------|
 | Entry | `app.py` | Window, view instantiation, navigation, branded header bar |
-| Config | `src/config/settings.py` | Paths, column names, window size, header row constants |
+| Config | `src/config/settings.py` | Path resolution (`USERS_DIR`, `CONFIG_DIR`, `PRODUCTS_DIR`, `AUDIT_DIR`), window size, header row constants |
 | Config | `src/config/process_config.py` | Dataclasses (`FieldDef`, `ProcessConfig`, `ProductConfig`, `ShiftDef`, `AppConfig`), JSON loading, field filter helpers, shift determination |
 | Config | `src/config/config_writer.py` | Serialize dataclasses back to JSON, validation, save product config |
 | Domain | `src/domain/state.py` | `AppState` (central mutable state), `UserInfo` |

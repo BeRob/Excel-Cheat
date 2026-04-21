@@ -10,8 +10,8 @@
 
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 1, 0, 0),
+    prodvers=(1, 1, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -27,12 +27,12 @@ VSVersionInfo(
           [
             StringStruct(u'CompanyName', u'Questalpha'),
             StringStruct(u'FileDescription', u'QAInput - QA Messwerterfassung'),
-            StringStruct(u'FileVersion', u'1.0.0.0'),
+            StringStruct(u'FileVersion', u'1.1.0.0'),
             StringStruct(u'InternalName', u'QAInput'),
             StringStruct(u'LegalCopyright', u'(c) Questalpha'),
             StringStruct(u'OriginalFilename', u'QAInput.exe'),
             StringStruct(u'ProductName', u'QAInput'),
-            StringStruct(u'ProductVersion', u'1.0.0.0'),
+            StringStruct(u'ProductVersion', u'1.1.0.0'),
           ]
         )
       ]

@@ -19,6 +19,7 @@ class FieldDef:
     spec_max: float | None = None
     options: list[str] | None = None
     optional: bool = False
+    default_value: str | None = None
 
 
 @dataclass
@@ -64,6 +65,7 @@ def _parse_field(data: dict) -> FieldDef:
         spec_max=data.get("spec_max"),
         options=data.get("options"),
         optional=data.get("optional", False),
+        default_value=data.get("default_value"),
     )
 
 
