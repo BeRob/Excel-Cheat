@@ -101,7 +101,7 @@ class MeasurementApp:
         self.navigate("login")
 
     def _open_manual(self) -> None:
-        manual_path = _app_root / "Bedienungsanleitung.html"
+        manual_path = _app_root / "Kurzanleitung.html"
         if manual_path.exists():
             os.startfile(str(manual_path))
 

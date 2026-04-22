@@ -36,6 +36,7 @@ a = Analysis(
     datas=[
         ('QUESTALPHA_StaticLogo_pos_rgb.png', '.'),
         ('Bedienungsanleitung.html', '.'),
+        ('Kurzanleitung.html', '.'),
     ],
     hiddenimports=['openpyxl', 'PIL', 'PIL.Image', 'PIL.ImageTk'],
     hookspath=[],
