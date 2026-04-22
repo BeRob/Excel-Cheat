@@ -61,10 +61,13 @@
 |-- app.py                          Einstiegspunkt der Anwendung
 |-- QUESTALPHA_StaticLogo_pos_rgb.png  Logo für die Kopfleiste
 |-- build_exe.spec                  PyInstaller Build-Konfiguration
+|-- config.json                     Bootstrap-Konfiguration (Netzwerkpfade für Produktionsbetrieb)
+|-- CHANGELOG.md                    Versionshistorie
 |-- data/
-|   |-- app_config.json             Globale Einstellungen (Schichten, Ausgabeverzeichnis)
+|   |-- app_config.json             Globale Einstellungen (Schichten)
 |   |-- products/
-|   |   |-- REF31962.json           Produktkonfiguration mit allen Prozessen
+|   |   |-- REF31962.json           Produktkonfiguration REF31962
+|   |   |-- REF31963.json           Produktkonfiguration REF31963
 |   |   |-- (weitere Produkte...)
 |   |-- users.kv                    Benutzerliste (Passwort, QR-Code, Name)
 |-- src/
@@ -101,6 +104,9 @@
     |-- test_writer.py              Tests für den Excel-Writer
     |-- test_validation.py          Tests für die Eingabevalidierung
     |-- test_kv_parser.py           Tests für den Benutzer-Parser
+    |-- test_reader.py              Tests für den Excel-Reader
+    |-- fixtures/
+        |-- sample_reader.xlsx      Fixture-Datei für test_reader.py
 </code></pre>
 
 <hr />
@@ -146,6 +152,7 @@
 <li>Persistent und Optional Flags</li>
 <li>Spezifikationsgrenzen (Min/Max/Zielwert) für Zahlenfelder</li>
 <li>Optionsliste für Auswahl-Felder</li>
+<li>Standardwert (<code>default_value</code>) für Text- und Auswahlfelder</li>
 <li><strong>Ausgabeverzeichnis</strong> -- Pro Produkt ein eigenes Ausgabeverzeichnis setzen</li>
 <li><strong>Speichern</strong> -- Validiert die Konfiguration (Pflichtfelder, doppelte IDs, Spec-Grenzen) und schreibt die JSON-Datei. Danach ist das Produkt sofort in der Produkt/Prozess-Auswahl verfügbar</li>
 </ul>
@@ -201,21 +208,20 @@
 </table>
 <p>Die Zeilen 1-5 bilden den Info-Header-Block. Er wird beim ersten Setzen der festen Werte geschrieben und bei Änderung (z.B. "Kontext ändern") aktualisiert.</p>
 <h3 id="ausgabeverzeichnis">Ausgabeverzeichnis</h3>
-<p>Das Ausgabeverzeichnis kann auf drei Ebenen konfiguriert werden:</p>
+<p>Das Ausgabeverzeichnis wird in dieser Reihenfolge bestimmt:</p>
 <ol>
 <li><strong>Pro Produkt</strong> -- Im Feld <code>output_dir</code> der Produkt-JSON-Datei (höchste Priorität)</li>
-<li><strong>Global</strong> -- Im Feld <code>output_dir</code> in <code>app_config.json</code> (Fallback)</li>
-<li><strong>Standard</strong> -- <code>output/</code> im Anwendungsverzeichnis (wenn nichts konfiguriert)</li>
+<li><strong>Ordner-Dialog</strong> -- Falls <code>output_dir</code> leer ist, erscheint beim Prozessstart ein Ordner-Auswahl-Dialog</li>
 </ol>
+<p>Es gibt keinen globalen Fallback-Ordner mehr. Jeder Prozessstart bestimmt den Speicherort entweder aus der Konfiguration oder durch die Benutzerauswahl.</p>
 <hr />
 <h2 id="dateien-im-detail">Dateien im Detail</h2>
 <h3 id="apppy-einstiegspunkt"><code>app.py</code> -- Einstiegspunkt</h3>
 <p>Erstellt das Tkinter-Hauptfenster, lädt die Konfiguration, und verwaltet die Navigation zwischen den vier Bildschirmen (Login, Produkt/Prozess, Kontext, Formular). Die Navigation funktioniert über gestapelte Frames -- alle Views werden beim Start erzeugt und per <code>tkraise()</code> in den Vordergrund gebracht.</p>
 <p>Oben im Fenster ist eine Leiste mit dem Questalpha-Logo (als PNG geladen) und einem Hilfe-Button.</p>
 <h3 id="dataapp_configjson-globale-einstellungen"><code>data/app_config.json</code> -- Globale Einstellungen</h3>
-<p>Definiert das Ausgabeverzeichnis und die Schichten:</p>
+<p>Definiert die Schichten:</p>
 <pre class="codehilite"><code class="language-json">{
-  &quot;output_dir&quot;: &quot;output&quot;,
   &quot;shifts&quot;: [
     {&quot;name&quot;: &quot;1&quot;, &quot;start_hour&quot;: 6, &quot;end_hour&quot;: 14},
     {&quot;name&quot;: &quot;2&quot;, &quot;start_hour&quot;: 14, &quot;end_hour&quot;: 22},
@@ -236,9 +242,10 @@
 <li><strong>spec_min/spec_max/spec_target</strong> -- Spezifikationsgrenzen und Zielwert für Zahlenfelder</li>
 <li><strong>options</strong> -- Auswahlliste für Choice-Felder (z.B. <code>["Ja", "Nein"]</code>)</li>
 <li><strong>optional</strong> -- <code>true</code> wenn das Feld leer bleiben darf</li>
+<li><strong>default_value</strong> -- Vorausgefüllter Standardwert; wird beim Laden und nach jeder Messung wiederhergestellt (z.B. <code>"n/a"</code> für Bemerkungen-Felder)</li>
 </ul>
 <p>Optionales Top-Level-Feld:
-- <strong>output_dir</strong> -- Ausgabeverzeichnis für dieses Produkt (überschreibt den globalen Wert)</p>
+- <strong>output_dir</strong> -- Ausgabeverzeichnis für dieses Produkt; falls leer, wird beim Prozessstart ein Ordner-Auswahl-Dialog angezeigt</p>
 <p>Besonderheiten einzelner Prozesse:
 - <strong>IPC2 Schaelen</strong> hat <code>row_group_size: 3</code> -- das bedeutet, es gibt 3 Nutzen pro Rolle. Die App zählt automatisch "Nutzen 1 von 3", "Nutzen 2 von 3", etc.
 - <strong>IPC4 Stanzen</strong> hat ein Auto-Feld "Prüfmuster", das bei jeder Messung hochzählt.</p>
@@ -278,8 +285,7 @@
 <p>Feste Werte, die nicht in der JSON-Konfiguration stehen:</p>
 <ul>
 <li>Fenstertitel und -größe</li>
-<li>Pfade zu Benutzerdatei, Audit-Log, Konfiguration und Produktordner</li>
-<li>Ausgabeverzeichnis</li>
+<li>Separate Verzeichnispfade für Benutzer, Konfiguration, Produkte und Audit-Log (<code>USERS_DIR</code>, <code>CONFIG_DIR</code>, <code>PRODUCTS_DIR</code>, <code>AUDIT_DIR</code>) -- konfigurierbar über Umgebungsvariablen oder <code>config.json</code></li>
 <li>Info-Header-Konfiguration (<code>INFO_HEADER_ROWS = 5</code>, <code>HEADER_ROW = 6</code>)</li>
 <li>Automatisch generierte Spaltennamen (<code>Datum</code>, <code>Bearbeiter</code>)</li>
 </ul>
@@ -361,7 +367,7 @@ user.max.admin=true
 <p>Zwei Dropdown-Felder: Produkt wählen, dann Prozess wählen. Bei Auswahl eines Prozesses erscheint eine Übersicht der Felder (welche Kontext-Felder, welche Messwerte mit Spec-Limits, welche Auto-Felder).</p>
 <p>Die Schicht wird automatisch angezeigt. Beim Klick auf "Weiter" passiert einiges:
 - Schicht und Datum werden bestimmt
-- Das Ausgabeverzeichnis wird aufgelöst (Produkt-spezifisch oder global)
+- Das Ausgabeverzeichnis wird aufgelöst (aus Produkt-Config oder per Ordner-Dialog)
 - Die App sucht nach einer bestehenden Datei für diese Kombination (Resume)
 - Wenn keine existiert, wird eine neue erstellt
 - Zähler werden initialisiert (Nutzen, Prüfmuster)
@@ -477,6 +483,13 @@ user.max.admin=true
 - Kommentare und Leerzeilen
 - Sonderzeichen in Werten
 - Fehlerhafte Zeilen</p>
+<h3 id="test_readerpy-10-tests">test_reader.py (10 Tests)</h3>
+<p>Testet das Lesen von Excel-Dateien:
+- Header-Extraktion aus Fixture-Datei (<code>tests/fixtures/sample_reader.xlsx</code>)
+- Spalten-Map (Header → Spaltennummer)
+- Sheet-Namen auslesen
+- Fehlerbehandlung (fehlende Datei, falscher Sheet-Name)
+- Duplikat-Header-Bereinigung und Whitespace-Stripping</p>
 <hr />
 <h2 id="ein-neues-produkt-hinzufugen">Ein neues Produkt hinzufügen</h2>
 <h3 id="variante-1-im-admin-editor-empfohlen">Variante 1: Im Admin-Editor (empfohlen)</h3>
@@ -500,15 +513,18 @@ user.max.admin=true
 <hr />
 <h2 id="abhangigkeiten">Abhängigkeiten</h2>
 <ul>
-<li><strong>Python 3.12+</strong> (nutzt <code>X | None</code>-Syntax)</li>
+<li><strong>Python 3.11+</strong> (nutzt <code>X | None</code>-Syntax via <code>from __future__ import annotations</code>)</li>
 <li><strong>openpyxl</strong> -- Excel-Dateien lesen und schreiben</li>
 <li><strong>tkinter</strong> -- GUI (in Python enthalten)</li>
 </ul>
 <hr />
 <h2 id="build-windows-exe">Build (Windows EXE)</h2>
-<pre class="codehilite"><code class="language-bash">pyinstaller build_exe.spec
+<p>Der Build läuft aus dem <code>deployment/</code>-Ordner, der alle notwendigen Dateien enthält:</p>
+<pre class="codehilite"><code class="language-bash">cd deployment
+build.bat
 </code></pre>
 
-<p>Erzeugt im <code>dist/</code>-Ordner eine ausführbare Datei. Der <code>data/</code>-Ordner und das Logo werden automatisch mit eingepackt.</p>
+<p>Erzeugt <code>deployment/dist/QAInput/</code> mit <code>QAInput.exe</code>, <code>_internal/</code> (Python-Runtime), <code>data/</code> (Konfiguration &amp; Produkte) und <code>config.json</code> (Netzwerkpfade für Produktionsbetrieb).</p>
+<p>Zielordner auf dem Produktionsserver: <code>X:\Produktion\14_QAInput\QAInput\</code></p>
 </body>
 </html>

@@ -11,3 +11,6 @@ dist/
 build/
 deployment/
 .env
+CLAUDE.md
+excel files/
+Manual_QAInput.pdf
