@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -24,20 +25,31 @@ SHEET_PROTECTION_PASSWORD = "hexhex"
 
 
 def _apply_sheet_protection(ws) -> None:
-    """Sperrt das Blatt in Excel gegen Änderungen (Lesen bleibt möglich)."""
     ws.protection.sheet = True
     ws.protection.password = SHEET_PROTECTION_PASSWORD
 
 
+def _sanitize_for_filename(value: str) -> str:
+    """Ersetzt Zeichen die in Dateinamen ungültig sind."""
+    value = value.strip()
+    value = re.sub(r'[\\/:*?"<>|]', "", value)
+    value = re.sub(r"\s+", "_", value)
+    return value or "leer"
+
+
 def generate_file_name(
-    process: ProcessConfig,
+    lot: str,
+    fa_nr: str,
     product_id: str,
+    process_id: str,
     shift: str,
     dt: date,
 ) -> str:
-    """Format: {template_id}_{product_id}_Schicht{shift}_{YYYY-MM-DD}.xlsx"""
+    """Format: {LOT}_{FANR}_{ProductID}_{ProcessID}_{YYYY-MM-DD}_Schicht{N}.xlsx"""
+    lot_s = _sanitize_for_filename(lot)
+    fa_s = _sanitize_for_filename(fa_nr)
     date_str = dt.strftime("%Y-%m-%d")
-    return f"{process.template_id}_{product_id}_Schicht{shift}_{date_str}.xlsx"
+    return f"{lot_s}_{fa_s}_{product_id}_{process_id}_{date_str}_Schicht{shift}.xlsx"
 
 
 def get_shift_date(now: datetime, shift: str) -> date:
@@ -48,28 +60,35 @@ def get_shift_date(now: datetime, shift: str) -> date:
 
 
 def find_existing_file(
-    process: ProcessConfig,
+    lot: str,
+    fa_nr: str,
     product_id: str,
+    process_id: str,
     output_dir: Path,
-    shift: str,
-    dt: date,
 ) -> Path | None:
-    name = generate_file_name(process, product_id, shift, dt)
-    path = output_dir / name
-    return path if path.exists() else None
+    """Sucht nach einer Datei mit passendem LOT/FA-Nr/Produkt/Prozess, unabhängig von Datum/Schicht."""
+    lot_s = _sanitize_for_filename(lot)
+    fa_s = _sanitize_for_filename(fa_nr)
+    pattern = f"{lot_s}_{fa_s}_{product_id}_{process_id}_*.xlsx"
+    matches = list(output_dir.glob(pattern))
+    if not matches:
+        return None
+    return max(matches, key=lambda p: p.stat().st_mtime)
 
 
 def create_measurement_file(
     process: ProcessConfig,
     product_id: str,
     output_dir: Path,
+    lot: str,
+    fa_nr: str,
     shift: str,
     dt: date,
 ) -> Path:
     """Legt eine neue Excel-Datei mit Kopfzeile an und gibt den Pfad zurück."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    name = generate_file_name(process, product_id, shift, dt)
+    name = generate_file_name(lot, fa_nr, product_id, process.template_id, shift, dt)
     path = output_dir / name
 
     wb = openpyxl.Workbook()
@@ -95,11 +114,7 @@ def create_measurement_file(
 
 
 def count_data_rows(filepath: Path) -> int:
-    """Zählt Datenzeilen (ohne Info-Block und ohne Headerzeile).
-
-    Wird beim Resume gebraucht, um Sequenz- und Nutzen-Zähler korrekt
-    weiterzuführen.
-    """
+    """Zählt Datenzeilen (ohne Info-Block und ohne Headerzeile)."""
     try:
         wb = openpyxl.load_workbook(filepath, read_only=True)
         ws = wb.active
@@ -118,11 +133,7 @@ def write_info_header(
     shift: str,
     dt: date,
 ) -> None:
-    """Schreibt den Info-Block in die Zeilen 1-5.
-
-    Wird nach dem Setzen der Kontextwerte aufgerufen, da die FA-Nr. erst
-    dann bekannt ist.
-    """
+    """Schreibt den Info-Block in die Zeilen 1-5."""
     try:
         wb = openpyxl.load_workbook(filepath)
     except Exception:

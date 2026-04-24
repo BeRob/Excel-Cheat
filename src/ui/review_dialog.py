@@ -34,7 +34,8 @@ class ReviewDialog(tk.Toplevel):
         self.field_defs = field_defs
 
         self.title("Prüfen und Senden")
-        self.geometry("700x600")
+        height = min(900, 420 + len(raw_values) * 32)
+        self.geometry(f"1000x{height}")
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
@@ -48,7 +49,7 @@ class ReviewDialog(tk.Toplevel):
     def _build_ui(self) -> None:
         self.configure(bg=COLORS["background"])
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(3, weight=1)
+        self.rowconfigure(3, weight=1, minsize=200)
 
         info_frame = ttk.LabelFrame(self, text="Prozess", padding=10)
         info_frame.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="ew")

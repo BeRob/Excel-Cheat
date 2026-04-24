@@ -16,12 +16,6 @@ from src.config.process_config import (
     get_persistent_context_fields,
 )
 from src.config.settings import APP_ROOT
-from src.excel.creator import (
-    create_measurement_file,
-    find_existing_file,
-    count_data_rows,
-    get_shift_date,
-)
 from src.ui.base_view import BaseView
 from src.ui.analysis_view import AnalysisView
 from src.ui.config_editor_view import ConfigEditorView
@@ -275,7 +269,6 @@ class ProductProcessView(BaseView):
 
         now = datetime.now()
         shift = determine_shift(now.hour, config.shifts) if config.shifts else "1"
-        shift_date = get_shift_date(now, shift)
 
         # Output-Dir: Produkt-Config hat Vorrang; sonst Ordner-Dialog
         if product.output_dir:
@@ -292,22 +285,10 @@ class ProductProcessView(BaseView):
                 return
             output_dir = Path(chosen)
 
-        existing = find_existing_file(process, product.product_id, output_dir, shift, shift_date)
-        if existing:
-            filepath = existing
-            row_count = count_data_rows(filepath)
-            self.status_var.set(f"Bestehende Datei gefunden ({row_count} Einträge)")
-        else:
-            filepath = create_measurement_file(
-                process, product.product_id, output_dir, shift, shift_date
-            )
-            row_count = 0
-            self.status_var.set("Neue Datei erstellt")
-
         self.app_state.selected_product = product
         self.app_state.selected_process = process
         self.app_state.current_shift = shift
-        self.app_state.current_file = filepath
+        self.app_state.output_dir = output_dir
 
         self.app_state.current_headers = get_all_headers(process)
         self.app_state.persistent_headers = [
@@ -316,26 +297,6 @@ class ProductProcessView(BaseView):
         self.app_state.measurement_headers = [
             f.display_name for f in get_measurement_fields(process)
         ]
-
-        # Zaehler fuer Resume initialisieren
-        self.app_state.auto_sequence = row_count
-        if process.row_group_size:
-            self.app_state.row_group_counter = row_count % process.row_group_size
-        else:
-            self.app_state.row_group_counter = 0
-
-        if self.app_state.audit:
-            self.app_state.audit.log(
-                "process_selected",
-                user=self.app_state.current_user.user_id if self.app_state.current_user else None,
-                file=str(filepath),
-                details={
-                    "product": product.product_id,
-                    "process": process.template_id,
-                    "shift": shift,
-                    "resumed": existing is not None,
-                },
-            )
 
         self.on_navigate("context")
 

@@ -35,14 +35,21 @@ def _make_process() -> ProcessConfig:
 class TestGenerateFileName(unittest.TestCase):
 
     def test_format(self):
-        process = _make_process()
-        name = generate_file_name(process, "REF123", "1", date(2026, 4, 1))
-        self.assertEqual(name, "IPC1_Test_REF123_Schicht1_2026-04-01.xlsx")
+        name = generate_file_name("LOT001", "FA123", "REF123", "IPC1_Test", "1", date(2026, 4, 1))
+        self.assertEqual(name, "LOT001_FA123_REF123_IPC1_Test_2026-04-01_Schicht1.xlsx")
 
     def test_shift_3(self):
-        process = _make_process()
-        name = generate_file_name(process, "REF123", "3", date(2026, 3, 31))
-        self.assertEqual(name, "IPC1_Test_REF123_Schicht3_2026-03-31.xlsx")
+        name = generate_file_name("LOT001", "FA123", "REF123", "IPC1_Test", "3", date(2026, 3, 31))
+        self.assertEqual(name, "LOT001_FA123_REF123_IPC1_Test_2026-03-31_Schicht3.xlsx")
+
+    def test_sanitizes_spaces(self):
+        name = generate_file_name("LOT 001", "FA 123", "REF123", "IPC1_Test", "1", date(2026, 4, 1))
+        self.assertNotIn(" ", name)
+
+    def test_sanitizes_slashes(self):
+        name = generate_file_name("LOT/001", "FA\\123", "REF123", "IPC1_Test", "1", date(2026, 4, 1))
+        self.assertNotIn("/", name)
+        self.assertNotIn("\\", name)
 
 
 class TestGetShiftDate(unittest.TestCase):
@@ -75,14 +82,14 @@ class TestCreateMeasurementFile(unittest.TestCase):
 
     def test_creates_file(self):
         path = create_measurement_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         self.assertTrue(path.exists())
-        self.assertEqual(path.name, "IPC1_Test_REF123_Schicht1_2026-04-01.xlsx")
+        self.assertEqual(path.name, "LOT001_FA123_REF123_IPC1_Test_2026-04-01_Schicht1.xlsx")
 
     def test_header_row(self):
         path = create_measurement_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         wb = openpyxl.load_workbook(path, read_only=True)
         ws = wb.active
@@ -93,7 +100,7 @@ class TestCreateMeasurementFile(unittest.TestCase):
     def test_creates_output_dir(self):
         sub = self.tmp_dir / "sub" / "dir"
         path = create_measurement_file(
-            self.process, "REF123", sub, "1", date(2026, 4, 1)
+            self.process, "REF123", sub, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         self.assertTrue(sub.exists())
         self.assertTrue(path.exists())
@@ -109,20 +116,31 @@ class TestFindExistingFile(unittest.TestCase):
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
     def test_not_found(self):
-        result = find_existing_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
-        )
+        result = find_existing_file("LOT001", "FA123", "REF123", "IPC1_Test", self.tmp_dir)
         self.assertIsNone(result)
 
     def test_found(self):
         create_measurement_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
-        result = find_existing_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
-        )
+        result = find_existing_file("LOT001", "FA123", "REF123", "IPC1_Test", self.tmp_dir)
         self.assertIsNotNone(result)
         self.assertTrue(result.exists())
+
+    def test_finds_regardless_of_shift_and_date(self):
+        # Erstellt mit Schicht 1, sucht ohne Schicht/Datum
+        create_measurement_file(
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "2", date(2026, 1, 1)
+        )
+        result = find_existing_file("LOT001", "FA123", "REF123", "IPC1_Test", self.tmp_dir)
+        self.assertIsNotNone(result)
+
+    def test_different_lot_not_found(self):
+        create_measurement_file(
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
+        )
+        result = find_existing_file("LOT999", "FA123", "REF123", "IPC1_Test", self.tmp_dir)
+        self.assertIsNone(result)
 
 
 class TestCountDataRows(unittest.TestCase):
@@ -136,13 +154,13 @@ class TestCountDataRows(unittest.TestCase):
 
     def test_empty_file(self):
         path = create_measurement_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         self.assertEqual(count_data_rows(path), 0)
 
     def test_with_data(self):
         path = create_measurement_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         wb = openpyxl.load_workbook(path)
         ws = wb.active
@@ -167,7 +185,7 @@ class TestWriteInfoHeader(unittest.TestCase):
 
     def test_writes_info(self):
         path = create_measurement_file(
-            self.process, "REF123", self.tmp_dir, "1", date(2026, 4, 1)
+            self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         write_info_header(
             path, "Test Product", "IPC1 Test", "FA-12345", "1", date(2026, 4, 1)

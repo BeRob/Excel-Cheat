@@ -11,6 +11,9 @@ if TYPE_CHECKING:
     from src.config.process_config import AppConfig, ProductConfig, ProcessConfig
 
 
+_CARRIED_DISPLAY_NAMES = {"FA-Nr.", "LOT Nr.", "Verwendbarkeitsdatum"}
+
+
 @dataclass
 class UserInfo:
     user_id: str
@@ -30,14 +33,18 @@ class AppState:
         self.current_shift: str | None = None
 
         self.current_file: Path | None = None
+        self.output_dir: Path | None = None
+        self.is_resume: bool = False
 
         self.current_headers: list[str] = []
         self.persistent_headers: list[str] = []
         self.measurement_headers: list[str] = []
         self.persistent_values: dict[str, str] = {}
+        self.carried_values: dict[str, str] = {}
 
         self.row_group_counter: int = 0
         self.auto_sequence: int = 0
+        self.nutzen_count: int = 1
 
         self.audit: AuditLogger | None = None
         self.layout_mode: str = "vertical"
@@ -51,14 +58,20 @@ class AppState:
         self.reset_process()
 
     def reset_process(self) -> None:
+        self.carried_values = {
+            k: v for k, v in self.persistent_values.items()
+            if k in _CARRIED_DISPLAY_NAMES
+        }
         self.selected_process = None
         self.current_shift = None
         self.current_file = None
+        self.is_resume = False
         self.current_headers = []
         self.persistent_headers = []
         self.measurement_headers = []
         self.row_group_counter = 0
         self.auto_sequence = 0
+        self.nutzen_count = 1
         self.reset_context()
 
     def reset_context(self) -> None:

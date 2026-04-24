@@ -19,7 +19,11 @@ from src.config.settings import (
 )
 from src.config.process_config import load_app_config
 from src.domain.state import AppState
-from src.ui.theme import apply_theme, COLORS, FONTS
+from src.ui.theme import (
+    apply_theme, COLORS, FONTS,
+    scale_fonts, toggle_dark_mode, update_tk_backgrounds,
+    _LIGHT_COLORS, _DARK_COLORS,
+)
 from src.ui.login_view import LoginView
 from src.ui.product_process_view import ProductProcessView
 from src.ui.context_view import ContextView
@@ -87,7 +91,25 @@ class MeasurementApp:
             header_bar, text="?", width=3,
             style="Manual.TButton", command=self._open_manual,
         )
-        help_btn.pack(side="right", padx=15, pady=8)
+        help_btn.pack(side="right", padx=(5, 15), pady=8)
+
+        ttk.Button(
+            header_bar, text="+", width=3,
+            style="Manual.TButton", command=self._increase_font,
+        ).pack(side="right", padx=2, pady=8)
+
+        ttk.Button(
+            header_bar, text="–", width=3,
+            style="Manual.TButton", command=self._decrease_font,
+        ).pack(side="right", padx=2, pady=8)
+
+        self._dark_btn = ttk.Button(
+            header_bar, text="◑ Dark",
+            style="Manual.TButton", command=self._toggle_dark,
+        )
+        self._dark_btn.pack(side="right", padx=(5, 2), pady=8)
+
+        self._font_scale: int = 0
 
         self.container = tk.Frame(main_frame, bg=COLORS["background"])
         self.container.pack(fill="both", expand=True)
@@ -99,6 +121,19 @@ class MeasurementApp:
 
         self._create_views()
         self.navigate("login")
+
+    def _increase_font(self) -> None:
+        self._font_scale = scale_fonts(+1, self._font_scale)
+
+    def _decrease_font(self) -> None:
+        self._font_scale = scale_fonts(-1, self._font_scale)
+
+    def _toggle_dark(self) -> None:
+        old_bg = COLORS["background"]
+        is_dark = toggle_dark_mode(self.root)
+        new_bg = COLORS["background"]
+        self._dark_btn.config(text="◑ Hell" if is_dark else "◑ Dark")
+        update_tk_backgrounds(self.root, old_bg, new_bg)
 
     def _open_manual(self) -> None:
         manual_path = _app_root / "Kurzanleitung.html"

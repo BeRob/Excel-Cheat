@@ -37,7 +37,7 @@ class TestWriteMeasurementRow(unittest.TestCase):
         self.tmp_dir = Path(tempfile.mkdtemp())
         self.process = _make_process()
         self.filepath = create_measurement_file(
-            self.process, "TEST", self.tmp_dir, "1", date(2026, 4, 2)
+            self.process, "TEST", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 2)
         )
 
     def tearDown(self):

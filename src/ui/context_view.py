@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from pathlib import Path
 from datetime import datetime
 
-from src.config.process_config import get_persistent_context_fields
-from src.excel.creator import write_info_header, get_shift_date
+from src.config.process_config import (
+    get_persistent_context_fields,
+    get_all_headers,
+    get_measurement_fields,
+)
+from src.excel.creator import (
+    find_existing_file,
+    create_measurement_file,
+    count_data_rows,
+    write_info_header,
+    get_shift_date,
+)
 from src.ui.base_view import BaseView
 from src.ui.theme import COLORS
 
@@ -18,6 +27,8 @@ class ContextView(BaseView):
         super().__init__(parent, app_state, on_navigate)
         self.field_vars: dict[str, tk.StringVar] = {}
         self._field_entries: list[tk.Widget] = []
+        self._pending_file = None
+        self._is_resume: bool = False
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -52,11 +63,14 @@ class ContextView(BaseView):
         self.no_fields_label.grid(row=3, column=0, padx=40, pady=5)
         self.no_fields_label.grid_remove()
 
+        self.file_status_label = ttk.Label(self, text="")
+        self.file_status_label.grid(row=4, column=0, pady=(0, 5))
+
         self.next_btn = ttk.Button(
             self, text="Weiter zur Messung", command=self._go_next,
             style="Accent.TButton",
         )
-        self.next_btn.grid(row=4, column=0, pady=15)
+        self.next_btn.grid(row=5, column=0, pady=15)
 
     def on_show(self) -> None:
         user = self.app_state.current_user
@@ -67,11 +81,14 @@ class ContextView(BaseView):
         user_name = user.display_name if user else "?"
         process_name = process.display_name if process else "?"
         product_name = product.display_name if product else "?"
-        file_name = Path(self.app_state.current_file).name if self.app_state.current_file else "?"
 
         self.info_label.config(
-            text=f"{user_name}  |  {product_name}  |  {process_name}  |  Schicht {shift}  |  {file_name}"
+            text=f"{user_name}  |  {product_name}  |  {process_name}  |  Schicht {shift}"
         )
+
+        self._pending_file = None
+        self._is_resume = False
+        self.file_status_label.config(text="")
 
         self._generate_fields()
 
@@ -91,6 +108,7 @@ class ContextView(BaseView):
         if not fields:
             self.no_fields_label.grid()
             self.next_btn.config(state="normal")
+            self._check_file_status()
             return
 
         self.no_fields_label.grid_remove()
@@ -101,10 +119,13 @@ class ContextView(BaseView):
             )
             var = tk.StringVar()
 
+            # Vorbelegung: erst persistent_values, dann carried_values
             if field_def.display_name in self.app_state.persistent_values:
                 var.set(self.app_state.persistent_values[field_def.display_name])
+            elif field_def.display_name in self.app_state.carried_values:
+                var.set(self.app_state.carried_values[field_def.display_name])
 
-            var.trace_add("write", self._check_fields)
+            var.trace_add("write", self._on_field_changed)
 
             if field_def.type == "choice" and field_def.options:
                 widget = ttk.Combobox(
@@ -122,40 +143,103 @@ class ContextView(BaseView):
         if self._field_entries:
             self._field_entries[0].focus_set()
 
-        self._check_fields()
+        self._on_field_changed()
 
-    def _check_fields(self, *_args) -> None:
+    def _on_field_changed(self, *_) -> None:
+        self._check_fields()
+        self._check_file_status()
+
+    def _check_fields(self, *_) -> None:
         if not self.field_vars:
             self.next_btn.config(state="normal")
             return
         filled = all(var.get().strip() for var in self.field_vars.values())
         self.next_btn.config(state="normal" if filled else "disabled")
 
+    def _check_file_status(self, *_) -> None:
+        product = self.app_state.selected_product
+        process = self.app_state.selected_process
+        output_dir = self.app_state.output_dir
+        if not product or not process or not output_dir:
+            return
+
+        lot = self.field_vars.get("LOT Nr.", tk.StringVar()).get().strip()
+        fa_nr = self.field_vars.get("FA-Nr.", tk.StringVar()).get().strip()
+
+        if not lot or not fa_nr:
+            self.file_status_label.config(text="", style="TLabel")
+            self._pending_file = None
+            self._is_resume = False
+            return
+
+        existing = find_existing_file(
+            lot, fa_nr, product.product_id, process.template_id, output_dir
+        )
+        if existing:
+            count = count_data_rows(existing)
+            self.file_status_label.config(
+                text=f"↺  Fortsetzen  –  {count} Messungen vorhanden",
+                style="Warning.TLabel",
+            )
+            self._pending_file = existing
+            self._is_resume = True
+        else:
+            self.file_status_label.config(
+                text="＋  Neue Datei wird erstellt",
+                style="Success.TLabel",
+            )
+            self._pending_file = None
+            self._is_resume = False
+
     def _go_next(self) -> None:
         self.app_state.persistent_values = {
             h: var.get().strip() for h, var in self.field_vars.items()
         }
 
-        if self.app_state.current_file and self.app_state.current_file.exists():
-            product = self.app_state.selected_product
-            process = self.app_state.selected_process
-            shift = self.app_state.current_shift or "1"
-            now = datetime.now()
-            write_info_header(
-                filepath=self.app_state.current_file,
-                product_name=product.display_name if product else "",
-                process_name=process.display_name if process else "",
-                fa_nr=self.app_state.persistent_values.get("FA-Nr.", ""),
-                shift=shift,
-                dt=get_shift_date(now, shift),
+        product = self.app_state.selected_product
+        process = self.app_state.selected_process
+        output_dir = self.app_state.output_dir
+        shift = self.app_state.current_shift or "1"
+        now = datetime.now()
+        shift_date = get_shift_date(now, shift)
+
+        lot = self.app_state.persistent_values.get("LOT Nr.", "")
+        fa_nr = self.app_state.persistent_values.get("FA-Nr.", "")
+
+        if self._pending_file and self._pending_file.exists():
+            filepath = self._pending_file
+        else:
+            filepath = create_measurement_file(
+                process, product.product_id, output_dir,
+                lot, fa_nr, shift, shift_date,
             )
+
+        self.app_state.current_file = filepath
+        self.app_state.is_resume = self._is_resume
+
+        row_count = count_data_rows(filepath)
+        self.app_state.auto_sequence = row_count
+        if process.row_group_size:
+            self.app_state.row_group_counter = row_count % process.row_group_size
+        else:
+            self.app_state.row_group_counter = 0
+
+        write_info_header(
+            filepath=filepath,
+            product_name=product.display_name if product else "",
+            process_name=process.display_name if process else "",
+            fa_nr=fa_nr,
+            shift=shift,
+            dt=shift_date,
+        )
 
         if self.app_state.audit:
             self.app_state.audit.log(
                 "context_set",
                 user=self.app_state.current_user.user_id if self.app_state.current_user else None,
-                file=str(self.app_state.current_file) if self.app_state.current_file else None,
+                file=str(filepath),
                 context=dict(self.app_state.persistent_values),
+                details={"resumed": self._is_resume},
             )
 
         self.on_navigate("form")

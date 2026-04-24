@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+import tkinter.font as tkfont
 
 
-COLORS = {
+_LIGHT_COLORS: dict[str, str] = {
     "primary": "#1B2023",
     "background": "#FFFFFF",
     "surface": "#E8ECF0",
@@ -19,11 +20,31 @@ COLORS = {
     "success": "#2E7D32",
     "warning": "#ED6C02",
     "error": "#D32F2F",
-    "border": "#E0E0E0",
+    "border": "#C0C0C0",
     "disabled": "#BDBDBD",
 }
 
-FONTS = {
+_DARK_COLORS: dict[str, str] = {
+    "primary": "#E8ECF0",
+    "background": "#1E1E1E",
+    "surface": "#2D2D2D",
+    "accent": "#4FC3F7",
+    "accent_hover": "#81D4FA",
+    "accent_light": "#1A2A3A",
+    "text_primary": "#E8ECF0",
+    "text_secondary": "#AAAAAA",
+    "text_on_primary": "#1E1E1E",
+    "success": "#66BB6A",
+    "warning": "#FFA726",
+    "error": "#EF5350",
+    "border": "#555555",
+    "disabled": "#666666",
+}
+
+COLORS: dict[str, str] = dict(_LIGHT_COLORS)
+
+# Tupel-Fallback bis apply_theme() aufgerufen wurde
+FONTS: dict[str, object] = {
     "logo_bold": ("Segoe UI", 18, "bold"),
     "heading": ("Segoe UI", 16, "bold"),
     "subheading": ("Segoe UI", 14, "bold"),
@@ -32,8 +53,78 @@ FONTS = {
     "small": ("Segoe UI", 10),
 }
 
+_BASE_SIZES: dict[str, int] = {
+    "logo_bold": 18,
+    "heading": 16,
+    "subheading": 14,
+    "body": 11,
+    "body_bold": 11,
+    "small": 10,
+}
 
-def apply_theme(root: tk.Tk) -> None:
+_FONT_WEIGHTS: dict[str, str] = {
+    "logo_bold": "bold",
+    "heading": "bold",
+    "subheading": "bold",
+    "body": "normal",
+    "body_bold": "bold",
+    "small": "normal",
+}
+
+_font_objects: dict[str, tkfont.Font] = {}
+_dark_mode: bool = False
+_MIN_SCALE = -2
+_MAX_SCALE = 5
+
+
+def _init_fonts(scale: int = 0) -> None:
+    """Erstellt oder aktualisiert tkfont.Font-Objekte."""
+    for name, base in _BASE_SIZES.items():
+        size = base + scale
+        weight = _FONT_WEIGHTS[name]
+        if name in _font_objects:
+            _font_objects[name].configure(size=size)
+        else:
+            _font_objects[name] = tkfont.Font(family="Segoe UI", size=size, weight=weight)
+        FONTS[name] = _font_objects[name]
+
+
+def scale_fonts(delta: int, current_scale: int) -> int:
+    """Ändert alle Schriftgrößen relativ zum Basiswert. Gibt neue Scale zurück."""
+    new_scale = max(_MIN_SCALE, min(_MAX_SCALE, current_scale + delta))
+    for name, base in _BASE_SIZES.items():
+        if name in _font_objects:
+            _font_objects[name].configure(size=base + new_scale)
+    return new_scale
+
+
+def is_dark_mode() -> bool:
+    return _dark_mode
+
+
+def toggle_dark_mode(root: tk.Tk) -> bool:
+    """Schaltet zwischen Hell und Dunkel um. Gibt True zurück wenn jetzt dunkel."""
+    global _dark_mode
+    _dark_mode = not _dark_mode
+    COLORS.update(_DARK_COLORS if _dark_mode else _LIGHT_COLORS)
+    apply_theme(root)
+    return _dark_mode
+
+
+def update_tk_backgrounds(widget: tk.Widget, old_bg: str, new_bg: str) -> None:
+    """Aktualisiert rekursiv alle tk-Widgets mit explizitem bg=old_bg."""
+    try:
+        if widget.cget("bg") == old_bg:
+            widget.configure(bg=new_bg)
+    except tk.TclError:
+        pass
+    for child in widget.winfo_children():
+        update_tk_backgrounds(child, old_bg, new_bg)
+
+
+def apply_theme(root: tk.Tk, scale: int = 0) -> None:
+    _init_fonts(scale)
+
     style = ttk.Style(root)
     style.theme_use("clam")
 
@@ -213,6 +304,34 @@ def apply_theme(root: tk.Tk) -> None:
         background=COLORS["background"],
         foreground=COLORS["text_secondary"],
         font=FONTS["body"],
+    )
+
+    style.configure(
+        "Treeview",
+        background=COLORS["surface"],
+        foreground=COLORS["text_primary"],
+        fieldbackground=COLORS["surface"],
+        font=FONTS["body"],
+        rowheight=28,
+    )
+    style.configure(
+        "Treeview.Heading",
+        background=COLORS["background"],
+        foreground=COLORS["text_primary"],
+        font=FONTS["body_bold"],
+    )
+    style.map(
+        "Treeview",
+        background=[("selected", COLORS["accent"])],
+        foreground=[("selected", COLORS["text_on_primary"])],
+    )
+
+    style.configure(
+        "TScrollbar",
+        background=COLORS["surface"],
+        troughcolor=COLORS["background"],
+        bordercolor=COLORS["border"],
+        arrowcolor=COLORS["text_secondary"],
     )
 
     root.configure(background=COLORS["background"])

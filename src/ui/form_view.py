@@ -12,11 +12,15 @@ from src.config.process_config import (
     get_measurement_fields,
     get_per_measurement_context_fields,
     get_persistent_context_fields,
+    get_group_shared_fields,
+    get_per_nutzen_fields,
     get_auto_fields,
     FieldDef,
 )
+from src.config.settings import HEADER_ROW
 from src.domain.validation import parse_numeric
-from src.excel.writer import write_measurement_row
+from src.excel.reader import read_all_data
+from src.excel.writer import write_measurement_row, write_measurement_rows
 from src.ui.base_view import BaseView
 from src.ui.review_dialog import ReviewDialog
 from src.ui.theme import COLORS
@@ -28,10 +32,15 @@ class FormView(BaseView):
         self.field_vars: dict[str, tk.StringVar] = {}
         self.persistent_vars: dict[str, tk.StringVar] = {}
         self._field_defs: list[FieldDef] = []
+        self._nutzen_field_defs: list[FieldDef] = []
         self._persistent_field_defs: list[FieldDef] = []
         self._last_fields_key: str = ""
         self._history: deque = deque(maxlen=10)
         self._first_focus_widget: tk.Widget | None = None
+        self._nutzen_count_var: tk.IntVar | None = None
+        self._nutzen_sections_parent: tk.Widget | None = None
+        self._is_multi_nutzen: bool = False
+        self._validation_borders: dict[str, tk.Frame] = {}
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -183,8 +192,11 @@ class FormView(BaseView):
 
         fields_key = f"{process_name}_{self.app_state.layout_mode}"
         if fields_key != self._last_fields_key:
+            self._history.clear()
             self._generate_fields()
             self._last_fields_key = fields_key
+            if self.app_state.is_resume:
+                self._preload_history()
         else:
             self._set_initial_focus()
 
@@ -199,7 +211,7 @@ class FormView(BaseView):
 
     def _update_group_label(self) -> None:
         process = self.app_state.selected_process
-        if process and process.row_group_size:
+        if process and process.row_group_size and not self._is_multi_nutzen:
             current = (self.app_state.row_group_counter % process.row_group_size) + 1
             self.group_label.config(
                 text=f"Nutzen: {current} von {process.row_group_size}"
@@ -224,25 +236,23 @@ class FormView(BaseView):
         self.field_vars.clear()
         self.persistent_vars.clear()
         self._field_defs.clear()
+        self._nutzen_field_defs.clear()
         self._persistent_field_defs.clear()
+        self._nutzen_sections_parent = None
         self._first_focus_widget = None
+        self._validation_borders.clear()
 
         process = self.app_state.selected_process
         if not process:
+            self._is_multi_nutzen = False
             return
+
+        self._is_multi_nutzen = bool(
+            process.row_group_size and get_group_shared_fields(process)
+        )
 
         persistent_fields = get_persistent_context_fields(process)
         self._persistent_field_defs = persistent_fields
-
-        per_meas_ctx = get_per_measurement_context_fields(process)
-        measurement = get_measurement_fields(process)
-        # Reihenfolge im Formular: zuerst Dropdowns, dann andere Felder.
-        # Die Excel-Spaltenreihenfolge folgt weiterhin process.fields (JSON).
-        all_fields_original = per_meas_ctx + measurement
-        choice_fields = [f for f in all_fields_original if f.type == "choice"]
-        other_fields = [f for f in all_fields_original if f.type != "choice"]
-        display_fields = choice_fields + other_fields
-        self._field_defs = display_fields
 
         if persistent_fields:
             ctx_frame = ttk.LabelFrame(
@@ -270,24 +280,153 @@ class FormView(BaseView):
                 widget.grid(row=i, column=1, sticky="w", pady=3)
                 self.persistent_vars[fd.display_name] = var
 
-        meas_frame = ttk.LabelFrame(
-            self.scrollable_frame, text="Messwerte", padding=10,
-        )
-        meas_frame.pack(fill="x", padx=5, pady=(0, 5))
-
-        if self.app_state.layout_mode == "vertical":
-            first_meas, first_choice = self._generate_vertical_fields(
-                display_fields, meas_frame,
-            )
+        if self._is_multi_nutzen:
+            self._generate_multi_nutzen_fields(process)
         else:
-            first_meas, first_choice = self._generate_horizontal_fields(
-                display_fields, meas_frame,
-            )
+            per_meas_ctx = get_per_measurement_context_fields(process)
+            measurement = get_measurement_fields(process)
+            all_fields_original = per_meas_ctx + measurement
+            choice_fields = [f for f in all_fields_original if f.type == "choice"]
+            other_fields = [f for f in all_fields_original if f.type != "choice"]
+            display_fields = choice_fields + other_fields
+            self._field_defs = display_fields
 
-        self._first_focus_widget = first_choice or first_meas
+            meas_frame = ttk.LabelFrame(
+                self.scrollable_frame, text="Messwerte", padding=10,
+            )
+            meas_frame.pack(fill="x", padx=5, pady=(0, 5))
+
+            if self.app_state.layout_mode == "vertical":
+                first_meas, first_choice = self._generate_vertical_fields(
+                    display_fields, meas_frame,
+                )
+            else:
+                first_meas, first_choice = self._generate_horizontal_fields(
+                    display_fields, meas_frame,
+                )
+
+            self._first_focus_widget = first_choice or first_meas
+
         self._set_initial_focus()
+        self.canvas.yview_moveto(0)
+
+    def _generate_multi_nutzen_fields(self, process) -> None:
+        """Baut das Multi-Nutzen-Formular: Anzahl-Wähler, Gemeinsame Werte, Nutzen-Sektionen."""
+        max_nutzen = process.row_group_size
+
+        # Anzahl-Nutzen-Wähler
+        count_frame = ttk.LabelFrame(
+            self.scrollable_frame, text="Anzahl Nutzen", padding=10,
+        )
+        count_frame.pack(fill="x", padx=5, pady=(0, 5))
+        self._nutzen_count_var = tk.IntVar(value=self.app_state.nutzen_count)
+        for n in range(1, max_nutzen + 1):
+            ttk.Radiobutton(
+                count_frame, text=str(n), variable=self._nutzen_count_var, value=n,
+                command=self._rebuild_nutzen_sections,
+            ).pack(side="left", padx=10)
+
+        # Gemeinsame Werte: per-measurement context + group_shared Messfelder
+        per_meas_ctx = get_per_measurement_context_fields(process)
+        shared_meas = get_group_shared_fields(process)
+        shared_fields = per_meas_ctx + shared_meas
+        self._field_defs = shared_fields
+
+        shared_frame = ttk.LabelFrame(
+            self.scrollable_frame, text="Gemeinsame Werte", padding=10,
+        )
+        shared_frame.pack(fill="x", padx=5, pady=(0, 5))
+        first_shared, _ = self._generate_vertical_fields(shared_fields, shared_frame)
+        if self._first_focus_widget is None:
+            self._first_focus_widget = first_shared
+
+        # Per-Nutzen-Felder speichern
+        self._nutzen_field_defs = get_per_nutzen_fields(process)
+
+        # Container für Nutzen-Sektionen
+        self._nutzen_sections_parent = ttk.Frame(self.scrollable_frame)
+        self._nutzen_sections_parent.pack(fill="x", padx=5, pady=(0, 5))
+
+        self._rebuild_nutzen_sections()
+
+    def _rebuild_nutzen_sections(self) -> None:
+        """Baut die Nutzen-Sektionen neu auf wenn die Anzahl geändert wird."""
+        if self._nutzen_sections_parent is None or self._nutzen_count_var is None:
+            return
+
+        count = self._nutzen_count_var.get()
+        self.app_state.nutzen_count = count
+
+        # Alte per-nutzen Einträge aus field_vars entfernen
+        for key in [k for k in self.field_vars if "_n" in k]:
+            del self.field_vars[key]
+
+        for widget in self._nutzen_sections_parent.winfo_children():
+            widget.destroy()
+
+        for i in range(1, count + 1):
+            section = ttk.LabelFrame(
+                self._nutzen_sections_parent,
+                text=f"Nutzen {i}",
+                padding=10,
+            )
+            section.pack(fill="x", padx=0, pady=(0, 5))
+            section.columnconfigure(0, weight=0)
+            section.columnconfigure(1, weight=1)
+            section.columnconfigure(2, weight=0)
+
+            for row_idx, fd in enumerate(self._nutzen_field_defs):
+                key = f"{fd.display_name}_n{i}"
+                ttk.Label(section, text=f"{fd.display_name}:").grid(
+                    row=row_idx, column=0, sticky="w", pady=5, padx=(5, 15),
+                )
+                var = tk.StringVar()
+                if fd.default_value is not None:
+                    var.set(fd.default_value)
+
+                widget, container = self._create_field_widget(section, fd, var)
+                container.grid(row=row_idx, column=1, sticky="w", pady=5, padx=(0, 10))
+
+                if fd.spec_min is not None and fd.spec_max is not None:
+                    ttk.Label(
+                        section,
+                        text=f"{fd.spec_min} – {fd.spec_max}",
+                        foreground=COLORS["text_secondary"],
+                        font=("Segoe UI", 8),
+                    ).grid(row=row_idx, column=2, sticky="w", pady=5)
+
+                self.field_vars[key] = var
 
         self.canvas.yview_moveto(0)
+
+    def _preload_history(self) -> None:
+        """Lädt die letzten 10 Messungen aus der Excel-Datei beim Resume."""
+        if not self.app_state.current_file:
+            return
+        process = self.app_state.selected_process
+        if not process:
+            return
+
+        rows = read_all_data(self.app_state.current_file, header_row=HEADER_ROW)
+        if not rows:
+            return
+
+        meas_display_names = {fd.display_name for fd in get_measurement_fields(process)}
+        pv = self.app_state.persistent_values
+
+        self._history.clear()
+        for row in rows[-10:]:
+            datum = str(row.get("Datum", "") or "")
+            zeit = datum[-8:] if len(datum) >= 8 else datum
+            kontext = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else "-"
+            werte_parts = [
+                f"{k}: {v}" for k, v in row.items()
+                if k in meas_display_names and v is not None
+            ]
+            werte = ", ".join(werte_parts) or "-"
+            self._history.append((zeit, kontext, werte))
+
+        self._update_history_display()
 
     def _generate_vertical_fields(
         self, fields: list[FieldDef], parent: tk.Widget,
@@ -309,13 +448,19 @@ class FormView(BaseView):
             elif fd.default_value is not None:
                 var.set(fd.default_value)
 
-            widget = self._create_field_widget(parent, fd, var)
-            widget.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
+            widget, container = self._create_field_widget(parent, fd, var)
+            container.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
 
-            if fd.spec_min is not None and fd.spec_max is not None:
-                spec_text = f"[{fd.spec_min} - {fd.spec_max}]"
+            if fd.spec_min is not None or fd.spec_max is not None:
+                spec_parts = []
+                if fd.spec_min is not None:
+                    spec_parts.append(f"≥{fd.spec_min}")
+                if fd.spec_max is not None:
+                    spec_parts.append(f"≤{fd.spec_max}")
+                if fd.spec_min is not None and fd.spec_max is not None:
+                    spec_parts = [f"{fd.spec_min} – {fd.spec_max}"]
                 ttk.Label(
-                    parent, text=spec_text,
+                    parent, text="  ".join(spec_parts),
                     foreground=COLORS["text_secondary"],
                     font=("Segoe UI", 8),
                 ).grid(row=i, column=2, sticky="w", pady=5, padx=(5, 0))
@@ -357,8 +502,8 @@ class FormView(BaseView):
             elif fd.default_value is not None:
                 var.set(fd.default_value)
 
-            widget = self._create_field_widget(cell, fd, var)
-            widget.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+            widget, container = self._create_field_widget(cell, fd, var)
+            container.grid(row=1, column=0, sticky="ew", pady=(2, 0))
 
             self.field_vars[fd.display_name] = var
             if i == 0:
@@ -370,23 +515,35 @@ class FormView(BaseView):
 
     def _create_field_widget(
         self, parent: tk.Widget, fd: FieldDef, var: tk.StringVar
-    ) -> tk.Widget:
+    ) -> tuple[tk.Widget, tk.Widget]:
+        """Gibt (input_widget, container) zurück. Container ist bei Spec-Feldern ein
+        farbiger Border-Frame, sonst identisch mit dem input_widget."""
+        has_spec = fd.type == "number" and (fd.spec_min is not None or fd.spec_max is not None)
+
         if fd.type == "choice" and fd.options:
             widget = ttk.Combobox(
                 parent, textvariable=var, values=fd.options,
                 state="readonly", width=23,
             )
             widget.bind("<Return>", self._focus_next)
-        else:
-            widget = ttk.Entry(parent, textvariable=var, width=25)
-            widget.bind("<Return>", self._focus_next)
-            widget.bind("<Down>", self._focus_next)
-            widget.bind("<Up>", self._focus_prev)
-            if fd.type == "number" and fd.spec_min is not None:
-                widget.bind("<FocusOut>", lambda e, w=widget, f=fd, v=var:
-                            self._on_spec_check(w, f, v))
+            return widget, widget
 
-        return widget
+        if has_spec:
+            border = tk.Frame(parent, bg=COLORS["border"], padx=3, pady=3)
+            entry = ttk.Entry(border, textvariable=var, width=23)
+            entry.pack(fill="both", expand=True)
+            entry.bind("<Return>", self._focus_next)
+            entry.bind("<Down>", self._focus_next)
+            entry.bind("<Up>", self._focus_prev)
+            entry.bind("<FocusOut>", lambda e, f=fd, v=var: self._on_spec_check(f, v))
+            self._validation_borders[fd.display_name] = border
+            return entry, border
+
+        widget = ttk.Entry(parent, textvariable=var, width=25)
+        widget.bind("<Return>", self._focus_next)
+        widget.bind("<Down>", self._focus_next)
+        widget.bind("<Up>", self._focus_prev)
+        return widget, widget
 
     def _focus_next(self, event) -> str:
         event.widget.tk_focusNext().focus_set()
@@ -396,37 +553,51 @@ class FormView(BaseView):
         event.widget.tk_focusPrev().focus_set()
         return "break"
 
-    def _on_spec_check(self, widget: ttk.Entry, fd: FieldDef, var: tk.StringVar) -> None:
+    def _on_spec_check(self, fd: FieldDef, var: tk.StringVar) -> None:
+        border = self._validation_borders.get(fd.display_name)
+        if border is None:
+            return
         value = var.get().strip()
         if not value:
-            widget.configure(style="TEntry")
+            border.configure(bg=COLORS["border"])
             return
-
         try:
             parsed = parse_numeric(value)
-            if fd.spec_min is not None and fd.spec_max is not None:
-                if fd.spec_min <= parsed <= fd.spec_max:
-                    widget.configure(foreground=COLORS["success"])
-                else:
-                    widget.configure(foreground=COLORS["error"])
-            else:
-                widget.configure(foreground="")
+            in_spec = True
+            if fd.spec_min is not None and parsed < fd.spec_min:
+                in_spec = False
+            if fd.spec_max is not None and parsed > fd.spec_max:
+                in_spec = False
+            border.configure(bg=COLORS["success"] if in_spec else COLORS["error"])
         except (ValueError, OverflowError):
-            widget.configure(foreground=COLORS["error"])
+            border.configure(bg=COLORS["error"])
 
     def _clear_fields(self) -> None:
+        all_defs = self._field_defs + self._nutzen_field_defs
         for name, var in self.field_vars.items():
-            fd = next((f for f in self._field_defs if f.display_name == name), None)
-            # Kontextfelder und Dropdowns behalten ihren Wert über Messungen hinweg.
-            if fd and (fd.role == "context" or fd.type == "choice"):
+            # Per-Nutzen-Keys haben Suffix "_n{i}" – Basis-Name für FieldDef-Suche ermitteln
+            base_name = name
+            for fd in self._nutzen_field_defs:
+                if name.startswith(fd.display_name + "_n"):
+                    base_name = fd.display_name
+                    break
+            fd = next((f for f in all_defs if f.display_name == base_name), None)
+            # Kontext-, Choice- und group_shared-Felder behalten ihren Wert.
+            if fd and (fd.role == "context" or fd.type == "choice" or fd.group_shared):
                 continue
             var.set(fd.default_value if fd and fd.default_value is not None else "")
+        for border in self._validation_borders.values():
+            border.configure(bg=COLORS["border"])
         self.status_var.set("")
         self._set_initial_focus()
 
     def _save(self) -> None:
         for header, var in self.persistent_vars.items():
             self.app_state.persistent_values[header] = var.get().strip()
+
+        if self._is_multi_nutzen:
+            self._do_multi_nutzen_save()
+            return
 
         raw_values = {header: var.get() for header, var in self.field_vars.items()}
 
@@ -523,8 +694,172 @@ class FormView(BaseView):
                     details={"error": result.error},
                 )
 
-    def _add_to_history(self, measurements: dict[str, float | str | None]) -> None:
+    def _do_multi_nutzen_save(self) -> None:
+        """Validierung und Bestätigung für Multi-Nutzen, dann Schreiben."""
+        process = self.app_state.selected_process
+        if not process:
+            return
+
+        nutzen_count = self.app_state.nutzen_count
+
+        # Pflichtfeld-Prüfung: Gemeinsame Werte
+        for fd in self._field_defs:
+            if not fd.optional and fd.role != "context":
+                val = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
+                if not val:
+                    messagebox.showwarning(
+                        "Fehlende Eingabe",
+                        f"Bitte '{fd.display_name}' ausfüllen.",
+                    )
+                    return
+
+        # Pflichtfeld-Prüfung: Per-Nutzen-Felder
+        for i in range(1, nutzen_count + 1):
+            for fd in self._nutzen_field_defs:
+                if not fd.optional:
+                    key = f"{fd.display_name}_n{i}"
+                    val = self.field_vars.get(key, tk.StringVar()).get().strip()
+                    if not val:
+                        messagebox.showwarning(
+                            "Fehlende Eingabe",
+                            f"Bitte '{fd.display_name}' für Nutzen {i} ausfüllen.",
+                        )
+                        return
+
+        summary_lines = []
+        for fd in self._field_defs:
+            val = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
+            if val:
+                summary_lines.append(f"  {fd.display_name}: {val}")
+        for i in range(1, nutzen_count + 1):
+            summary_lines.append(f"  --- Nutzen {i} ---")
+            for fd in self._nutzen_field_defs:
+                key = f"{fd.display_name}_n{i}"
+                val = self.field_vars.get(key, tk.StringVar()).get().strip()
+                if val:
+                    summary_lines.append(f"  {fd.display_name}: {val}")
+
+        confirmed = messagebox.askyesno(
+            "Messung speichern",
+            f"{nutzen_count} Nutzen speichern?\n\n" + "\n".join(summary_lines),
+        )
+        if confirmed:
+            self._do_multi_nutzen_write()
+
+    def _do_multi_nutzen_write(self) -> None:
+        process = self.app_state.selected_process
+        if not process:
+            return
+
+        nutzen_count = self.app_state.nutzen_count
+        now = datetime.now()
+
+        context_values: dict[str, str] = {}
+        context_values.update(self.app_state.persistent_values)
+        for fd in self._field_defs:
+            if fd.role == "context":
+                val = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
+                context_values[fd.display_name] = val
+
+        shared_meas: dict[str, float | str | None] = {}
+        for fd in self._field_defs:
+            if fd.role == "measurement":
+                raw = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
+                if fd.type == "number" and raw:
+                    try:
+                        from src.domain.validation import parse_numeric
+                        shared_meas[fd.display_name] = parse_numeric(raw)
+                    except (ValueError, OverflowError):
+                        shared_meas[fd.display_name] = raw
+                else:
+                    shared_meas[fd.display_name] = raw or None
+
+        rows = []
+        for i in range(1, nutzen_count + 1):
+            per_nutzen: dict[str, float | str | None] = {}
+            for fd in self._nutzen_field_defs:
+                key = f"{fd.display_name}_n{i}"
+                raw = self.field_vars.get(key, tk.StringVar()).get().strip()
+                if fd.type == "number" and raw:
+                    try:
+                        from src.domain.validation import parse_numeric
+                        per_nutzen[fd.display_name] = parse_numeric(raw)
+                    except (ValueError, OverflowError):
+                        per_nutzen[fd.display_name] = raw
+                else:
+                    per_nutzen[fd.display_name] = raw or None
+
+            auto: dict[str, str | float | None] = {}
+            for fd in get_auto_fields(process):
+                if fd.id == "datum":
+                    auto[fd.display_name] = now.strftime("%Y-%m-%d %H:%M:%S")
+                elif fd.id == "bearbeiter":
+                    user = self.app_state.current_user
+                    auto[fd.display_name] = user.display_name if user else ""
+                elif fd.id == "nutzen":
+                    auto[fd.display_name] = i
+
+            row: dict[str, str | float | None] = {}
+            row.update(context_values)
+            row.update(shared_meas)
+            row.update(per_nutzen)
+            row.update(auto)
+            rows.append(row)
+
+        if self.app_state.audit:
+            self.app_state.audit.log(
+                "write_attempt",
+                user=self.app_state.current_user.user_id if self.app_state.current_user else None,
+                file=str(self.app_state.current_file),
+                context=dict(self.app_state.persistent_values),
+                details={"nutzen_count": nutzen_count},
+            )
+
+        result = write_measurement_rows(
+            filepath=self.app_state.current_file,
+            rows=rows,
+        )
+
+        if result.success:
+            self.app_state.row_group_counter += nutzen_count
+
+            for i, row in enumerate(rows, 1):
+                meas_vals = {**shared_meas}
+                for fd in self._nutzen_field_defs:
+                    meas_vals[fd.display_name] = row.get(fd.display_name)
+                self._add_to_history(meas_vals, label=f"Nutzen {i}")
+
+            self.status_var.set(
+                f"{nutzen_count} Nutzen gespeichert (bis Zeile {result.row_number})."
+            )
+            self.status_label.config(style="Success.TLabel")
+            self._clear_fields()
+
+            if self.app_state.audit:
+                self.app_state.audit.log(
+                    "write_success",
+                    user=self.app_state.current_user.user_id if self.app_state.current_user else None,
+                    file=str(self.app_state.current_file),
+                    context=dict(self.app_state.persistent_values),
+                    details={"last_row": result.row_number, "nutzen_count": nutzen_count},
+                )
+        else:
+            messagebox.showerror("Fehler beim Schreiben", result.error)
+            self.status_var.set(f"Fehler: {result.error}")
+            self.status_label.config(style="Error.TLabel")
+            if self.app_state.audit:
+                self.app_state.audit.log(
+                    "write_fail",
+                    user=self.app_state.current_user.user_id if self.app_state.current_user else None,
+                    file=str(self.app_state.current_file),
+                    context=dict(self.app_state.persistent_values),
+                    details={"error": result.error},
+                )
+
+    def _add_to_history(self, measurements: dict[str, float | str | None], label: str = "") -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
+        if label:
+            timestamp = f"{timestamp} ({label})"
 
         pv = self.app_state.persistent_values
         kontext = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else "-"
@@ -544,6 +879,13 @@ class FormView(BaseView):
             self.history_tree.delete(item)
         for zeit, kontext, werte in reversed(self._history):
             self.history_tree.insert("", "end", values=(zeit, kontext, werte))
+        for col in ("zeit", "kontext", "werte"):
+            header_len = len(self.history_tree.heading(col)["text"])
+            max_len = max(
+                [header_len] +
+                [len(str(self.history_tree.set(item, col))) for item in self.history_tree.get_children()]
+            )
+            self.history_tree.column(col, width=max(max_len * 8, 80))
 
     def _change_context(self) -> None:
         self.on_navigate("context")

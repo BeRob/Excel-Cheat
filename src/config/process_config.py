@@ -20,6 +20,7 @@ class FieldDef:
     options: list[str] | None = None
     optional: bool = False
     default_value: str | None = None
+    group_shared: bool = False
 
 
 @dataclass
@@ -66,6 +67,7 @@ def _parse_field(data: dict) -> FieldDef:
         options=data.get("options"),
         optional=data.get("optional", False),
         default_value=data.get("default_value"),
+        group_shared=data.get("group_shared", False),
     )
 
 
@@ -132,6 +134,14 @@ def get_per_measurement_context_fields(process: ProcessConfig) -> list[FieldDef]
 
 def get_measurement_fields(process: ProcessConfig) -> list[FieldDef]:
     return [f for f in process.fields if f.role == "measurement"]
+
+
+def get_group_shared_fields(process: ProcessConfig) -> list[FieldDef]:
+    return [f for f in process.fields if f.role == "measurement" and f.group_shared]
+
+
+def get_per_nutzen_fields(process: ProcessConfig) -> list[FieldDef]:
+    return [f for f in process.fields if f.role == "measurement" and not f.group_shared]
 
 
 def get_auto_fields(process: ProcessConfig) -> list[FieldDef]:
