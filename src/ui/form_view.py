@@ -314,7 +314,10 @@ class FormView(BaseView):
         """Baut das Multi-Nutzen-Formular: Anzahl-Wähler, Gemeinsame Werte, Nutzen-Sektionen."""
         max_nutzen = process.row_group_size
 
-        # Anzahl-Nutzen-Wähler
+        # Anzahl-Nutzen-Wähler – default: alle Nutzen (row_group_size) sichtbar
+        if self.app_state.nutzen_count <= 1 or self.app_state.nutzen_count > max_nutzen:
+            self.app_state.nutzen_count = max_nutzen
+
         count_frame = ttk.LabelFrame(
             self.scrollable_frame, text="Anzahl Nutzen", padding=10,
         )
