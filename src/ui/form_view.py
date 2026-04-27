@@ -705,7 +705,7 @@ class FormView(BaseView):
             elif fd.id == "nutzen" and process.row_group_size:
                 nutzen = (self.app_state.row_group_counter % process.row_group_size) + 1
                 auto_values[fd.display_name] = nutzen
-            elif fd.id == "pruefmuster":
+            elif fd.id in ("pruefmuster", "beutel_nr"):
                 self.app_state.auto_sequence += 1
                 auto_values[fd.display_name] = self.app_state.auto_sequence
 
@@ -740,7 +740,8 @@ class FormView(BaseView):
             self.status_label.config(style="Error.TLabel")
 
             # Sequenz zuruecknehmen, wenn das Schreiben fehlschlug
-            if "pruefmuster" in [f.id for f in get_auto_fields(process)]:
+            auto_ids = {f.id for f in get_auto_fields(process)}
+            if "pruefmuster" in auto_ids or "beutel_nr" in auto_ids:
                 self.app_state.auto_sequence -= 1
 
             if self.app_state.audit:

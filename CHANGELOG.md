@@ -1,5 +1,19 @@
 # Versionshistorie – QAInput
 
+## v1.3.1 – 2026-04-27
+
+### Neu
+- **Produkt REF32102** – Sugi Eyedrain, 155 x 4 x 1 mm, non-sterile, 100 Stk. mit 4 IPC-Prozessen:
+  - **IPC1 Schneiden**: ASK > 1200 % (Ja/Nein), Kanten sauber & fusselfrei (Ja/Nein), Bahn 1 + Bahn 2 (Spec 155 mm, 153–157)
+  - **IPC2 Schälen** (Multi-Nutzen, 3 Nutzen): Schalspalt oben/unten als gemeinsame Werte, Flächengewicht pro Nutzen (Spec 135 g/m², 125–150)
+  - **IPC3 Stanzen**: Auto-Prüfmuster, Kanten-Choice, Breite (Spec 4 mm, 3,2–4,8) + Länge (Spec 155 mm, 153–157)
+  - **IPC4 Packliste**: Beutel-Nr. als Auto-Sequenz, Rollen/Schicht-Nr. pro Eintrag
+
+### Geändert
+- **Auto-Sequenz-Felder** – Auto-Felder mit der ID `beutel_nr` werden jetzt analog zu `pruefmuster` automatisch hochgezählt (inkl. Rollback bei Schreibfehler); ermöglicht durchnummerierte Packlisten
+
+---
+
 ## v1.3.0 – 2026-04-27
 
 ### Neu

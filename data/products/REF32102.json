@@ -1,0 +1,76 @@
+{
+  "product_id": "REF32102",
+  "display_name": "REF 32102 - Sugi Eyedrain, 155 x 4 x 1 mm, non-sterile, 100 pcs.",
+  "processes": [
+    {
+      "template_id": "IPC1_Schneiden",
+      "display_name": "IPC1 Schneiden",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "ask", "display_name": "ASK Soll >1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "kanten", "display_name": "Kanten sauber und fusselfrei", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "bahn_1", "display_name": "Bahn 1", "type": "number", "role": "measurement", "persistent": false, "spec_target": 155, "spec_min": 153, "spec_max": 157},
+        {"id": "bahn_2", "display_name": "Bahn 2", "type": "number", "role": "measurement", "persistent": false, "spec_target": 155, "spec_min": 153, "spec_max": 157},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC2_Schaelen",
+      "display_name": "IPC2 Schälen",
+      "row_group_size": 3,
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "nutzen", "display_name": "Nutzen", "type": "number", "role": "auto", "persistent": false},
+        {"id": "schalspalt_oben", "display_name": "Schalspalt oben", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
+        {"id": "schalspalt_unten", "display_name": "Schalspalt unten", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
+        {"id": "flaechengewicht", "display_name": "Flaechengewicht", "type": "number", "role": "measurement", "persistent": false, "spec_target": 135, "spec_min": 125, "spec_max": 150},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC3_Stanzen",
+      "display_name": "IPC3 Stanzen",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_schicht_nr", "display_name": "Rolle/Schicht Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "pruefmuster", "display_name": "Prüfmuster", "type": "number", "role": "auto", "persistent": false},
+        {"id": "kanten", "display_name": "Kanten sauber und fusselfrei", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 4, "spec_min": 3.2, "spec_max": 4.8},
+        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 155, "spec_min": 153, "spec_max": 157},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC4_Packliste",
+      "display_name": "IPC4 Packliste",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_schicht_nr", "display_name": "Rollen/Schicht Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "beutel_nr", "display_name": "Beutel Nr.", "type": "number", "role": "auto", "persistent": false},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    }
+  ]
+}
