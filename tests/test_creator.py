@@ -188,20 +188,25 @@ class TestWriteInfoHeader(unittest.TestCase):
             self.process, "REF123", self.tmp_dir, "LOT001", "FA123", "1", date(2026, 4, 1)
         )
         write_info_header(
-            path, "Test Product", "IPC1 Test", "FA-12345", "1", date(2026, 4, 1)
+            path, "Test Product", "IPC1 Test", "1", date(2026, 4, 1),
+            extra_info=[("FA-Nr.:", "FA-12345"), ("LOT Nr.:", "LOT001")],
         )
         wb = openpyxl.load_workbook(path, read_only=True)
         ws = wb.active
+        # Linke Spalten: fester Kern
         self.assertEqual(ws.cell(1, 1).value, "Produkt:")
         self.assertEqual(ws.cell(1, 2).value, "Test Product")
         self.assertEqual(ws.cell(2, 1).value, "Prozess:")
         self.assertEqual(ws.cell(2, 2).value, "IPC1 Test")
-        self.assertEqual(ws.cell(3, 1).value, "FA-Nr.:")
-        self.assertEqual(ws.cell(3, 2).value, "FA-12345")
-        self.assertEqual(ws.cell(4, 1).value, "Schicht:")
-        self.assertEqual(ws.cell(4, 2).value, "1")
-        self.assertEqual(ws.cell(5, 1).value, "Datum:")
-        self.assertEqual(ws.cell(5, 2).value, "2026-04-01")
+        self.assertEqual(ws.cell(3, 1).value, "Schicht:")
+        self.assertEqual(ws.cell(3, 2).value, "1")
+        self.assertEqual(ws.cell(4, 1).value, "Datum:")
+        self.assertEqual(ws.cell(4, 2).value, "2026-04-01")
+        # Rechte Spalten: extra_info
+        self.assertEqual(ws.cell(1, 3).value, "FA-Nr.:")
+        self.assertEqual(ws.cell(1, 4).value, "FA-12345")
+        self.assertEqual(ws.cell(2, 3).value, "LOT Nr.:")
+        self.assertEqual(ws.cell(2, 4).value, "LOT001")
         # Column headers still at HEADER_ROW
         self.assertEqual(ws.cell(HEADER_ROW, 1).value, "LOT Nr.")
         wb.close()

@@ -11,7 +11,8 @@ from datetime import datetime
 from src.config.process_config import (
     get_measurement_fields,
     get_per_measurement_context_fields,
-    get_persistent_context_fields,
+    get_form_persistent_fields,
+    get_info_header_fields,
     get_group_shared_fields,
     get_per_nutzen_fields,
     get_auto_fields,
@@ -52,8 +53,8 @@ class FormView(BaseView):
         top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         top_bar.columnconfigure(0, weight=1)
 
-        self.info_label = ttk.Label(top_bar, text="", wraplength=500)
-        self.info_label.grid(row=0, column=0, sticky="w")
+        self.meta_label = ttk.Label(top_bar, text="", wraplength=600)
+        self.meta_label.grid(row=0, column=0, sticky="w")
 
         btn_frame = ttk.Frame(top_bar)
         btn_frame.grid(row=0, column=1)
@@ -69,12 +70,8 @@ class FormView(BaseView):
         ttk.Button(btn_frame, text="Abmelden",
                    command=self._logout).pack(side="left", padx=(5, 0))
 
-        title_frame = ttk.Frame(self)
-        title_frame.grid(row=1, column=0, pady=(5, 5))
-        ttk.Label(title_frame, text="Messwerte erfassen",
-                  style="Subtitle.TLabel").pack(side="left")
-        self.group_label = ttk.Label(title_frame, text="", foreground=COLORS["accent"])
-        self.group_label.pack(side="left", padx=(15, 0))
+        self.header_bar = ttk.Frame(self)
+        self.header_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 5))
 
         scroll_container = ttk.Frame(self)
         scroll_container.grid(row=2, column=0, sticky="nsew", padx=40, pady=5)
@@ -177,18 +174,15 @@ class FormView(BaseView):
         process_name = process.display_name if process else "?"
         file_name = Path(self.app_state.current_file).name if self.app_state.current_file else "?"
 
-        pv = self.app_state.persistent_values
-        ctx_text = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else ""
-
-        info_parts = [user_name, process_name, f"Schicht {shift}", file_name]
-        if ctx_text:
-            info_parts.append(ctx_text)
-        self.info_label.config(text="  |  ".join(info_parts))
+        self.meta_label.config(
+            text=f"{user_name}  |  {product_name}  |  {process_name}"
+                 f"  |  Schicht {shift}  |  {file_name}"
+        )
 
         mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
         self.layout_btn.config(text=f"Layout: {mode_text}")
 
-        self._update_group_label()
+        self._render_header_bar()
 
         fields_key = f"{process_name}_{self.app_state.layout_mode}"
         if fields_key != self._last_fields_key:
@@ -202,22 +196,37 @@ class FormView(BaseView):
 
         self.status_var.set("")
 
+    def _render_header_bar(self) -> None:
+        """Zeigt die Info-Header-Felder read-only mit kleinem ✎-Button."""
+        for child in self.header_bar.winfo_children():
+            child.destroy()
+
+        process = self.app_state.selected_process
+        if not process:
+            return
+
+        pv = self.app_state.persistent_values
+        for fd in get_info_header_fields(process):
+            cell = ttk.Frame(self.header_bar)
+            cell.pack(side="left", padx=(0, 18))
+            ttk.Label(
+                cell, text=f"{fd.display_name}:",
+                font=("Segoe UI", 9, "bold"),
+            ).pack(side="left")
+            ttk.Label(
+                cell, text=pv.get(fd.display_name, "") or "—",
+                foreground=COLORS["accent"],
+            ).pack(side="left", padx=(4, 2))
+            ttk.Button(
+                cell, text="✎", width=2, command=self._change_context,
+            ).pack(side="left")
+
     def _set_initial_focus(self) -> None:
         if self._first_focus_widget is not None:
             try:
                 self._first_focus_widget.focus_set()
             except tk.TclError:
                 pass
-
-    def _update_group_label(self) -> None:
-        process = self.app_state.selected_process
-        if process and process.row_group_size and not self._is_multi_nutzen:
-            current = (self.app_state.row_group_counter % process.row_group_size) + 1
-            self.group_label.config(
-                text=f"Nutzen: {current} von {process.row_group_size}"
-            )
-        else:
-            self.group_label.config(text="")
 
     def _toggle_layout(self) -> None:
         if self.app_state.layout_mode == "vertical":
@@ -251,7 +260,7 @@ class FormView(BaseView):
             process.row_group_size and get_group_shared_fields(process)
         )
 
-        persistent_fields = get_persistent_context_fields(process)
+        persistent_fields = get_form_persistent_fields(process)
         self._persistent_field_defs = persistent_fields
 
         if persistent_fields:
@@ -285,11 +294,26 @@ class FormView(BaseView):
         else:
             per_meas_ctx = get_per_measurement_context_fields(process)
             measurement = get_measurement_fields(process)
-            all_fields_original = per_meas_ctx + measurement
-            choice_fields = [f for f in all_fields_original if f.type == "choice"]
-            other_fields = [f for f in all_fields_original if f.type != "choice"]
+
+            shared_frame_first: tk.Widget | None = None
+            if per_meas_ctx:
+                shared_frame = ttk.LabelFrame(
+                    self.scrollable_frame, text="Gemeinsame Werte", padding=10,
+                )
+                shared_frame.pack(fill="x", padx=5, pady=(0, 5))
+                if self.app_state.layout_mode == "vertical":
+                    shared_frame_first, _ = self._generate_vertical_fields(
+                        per_meas_ctx, shared_frame,
+                    )
+                else:
+                    shared_frame_first, _ = self._generate_horizontal_fields(
+                        per_meas_ctx, shared_frame,
+                    )
+
+            choice_fields = [f for f in measurement if f.type == "choice"]
+            other_fields = [f for f in measurement if f.type != "choice"]
             display_fields = choice_fields + other_fields
-            self._field_defs = display_fields
+            self._field_defs = per_meas_ctx + display_fields
 
             meas_frame = ttk.LabelFrame(
                 self.scrollable_frame, text="Messwerte", padding=10,
@@ -305,7 +329,9 @@ class FormView(BaseView):
                     display_fields, meas_frame,
                 )
 
-            self._first_focus_widget = first_choice or first_meas
+            self._first_focus_widget = (
+                first_choice or shared_frame_first or first_meas
+            )
 
         self._set_initial_focus()
         self.canvas.yview_moveto(0)
@@ -339,7 +365,10 @@ class FormView(BaseView):
             self.scrollable_frame, text="Gemeinsame Werte", padding=10,
         )
         shared_frame.pack(fill="x", padx=5, pady=(0, 5))
-        first_shared, _ = self._generate_vertical_fields(shared_fields, shared_frame)
+        if self.app_state.layout_mode == "vertical":
+            first_shared, _ = self._generate_vertical_fields(shared_fields, shared_frame)
+        else:
+            first_shared, _ = self._generate_horizontal_fields(shared_fields, shared_frame)
         if self._first_focus_widget is None:
             self._first_focus_widget = first_shared
 
@@ -353,19 +382,29 @@ class FormView(BaseView):
         self._rebuild_nutzen_sections()
 
     def _rebuild_nutzen_sections(self) -> None:
-        """Baut die Nutzen-Sektionen neu auf wenn die Anzahl geändert wird."""
+        """Baut die Nutzen-Sektionen neu auf wenn die Anzahl geändert wird.
+
+        Im vertikalen Layout-Modus stehen die Sektionen untereinander,
+        im horizontalen Modus nebeneinander."""
         if self._nutzen_sections_parent is None or self._nutzen_count_var is None:
             return
 
         count = self._nutzen_count_var.get()
         self.app_state.nutzen_count = count
 
-        # Alte per-nutzen Einträge aus field_vars entfernen
+        # Alte per-nutzen Einträge aus field_vars und Border-Map entfernen
         for key in [k for k in self.field_vars if "_n" in k]:
             del self.field_vars[key]
+        for key in [k for k in self._validation_borders if "_n" in k]:
+            del self._validation_borders[key]
 
         for widget in self._nutzen_sections_parent.winfo_children():
             widget.destroy()
+
+        horizontal = self.app_state.layout_mode == "horizontal"
+        if horizontal:
+            for c in range(count):
+                self._nutzen_sections_parent.columnconfigure(c, weight=1, uniform="nutzen")
 
         for i in range(1, count + 1):
             section = ttk.LabelFrame(
@@ -373,7 +412,10 @@ class FormView(BaseView):
                 text=f"Nutzen {i}",
                 padding=10,
             )
-            section.pack(fill="x", padx=0, pady=(0, 5))
+            if horizontal:
+                section.grid(row=0, column=i - 1, sticky="nsew", padx=(0, 5))
+            else:
+                section.pack(fill="x", padx=0, pady=(0, 5))
             section.columnconfigure(0, weight=0)
             section.columnconfigure(1, weight=1)
             section.columnconfigure(2, weight=0)
@@ -387,7 +429,9 @@ class FormView(BaseView):
                 if fd.default_value is not None:
                     var.set(fd.default_value)
 
-                widget, container = self._create_field_widget(section, fd, var)
+                widget, container = self._create_field_widget(
+                    section, fd, var, border_key=key,
+                )
                 container.grid(row=row_idx, column=1, sticky="w", pady=5, padx=(0, 10))
 
                 if fd.spec_min is not None and fd.spec_max is not None:
@@ -517,11 +561,17 @@ class FormView(BaseView):
         return first_widget, first_choice
 
     def _create_field_widget(
-        self, parent: tk.Widget, fd: FieldDef, var: tk.StringVar
+        self, parent: tk.Widget, fd: FieldDef, var: tk.StringVar,
+        border_key: str | None = None,
     ) -> tuple[tk.Widget, tk.Widget]:
         """Gibt (input_widget, container) zurück. Container ist bei Spec-Feldern ein
-        farbiger Border-Frame, sonst identisch mit dem input_widget."""
+        farbiger Border-Frame, sonst identisch mit dem input_widget.
+
+        `border_key` wird zum Speichern des Borders verwendet (default = display_name);
+        bei per-Nutzen-Feldern wird ein eindeutiger Schlüssel mit Suffix `_n{i}` benötigt,
+        damit Borders unabhängig validiert werden können."""
         has_spec = fd.type == "number" and (fd.spec_min is not None or fd.spec_max is not None)
+        key = border_key if border_key is not None else fd.display_name
 
         if fd.type == "choice" and fd.options:
             widget = ttk.Combobox(
@@ -538,8 +588,11 @@ class FormView(BaseView):
             entry.bind("<Return>", self._focus_next)
             entry.bind("<Down>", self._focus_next)
             entry.bind("<Up>", self._focus_prev)
-            entry.bind("<FocusOut>", lambda e, f=fd, v=var: self._on_spec_check(f, v))
-            self._validation_borders[fd.display_name] = border
+            entry.bind(
+                "<FocusOut>",
+                lambda e, f=fd, v=var, bk=key: self._on_spec_check(f, v, bk),
+            )
+            self._validation_borders[key] = border
             return entry, border
 
         widget = ttk.Entry(parent, textvariable=var, width=25)
@@ -556,8 +609,11 @@ class FormView(BaseView):
         event.widget.tk_focusPrev().focus_set()
         return "break"
 
-    def _on_spec_check(self, fd: FieldDef, var: tk.StringVar) -> None:
-        border = self._validation_borders.get(fd.display_name)
+    def _on_spec_check(
+        self, fd: FieldDef, var: tk.StringVar, border_key: str | None = None,
+    ) -> None:
+        key = border_key if border_key is not None else fd.display_name
+        border = self._validation_borders.get(key)
         if border is None:
             return
         value = var.get().strip()
@@ -663,7 +719,6 @@ class FormView(BaseView):
 
         if result.success:
             self.app_state.row_group_counter += 1
-            self._update_group_label()
 
             self._add_to_history(normalized_values)
 

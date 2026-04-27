@@ -8,6 +8,7 @@ from datetime import datetime
 
 from src.config.process_config import (
     get_persistent_context_fields,
+    get_info_header_fields,
     get_all_headers,
     get_measurement_fields,
 )
@@ -19,6 +20,7 @@ from src.excel.creator import (
     get_shift_date,
 )
 from src.ui.base_view import BaseView
+from src.ui.date_picker import DatePickerDialog
 from src.ui.theme import COLORS
 
 
@@ -132,13 +134,27 @@ class ContextView(BaseView):
                     self.form_frame, textvariable=var,
                     values=field_def.options, state="readonly", width=28,
                 )
+                widget.bind("<Return>", lambda e: e.widget.tk_focusNext().focus_set() or "break")
+                widget.grid(row=i, column=1, pady=5)
+                self._field_entries.append(widget)
+            elif field_def.type == "date":
+                container = ttk.Frame(self.form_frame)
+                container.grid(row=i, column=1, pady=5, sticky="w")
+                widget = ttk.Entry(container, textvariable=var, width=22)
+                widget.bind("<Return>", lambda e: e.widget.tk_focusNext().focus_set() or "break")
+                widget.pack(side="left")
+                ttk.Button(
+                    container, text="📅", width=3,
+                    command=lambda v=var: self._open_date_picker(v),
+                ).pack(side="left", padx=(4, 0))
+                self._field_entries.append(widget)
             else:
                 widget = ttk.Entry(self.form_frame, textvariable=var, width=30)
+                widget.bind("<Return>", lambda e: e.widget.tk_focusNext().focus_set() or "break")
+                widget.grid(row=i, column=1, pady=5)
+                self._field_entries.append(widget)
 
-            widget.bind("<Return>", lambda e: e.widget.tk_focusNext().focus_set() or "break")
-            widget.grid(row=i, column=1, pady=5)
             self.field_vars[field_def.display_name] = var
-            self._field_entries.append(widget)
 
         if self._field_entries:
             self._field_entries[0].focus_set()
@@ -224,13 +240,18 @@ class ContextView(BaseView):
         else:
             self.app_state.row_group_counter = 0
 
+        extra_info: list[tuple[str, str]] = []
+        for fd in get_info_header_fields(process):
+            value = self.app_state.persistent_values.get(fd.display_name, "")
+            extra_info.append((f"{fd.display_name}:", value))
+
         write_info_header(
             filepath=filepath,
             product_name=product.display_name if product else "",
             process_name=process.display_name if process else "",
-            fa_nr=fa_nr,
             shift=shift,
             dt=shift_date,
+            extra_info=extra_info,
         )
 
         if self.app_state.audit:
@@ -243,6 +264,9 @@ class ContextView(BaseView):
             )
 
         self.on_navigate("form")
+
+    def _open_date_picker(self, var: tk.StringVar) -> None:
+        DatePickerDialog(self, initial=var.get(), on_pick=var.set)
 
     def _change_process(self) -> None:
         self.app_state.reset_process()

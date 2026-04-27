@@ -1,5 +1,31 @@
 # Versionshistorie – QAInput
 
+## v1.3.0 – 2026-04-27
+
+### Neu
+- **Datumsauswahl für Verwendbarkeitsdatum** – Kalender-Popup mit Monats-/Jahresnavigation und Heute-Button; öffnet sich über das 📅-Symbol neben dem Eingabefeld in der Kontext-Eingabe (kein Tippen mehr nötig)
+- **Read-only Header-Zeile im Messformular** – FA-Nr., LOT Nr., Verwendbarkeitsdatum und Messmittel werden oben im Messformular dauerhaft angezeigt; ein ✎-Symbol pro Wert führt zurück zur Kontext-Eingabe für Korrekturen, ohne dass die Werte versehentlich überschrieben werden können
+- **Excel-Info-Header zweispaltig** – Produkt/Prozess/Schicht/Datum links, FA-Nr./LOT/Verwendbarkeitsdatum/Messmittel rechts (Spalten C–D) im Block über der Datentabelle; diese vier Felder erscheinen damit nur einmal pro Datei und nicht mehr in jeder Messzeile
+
+### Geändert
+- **Rollencharge** ist nicht mehr „fester Wert" über den ganzen Prozess, sondern wird zu den gemeinsamen Werten gezählt (kann zwischen Messungen leer/anders sein); im Multi-Nutzen-Modus erscheint Rollencharge im Block „Gemeinsame Werte" über den Nutzen-Sektionen, im Single-Modus in einem eigenen Block oberhalb der Messwerte
+- **FA-Nr., LOT Nr., Verwendbarkeitsdatum, Messmittel** wandern aus der Datenzeile in den Excel-Info-Block; in jeder Excel-Datei steht damit nur noch im Header, was sich pro Datei nicht ändert. Die Spalten in Zeile 6 enthalten nur noch echte Mess- und Per-Messung-Werte
+- **Reihenfolge in der Kontext-Eingabe**: FA-Nr → LOT Nr. → Verwendbarkeitsdatum → Messmittel
+- **Review-Dialog hochformatig** – Breite 680 px (vorher 1000 px), maximale Höhe 1100 px (vorher 900 px); Nutzen-Anzeige im Auto-Block entfernt
+- **„Nutzen X von Y"-Label entfernt** – im Single-Nutzen-Pfad redundant, weil das automatische Feld `Nutzen` ohnehin in jede Zeile geschrieben wird
+
+### Behoben
+- **Multi-Nutzen + Layout-Toggle** – Im horizontalen Layout-Modus werden die Nutzen-Sektionen jetzt nebeneinander statt untereinander dargestellt; vorher hatte der Toggle bei Multi-Nutzen-Prozessen keine sichtbare Wirkung
+- **Spec-Validierungsrahmen pro Nutzen** – Im Multi-Nutzen-Modus war der grüne/rote Rahmen für Felder mit Spec-Grenzen (z. B. Flächengewicht) nur für die letzte Nutzen-Sektion korrekt, weil alle Nutzen denselben Border-Schlüssel teilten. Jetzt validiert jede Sektion unabhängig (Schlüssel `{name}_n{i}`)
+- **Bemerkungen-Default „n/a"** in allen Render-Pfaden konsistent – wird sowohl beim Initial-Aufbau als auch nach „Felder leeren" sicher gesetzt
+
+### Konfiguration
+- Neuer Feldtyp `"date"` (Datumsauswahl-Render im UI, im Excel als Text gespeichert)
+- Neues Feld-Flag `"info_header": true` – Feld erscheint im Excel-Info-Block statt als Spalte
+- Neuer Helfer `get_info_header_fields(process)` und `get_form_persistent_fields(process)`; `get_all_headers(process)` schließt Info-Header-Felder vom Spaltenkopf aus
+
+---
+
 ## v1.2.1 – 2026-04-27
 
 ### Behoben

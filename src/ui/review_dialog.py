@@ -34,8 +34,8 @@ class ReviewDialog(tk.Toplevel):
         self.field_defs = field_defs
 
         self.title("Prüfen und Senden")
-        height = min(900, 420 + len(raw_values) * 32)
-        self.geometry(f"1000x{height}")
+        height = min(1100, 480 + len(raw_values) * 30)
+        self.geometry(f"680x{height}")
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
@@ -86,11 +86,6 @@ class ReviewDialog(tk.Toplevel):
                   text=f"Datum: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}").pack(anchor="w")
         ttk.Label(auto_frame,
                   text=f"Bearbeiter: {user.display_name if user else '?'}").pack(anchor="w")
-
-        if process and process.row_group_size:
-            nutzen = (self.app_state.row_group_counter % process.row_group_size) + 1
-            ttk.Label(auto_frame,
-                      text=f"Nutzen: {nutzen} von {process.row_group_size}").pack(anchor="w")
 
         values_frame = ttk.LabelFrame(self, text="Messwerte", padding=10)
         values_frame.grid(row=3, column=0, padx=15, pady=5, sticky="nsew")

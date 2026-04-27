@@ -28,6 +28,12 @@ def field_to_dict(field: FieldDef) -> dict:
         d["spec_max"] = field.spec_max
     if field.options is not None:
         d["options"] = field.options
+    if field.default_value is not None:
+        d["default_value"] = field.default_value
+    if field.group_shared:
+        d["group_shared"] = True
+    if field.info_header:
+        d["info_header"] = True
     return d
 
 
@@ -92,7 +98,7 @@ def validate_product_config(product: ProductConfig) -> list[str]:
 
             if not field.display_name.strip():
                 errors.append(f"{fp}: Anzeigename darf nicht leer sein.")
-            if field.type not in ("text", "number", "choice"):
+            if field.type not in ("text", "number", "choice", "date"):
                 errors.append(f"{fp}: Ungültiger Typ '{field.type}'.")
             if field.role not in ("context", "measurement", "auto"):
                 errors.append(f"{fp}: Ungültige Rolle '{field.role}'.")

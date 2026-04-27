@@ -11,7 +11,7 @@ from pathlib import Path
 class FieldDef:
     id: str
     display_name: str
-    type: str  # "text" | "number" | "choice"
+    type: str  # "text" | "number" | "choice" | "date"
     role: str  # "context" | "measurement" | "auto"
     persistent: bool = False
     spec_target: float | None = None
@@ -21,6 +21,7 @@ class FieldDef:
     optional: bool = False
     default_value: str | None = None
     group_shared: bool = False
+    info_header: bool = False
 
 
 @dataclass
@@ -68,6 +69,7 @@ def _parse_field(data: dict) -> FieldDef:
         optional=data.get("optional", False),
         default_value=data.get("default_value"),
         group_shared=data.get("group_shared", False),
+        info_header=data.get("info_header", False),
     )
 
 
@@ -128,6 +130,21 @@ def get_persistent_context_fields(process: ProcessConfig) -> list[FieldDef]:
     return [f for f in process.fields if f.role == "context" and f.persistent]
 
 
+def get_form_persistent_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Persistente Kontext-Felder, die im Formular als 'Feste Werte' gerendert werden
+    (also ohne die info_header-Felder, die in der Top-Bar erscheinen)."""
+    return [
+        f for f in process.fields
+        if f.role == "context" and f.persistent and not f.info_header
+    ]
+
+
+def get_info_header_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Felder, die in den Excel-Info-Block (Zeilen 1-5) geschrieben werden,
+    nicht als Spalte in der Datenzeile."""
+    return [f for f in process.fields if f.info_header]
+
+
 def get_per_measurement_context_fields(process: ProcessConfig) -> list[FieldDef]:
     return [f for f in process.fields if f.role == "context" and not f.persistent]
 
@@ -149,7 +166,8 @@ def get_auto_fields(process: ProcessConfig) -> list[FieldDef]:
 
 
 def get_all_headers(process: ProcessConfig) -> list[str]:
-    return [f.display_name for f in process.fields]
+    """Spaltenkopf-Namen für Zeile 6 (Info-Header-Felder ausgeschlossen)."""
+    return [f.display_name for f in process.fields if not f.info_header]
 
 
 def get_field_by_id(process: ProcessConfig, field_id: str) -> FieldDef | None:

@@ -129,11 +129,15 @@ def write_info_header(
     filepath: Path,
     product_name: str,
     process_name: str,
-    fa_nr: str,
     shift: str,
     dt: date,
+    extra_info: list[tuple[str, str]] | None = None,
 ) -> None:
-    """Schreibt den Info-Block in die Zeilen 1-5."""
+    """Schreibt den Info-Block in die Zeilen 1-5.
+
+    Linke Spalten (1-2): fester Kern (Produkt/Prozess/Schicht/Datum).
+    Rechte Spalten (3-4): zusätzliche Header-Felder aus dem Prozess
+    (z. B. FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel)."""
     try:
         wb = openpyxl.load_workbook(filepath)
     except Exception:
@@ -141,18 +145,27 @@ def write_info_header(
 
     try:
         ws = wb.active
-        info_rows = [
+        core_rows = [
             ("Produkt:", product_name),
             ("Prozess:", process_name),
-            ("FA-Nr.:", fa_nr),
             ("Schicht:", shift),
             ("Datum:", dt.strftime("%Y-%m-%d")),
         ]
 
-        for row_idx, (label, value) in enumerate(info_rows, 1):
+        for row_idx, (label, value) in enumerate(core_rows, 1):
             cell_label = ws.cell(row_idx, 1, label)
             cell_label.font = INFO_LABEL_FONT
             ws.cell(row_idx, 2, value)
+
+        if extra_info:
+            ws.column_dimensions["C"].width = 24
+            ws.column_dimensions["D"].width = 24
+            for row_idx, (label, value) in enumerate(extra_info, 1):
+                if row_idx > 5:
+                    break
+                cell_label = ws.cell(row_idx, 3, label)
+                cell_label.font = INFO_LABEL_FONT
+                ws.cell(row_idx, 4, value)
 
         wb.save(filepath)
     except Exception:
