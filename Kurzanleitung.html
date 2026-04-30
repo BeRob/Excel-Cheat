@@ -75,6 +75,7 @@
         }
         .green { color: #1A7A3A; font-weight: 600; }
         .red   { color: #CC2200; font-weight: 600; }
+        .orange { color: #C76E00; font-weight: 600; }
         kbd {
             background: #E8ECF0;
             border: 1px solid #C8CDD0;
@@ -83,62 +84,85 @@
             font-family: monospace;
             font-size: 0.9em;
         }
+        .toc {
+            background: #F8F9FA;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            padding: 12px 20px;
+            margin: 16px 0;
+        }
+        .toc ol { margin: 6px 0; }
     </style>
 </head>
 <body>
 
 <h1>QAInput &ndash; Kurzanleitung für Mitarbeiter</h1>
-<p>Diese Anleitung beschreibt, wie Sie QAInput im Alltag bedienen. Technische Details zur Konfiguration finden Sie in der separaten Dokumentation.</p>
+<p>Diese Anleitung erklärt, wie Sie QAInput im Alltag bedienen. Sie richtet sich an Mitarbeiter ohne Vorkenntnisse.</p>
+
+<div class="toc">
+    <strong>Inhalt</strong>
+    <ol>
+        <li><a href="#ablauf">Typischer Ablauf in 6 Schritten</a></li>
+        <li><a href="#anmeldung">Anmelden</a></li>
+        <li><a href="#produkt-prozess">Produkt und Prozess wählen</a></li>
+        <li><a href="#feste-werte">Feste Werte eintragen</a></li>
+        <li><a href="#messwerte">Messwerte erfassen</a></li>
+        <li><a href="#multi-nutzen">Mehrere Nutzen pro Rolle</a></li>
+        <li><a href="#pruefen-senden">Speichern und Senden</a></li>
+        <li><a href="#bedienhilfen">Bedienhilfen (Schrift, Dark Mode)</a></li>
+        <li><a href="#troubleshooting">Was tun, wenn …?</a></li>
+    </ol>
+</div>
 
 <hr />
 
-<h2 id="ablauf">Typischer Ablauf</h2>
+<h2 id="ablauf">Typischer Ablauf in 6 Schritten</h2>
 
 <div class="step">
     <div class="step-num">1</div>
-    <div class="step-body"><strong>Anmelden</strong> &ndash; Passwort eingeben oder QR-Code scannen.</div>
+    <div class="step-body"><strong>Anmelden</strong> &ndash; Benutzername + Passwort eingeben oder QR-Code scannen.</div>
 </div>
 <div class="step">
     <div class="step-num">2</div>
-    <div class="step-body"><strong>Produkt und Prozess wählen</strong> &ndash; Aus den Dropdowns auswählen, dann auf <em>Weiter</em> klicken.</div>
+    <div class="step-body"><strong>Produkt und Prozess wählen</strong> &ndash; aus den beiden Dropdowns auswählen, dann <em>Weiter</em> klicken.</div>
 </div>
 <div class="step">
     <div class="step-num">3</div>
-    <div class="step-body"><strong>Speicherort wählen</strong> &ndash; Falls ein Ordner-Dialog erscheint, den Zielordner für die Excel-Datei auswählen.</div>
+    <div class="step-body"><strong>Feste Werte eintragen</strong> &ndash; FA-Nr., LOT-Nr., Verwendbarkeitsdatum und Messmittel eingeben. Diese gelten für die ganze Charge.</div>
 </div>
 <div class="step">
     <div class="step-num">4</div>
-    <div class="step-body"><strong>Feste Werte eingeben</strong> &ndash; FA-Nr., LOT-Nr., Messmittel und Verwendbarkeitsdatum eintragen. Diese Werte gelten für alle folgenden Messungen.</div>
+    <div class="step-body"><strong>Messwerte erfassen</strong> &ndash; Werte eingeben, mit <kbd>Enter</kbd> zum nächsten Feld springen.</div>
 </div>
 <div class="step">
     <div class="step-num">5</div>
-    <div class="step-body"><strong>Messwerte erfassen</strong> &ndash; Werte eingeben, mit <kbd>Enter</kbd> zum nächsten Feld springen, am Ende <em>Prüfen &amp; Senden</em> klicken.</div>
+    <div class="step-body"><strong>Speichern</strong> &ndash; unten den Button <em>Speichern</em> klicken; ein Übersichtsdialog erscheint.</div>
 </div>
 <div class="step">
     <div class="step-num">6</div>
-    <div class="step-body"><strong>Prüfen und Senden</strong> &ndash; Im Übersichtsdialog alle Werte kontrollieren, dann <em>Senden</em> klicken. Die Zeile wird in Excel geschrieben.</div>
+    <div class="step-body"><strong>Senden</strong> &ndash; Werte im Dialog kontrollieren, dann <em>Senden</em> klicken &ndash; die Zeile wird in Excel geschrieben. Das Formular ist automatisch leer für die nächste Messung.</div>
 </div>
-<div class="step">
-    <div class="step-num">7</div>
-    <div class="step-body"><strong>Nächste Messung</strong> &ndash; Das Formular wird automatisch für die nächste Messung zurückgesetzt. Feste Werte bleiben erhalten.</div>
+
+<div class="tip">
+    <strong>Buttons unten am Bildschirm:</strong> <em>Abmelden</em> und <em>Prozess wechseln</em> finden Sie auf jedem Bildschirm am unteren Fensterrand.
 </div>
 
 <hr />
 
-<h2 id="anmeldung">1. Anmeldung</h2>
+<h2 id="anmeldung">1. Anmelden</h2>
 
-<h3>Passwort-Login</h3>
+<h3>Mit Passwort</h3>
 <ol>
     <li>Benutzernamen eingeben.</li>
-    <li>Mit <kbd>Enter</kbd> zum Passwortfeld springen.</li>
+    <li><kbd>Enter</kbd> drücken &ndash; der Cursor springt zum Passwortfeld.</li>
     <li>Passwort eingeben und <kbd>Enter</kbd> drücken.</li>
 </ol>
 
-<h3>QR-Code-Login</h3>
+<h3>Mit QR-Code</h3>
 <ol>
-    <li>Tab <em>QR-Code</em> auswählen.</li>
-    <li>Cursor ist automatisch im Eingabefeld &ndash; QR-Code mit dem Handscanner scannen.</li>
-    <li>Der Scanner sendet automatisch <kbd>Enter</kbd> nach dem Scan.</li>
+    <li>Auf den Tab <em>QR-Code</em> klicken.</li>
+    <li>Der Cursor steht automatisch im Eingabefeld &ndash; QR-Code mit dem Handscanner scannen.</li>
+    <li>Der Scanner sendet automatisch <kbd>Enter</kbd>; Sie sind angemeldet.</li>
 </ol>
 
 <hr />
@@ -146,31 +170,20 @@
 <h2 id="produkt-prozess">2. Produkt und Prozess wählen</h2>
 <ol>
     <li>Produkt aus dem oberen Dropdown wählen.</li>
-    <li>Prozess aus dem unteren Dropdown wählen. Es erscheint eine Übersicht der Felder und Spec-Grenzen.</li>
-    <li>Die Schicht wird automatisch aus der aktuellen Uhrzeit bestimmt und angezeigt.</li>
-    <li><em>Weiter</em> klicken.</li>
+    <li>Prozess aus dem unteren Dropdown wählen &ndash; rechts erscheint eine Übersicht der Felder mit Toleranzen.</li>
+    <li>Die Schicht erscheint automatisch (wird aus der Uhrzeit bestimmt).</li>
+    <li>Auf <em>Weiter</em> klicken.</li>
+    <li>Falls ein Ordner-Auswahl-Dialog erscheint: den Zielordner für die Excel-Datei wählen.</li>
 </ol>
 
 <div class="tip">
-    <strong>Schicht 3 (Nachtschicht):</strong> Wenn Sie nach Mitternacht arbeiten, erkennt die App automatisch, dass Sie noch in Schicht 3 vom Vortag sind. Das Datum im Dateinamen wird entsprechend gesetzt.
+    <strong>Schicht 3 (Nachtschicht):</strong> Wer nach Mitternacht arbeitet, ist noch in Schicht 3 vom Vortag. Das Datum im Dateinamen wird automatisch entsprechend gesetzt.
 </div>
 
 <hr />
 
-<h2 id="speicherort">3. Speicherort wählen</h2>
-<p>Falls kein fester Speicherort konfiguriert ist, erscheint ein Ordner-Auswahl-Dialog.</p>
-<ol>
-    <li>Im Dialog den Zielordner für die Excel-Messwertetabelle auswählen.</li>
-    <li><em>OK</em> klicken.</li>
-</ol>
-<div class="tip">
-    <strong>Beim nächsten Start:</strong> Wenn für dieselbe Kombination aus Produkt, Prozess, Schicht und Datum bereits eine Datei im gewählten Ordner existiert, wird diese automatisch weitergeführt (Resume). Es erscheint dann kein Dialog.
-</div>
-
-<hr />
-
-<h2 id="feste-werte">4. Feste Werte eingeben</h2>
-<p>Auf diesem Bildschirm tragen Sie Werte ein, die sich während der gesamten Schicht nicht ändern:</p>
+<h2 id="feste-werte">3. Feste Werte eintragen</h2>
+<p>Diese Werte gelten für die gesamte Charge und werden in den Kopf der Excel-Datei geschrieben:</p>
 <table>
     <thead>
         <tr><th>Feld</th><th>Bedeutung</th></tr>
@@ -178,39 +191,60 @@
     <tbody>
         <tr><td>FA-Nr.</td><td>Fertigungsauftragsnummer</td></tr>
         <tr><td>LOT-Nr.</td><td>Chargennummer des Materials</td></tr>
+        <tr><td>Verwendbarkeitsdatum</td><td>Ablaufdatum des Messmittels &ndash; per 📅-Symbol öffnet sich der Kalender. Monat als Dropdown, Jahr als Drehrad direkt anwählbar.</td></tr>
         <tr><td>Messmittel</td><td>Bezeichnung des verwendeten Messmittels</td></tr>
-        <tr><td>Verwendbarkeitsdatum</td><td>Ablaufdatum des Messmittels</td></tr>
     </tbody>
 </table>
-<p>Diese Werte werden in den Kopf der Excel-Datei geschrieben und bei jeder Messung mitgespeichert.</p>
+<p>Je nach Prozess kann ein zusätzliches Feld erscheinen (z. B. <em>Rollencharge</em>).</p>
+
 <div class="tip">
-    Die festen Werte sind im Messwert-Bildschirm jederzeit sichtbar und können dort bei Bedarf geändert werden (z.B. wenn die LOT-Nr. wechselt).
+    <strong>Fortsetzen einer bestehenden Datei:</strong> Wenn LOT-Nr. und FA-Nr. mit einer bereits bestehenden Datei übereinstimmen, erkennt die App das automatisch. Es erscheint <em>↺ Fortsetzen &ndash; N Messungen vorhanden</em> (orange) statt <em>＋ Neue Datei wird erstellt</em> (grün).
 </div>
 
 <hr />
 
-<h2 id="messwerte">5. Messwerte erfassen</h2>
+<h2 id="messwerte">4. Messwerte erfassen</h2>
+
+<h3>Aufbau des Bildschirms</h3>
+<ul>
+    <li><strong>Oben:</strong> Anzeige der festen Werte (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel) &ndash; nur lesend.</li>
+    <li><strong>Mitte:</strong> Eingabefelder für die Messwerte. Bei manchen Prozessen zusätzlich ein Block <em>Gemeinsame Werte</em> oder <em>Feste Werte</em>.</li>
+    <li><strong>Unten:</strong> Buttons <em>Felder leeren</em> und <em>Speichern</em>. Darunter eine Tabelle mit den letzten 10 Messungen, ganz unten die Navigations-Buttons.</li>
+</ul>
 
 <h3>Eingabe</h3>
 <ul>
-    <li>Messwerte in die Felder eingeben. Dezimalzahlen können mit Komma (<code>3,14</code>) oder Punkt (<code>3.14</code>) eingegeben werden.</li>
-    <li>Auswahlfelder (Dropdowns) enthalten vordefinierte Optionen &ndash; per Klick oder Tastatur auswählen.</li>
-    <li>Das Feld <em>Bemerkungen</em> ist optional und mit <em>n/a</em> vorausgefüllt.</li>
+    <li>Werte direkt eingeben. Komma (<code>3,14</code>) und Punkt (<code>3.14</code>) werden beide akzeptiert.</li>
+    <li>Auswahlfelder (Dropdowns) per Klick oder Tastatur öffnen.</li>
+    <li>Das Feld <em>Bemerkungen</em> ist optional &ndash; rechts daneben steht <em>optional</em>. Sie können es leer lassen.</li>
 </ul>
 
-<h3>Spec-Feedback</h3>
-<p>Zahlenfelder mit Spezifikationsgrenzen geben sofortiges Feedback:</p>
+<h3>Toleranz-Anzeige rechts neben jedem Feld</h3>
 <table>
     <thead>
-        <tr><th>Farbe</th><th>Bedeutung</th></tr>
+        <tr><th>Anzeige</th><th>Bedeutung</th></tr>
     </thead>
     <tbody>
-        <tr><td><span class="green">Grün</span></td><td>Wert liegt innerhalb der Spec-Grenzen</td></tr>
-        <tr><td><span class="red">Rot</span></td><td>Wert liegt außerhalb der Spec-Grenzen</td></tr>
+        <tr><td><code>153 – 157</code></td><td>Wert muss zwischen 153 und 157 liegen</td></tr>
+        <tr><td><code>≥1000</code></td><td>Wert muss mindestens 1000 sein</td></tr>
+        <tr><td><code>≤50</code></td><td>Wert darf höchstens 50 sein</td></tr>
+        <tr><td><code>optional</code></td><td>Feld darf leer bleiben</td></tr>
+    </tbody>
+</table>
+
+<h3>Farb-Feedback bei Zahlenfeldern</h3>
+<table>
+    <thead>
+        <tr><th>Rahmenfarbe</th><th>Bedeutung</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><span class="green">Grün</span></td><td>Wert liegt in der Toleranz</td></tr>
+        <tr><td><span class="red">Rot</span></td><td>Wert liegt außerhalb der Toleranz</td></tr>
+        <tr><td>Grau</td><td>Feld ist leer oder noch nicht geprüft</td></tr>
     </tbody>
 </table>
 <div class="warn">
-    Ein roter Wert ist eine <strong>Warnung</strong>, kein Fehler &ndash; das Senden ist trotzdem möglich. Im Übersichtsdialog wird der außerspezifische Wert deutlich hervorgehoben.
+    Ein roter Rahmen ist eine <strong>Warnung</strong>, kein Fehler &ndash; das Senden bleibt möglich. Im Übersichtsdialog wird der Wert deutlich orange/rot markiert.
 </div>
 
 <h3>Tastaturnavigation</h3>
@@ -225,93 +259,118 @@
     </tbody>
 </table>
 
-<h3>Zeilengruppen (z.B. IPC2 Schälen)</h3>
-<p>Bei Prozessen mit mehreren Nutzen pro Rolle (z.B. 3 Nutzen) zeigt die App automatisch an: <em>Nutzen: 1 von 3</em>. Nach dem Senden zählt der Nutzen weiter. Nach dem letzten Nutzen beginnt die Zählung wieder von vorne.</p>
+<hr />
+
+<h2 id="multi-nutzen">5. Mehrere Nutzen pro Rolle</h2>
+<p>Bei manchen Prozessen (z. B. <em>IPC2 Schälen</em>) werden mehrere Nutzen pro Rolle gemessen.</p>
+<ul>
+    <li>Oben kann die Anzahl der Nutzen (1–3) per Radio-Button gewählt werden &ndash; standardmäßig sind alle Nutzen angezeigt.</li>
+    <li>Werte, die für alle Nutzen gleich sind (z. B. Schälspalt oben/unten), stehen im Block <em>Gemeinsame Werte</em>.</li>
+    <li>Werte, die pro Nutzen verschieden sind (z. B. Flächengewicht), haben eigene Sektionen <em>Nutzen 1</em>, <em>Nutzen 2</em>, …</li>
+    <li>Sie füllen alle Nutzen in einem Durchgang aus und klicken einmal <em>Speichern</em>.</li>
+    <li>Im Übersichtsdialog erscheint pro Nutzen ein eigener Block mit Status (OK / Warnung / Fehler), so sehen Sie sofort, welcher Nutzen außerhalb der Toleranz liegt.</li>
+</ul>
 
 <hr />
 
-<h2 id="pruefen-senden">6. Prüfen und Senden</h2>
+<h2 id="pruefen-senden">6. Speichern und Senden</h2>
 <ol>
-    <li>Auf <em>Prüfen &amp; Senden</em> klicken.</li>
-    <li>Im Dialog werden alle Werte noch einmal zusammengefasst:
+    <li>Auf <em>Speichern</em> klicken (zentral im unteren Bereich).</li>
+    <li>Im Übersichtsdialog werden alle Werte zusammengefasst:
         <ul>
-            <li><span class="green">Grün</span>: Wert ist korrekt und in Spec</li>
-            <li>Gelb/Orange: Wert ist außerhalb der Spec (Warnung)</li>
-            <li><span class="red">Rot</span>: Fehler (z.B. keine gültige Zahl) &ndash; Senden gesperrt</li>
+            <li><span class="green">Grün</span>: Wert ist in der Toleranz</li>
+            <li><span class="orange">Orange</span>: Wert ist außerhalb der Toleranz (Warnung)</li>
+            <li><span class="red">Rot</span>: Fehler (z. B. keine gültige Zahl) &ndash; <em>Senden</em>-Button ist gesperrt</li>
         </ul>
     </li>
-    <li>Bei Fehlern: Dialog schließen, Wert korrigieren, erneut versuchen.</li>
-    <li>Bei Warnungen: Senden trotzdem möglich &ndash; <em>Senden</em> klicken.</li>
+    <li>Bei Fehlern: <em>Bearbeiten</em> klicken, Wert korrigieren, erneut <em>Speichern</em>.</li>
+    <li>Bei Warnungen: Sie können trotzdem <em>Senden</em> klicken &ndash; oder die Eingabe noch einmal prüfen.</li>
 </ol>
 <div class="tip">
-    Nach dem Senden wird das Formular zurückgesetzt. Feste Werte (FA-Nr., Messmittel etc.) und Auswahlfelder bleiben erhalten.
+    Nach dem Senden wird das Formular für die nächste Messung zurückgesetzt. Feste Werte (FA-Nr., LOT, …) und Auswahlfelder bleiben erhalten.
 </div>
 
 <hr />
 
-<h2 id="troubleshooting">Häufige Probleme und Lösungen</h2>
+<h2 id="bedienhilfen">Bedienhilfen</h2>
 
-<h3>Die App startet nicht / öffnet sich nicht</h3>
+<h3>Schrift größer / kleiner</h3>
+<p>Oben rechts in der Kopfleiste: <kbd>+</kbd> / <kbd>–</kbd> &ndash; vergrößert oder verkleinert die Schrift im gesamten Programm.</p>
+
+<h3>Dark Mode</h3>
+<p>Oben rechts: <em>◑ Dark</em> bzw. <em>◑ Hell</em> &ndash; schaltet zwischen hellem und dunklem Design um. Die eingestellte Schriftgröße bleibt dabei erhalten.</p>
+
+<h3>Layout: Vertikal / Horizontal</h3>
+<p>Im Messwert-Bildschirm unten links: Button <em>Layout: Vertikal</em> bzw. <em>Layout: Horizontal</em>. Bei vertikalem Layout stehen die Felder untereinander, bei horizontalem in 4 Spalten nebeneinander &ndash; nützlich für viele Messwerte auf einen Blick.</p>
+
+<h3>Hilfe-Button</h3>
+<p>Das <em>?</em>-Symbol oben rechts öffnet diese Kurzanleitung.</p>
+
+<hr />
+
+<h2 id="troubleshooting">Was tun, wenn …?</h2>
+
+<h3>Die App startet nicht</h3>
 <div class="error-box">
-    <strong>Mögliche Ursache:</strong> Fehler beim Start (Python-Laufzeitfehler, fehlende Dateien).<br>
     <strong>Lösung:</strong> Administrator informieren. Sicherstellen, dass die Datei <code>QAInput.exe</code> und der Ordner <code>_internal\</code> im selben Verzeichnis liegen.
 </div>
 
-<h3>Login schlägt fehl</h3>
+<h3>Die Anmeldung schlägt fehl</h3>
 <div class="error-box">
-    <strong>Passwort-Login:</strong> Benutzername und Passwort prüfen (Groß-/Kleinschreibung beachten).<br>
-    <strong>QR-Code-Login:</strong> Cursor muss im QR-Feld aktiv sein. Falls der Scan nicht erkannt wird, Handscanner erneut kalibrieren oder Administrator kontaktieren.
+    <strong>Mit Passwort:</strong> Benutzername und Passwort prüfen (Groß-/Kleinschreibung beachten).<br>
+    <strong>Mit QR-Code:</strong> Cursor muss im QR-Feld aktiv sein. Bei wiederholten Problemen Handscanner neu kalibrieren oder Administrator kontaktieren.
 </div>
 
-<h3>Kein Speicherort-Dialog erscheint</h3>
+<h3>Es erscheint kein Speicherort-Dialog</h3>
 <div class="tip">
-    Das ist normal, wenn für das Produkt ein fester Speicherort konfiguriert ist. Die Datei wird automatisch im vordefinierten Ordner erstellt.
+    Das ist normal, wenn für das Produkt ein fester Speicherort hinterlegt ist. Die Datei wird automatisch in diesem Ordner erstellt &ndash; im Kontext-Bildschirm sehen Sie, ob eine neue Datei angelegt oder eine bestehende fortgesetzt wird.
 </div>
 
-<h3>Fehlermeldung: Datei gesperrt / kann nicht geschrieben werden</h3>
+<h3>Fehlermeldung: „Datei ist gesperrt"</h3>
 <div class="error-box">
-    <strong>Ursache:</strong> Die Excel-Datei ist gleichzeitig in Excel geöffnet.<br>
-    <strong>Lösung:</strong> Excel schließen und erneut senden. Die Daten gehen dabei nicht verloren.
+    <strong>Ursache:</strong> Die Excel-Datei ist parallel in Microsoft Excel geöffnet.<br>
+    <strong>Lösung:</strong> Excel schließen und im Übersichtsdialog erneut <em>Senden</em> klicken. Ihre Eingaben gehen dabei nicht verloren.
 </div>
 
-<h3>Senden-Button ist deaktiviert (ausgegraut)</h3>
+<h3>Senden-Button ist ausgegraut</h3>
 <div class="error-box">
-    <strong>Ursache:</strong> Es gibt mindestens einen Fehler in den Eingaben (rote Markierung im Prüfdialog).<br>
-    <strong>Lösung:</strong> Dialog schließen, alle rot markierten Felder korrigieren (z.B. Text statt Zahl eingegeben, Pflichtfeld leer gelassen), erneut prüfen.
+    <strong>Ursache:</strong> Mindestens ein Wert ist als Fehler markiert (rot, mit Status <em>Fehler</em>).<br>
+    <strong>Lösung:</strong> <em>Bearbeiten</em> klicken, alle als Fehler markierten Felder korrigieren (z. B. Text statt Zahl, Pflichtfeld leer), erneut <em>Speichern</em>.
 </div>
 
 <h3>Falscher Wert wurde gesendet</h3>
 <div class="warn">
-    Eine Messung kann in der App nicht rückgängig gemacht werden. Für Korrekturen in der Excel-Datei bitte den Administrator kontaktieren (die Dateien sind schreibgeschützt).
+    Eine Messung kann in der App nicht rückgängig gemacht werden. Die Excel-Datei ist passwortgeschützt &ndash; für eine Korrektur den Administrator kontaktieren.
 </div>
 
-<h3>Die Schicht ist falsch</h3>
+<h3>Die Schicht wird falsch angezeigt</h3>
 <div class="tip">
-    Die Schicht wird automatisch aus der aktuellen Uhrzeit bestimmt und kann nicht manuell geändert werden. Falls die Uhrzeit des Computers falsch ist, Administrator informieren.
+    Die Schicht wird aus der Uhrzeit des Computers bestimmt und kann nicht manuell geändert werden. Falls die Uhrzeit des Rechners falsch ist, Administrator informieren.
 </div>
 
-<h3>Die App hat sich geschlossen / abgestürzt – Daten verloren?</h3>
+<h3>Die App wurde geschlossen / abgestürzt &ndash; sind Daten verloren?</h3>
 <div class="tip">
-    <strong>Nein.</strong> Alle Messungen, die erfolgreich gesendet wurden, sind in der Excel-Datei gespeichert. Beim nächsten Start wird die bestehende Datei automatisch erkannt und weitergeführt (Resume). Nur nicht gesendete Werte gehen verloren.
+    <strong>Nein.</strong> Alle Messungen, die erfolgreich gesendet wurden, sind in der Excel-Datei gespeichert. Beim nächsten Start mit derselben LOT- und FA-Nummer wird die bestehende Datei automatisch erkannt und fortgesetzt. Nur noch nicht gesendete Eingaben gehen verloren.
 </div>
 
-<h3>Feste Werte (FA-Nr. etc.) haben sich geändert</h3>
-<p>Im Messwert-Bildschirm (oben im Block <em>Feste Werte</em>) können die Werte direkt angepasst werden. Die Änderung wird bei der nächsten gesendeten Messung übernommen und der Info-Header der Excel-Datei wird aktualisiert.</p>
+<h3>Feste Werte (FA-Nr., LOT, …) müssen geändert werden</h3>
+<p>Die Werte sind im Messwert-Bildschirm nur lesend angezeigt. Für eine Änderung unten auf <em>Prozess wechseln</em> klicken &ndash; danach werden FA-Nr., LOT, Verwendbarkeitsdatum und Messmittel erneut abgefragt. Eine andere LOT-/FA-Kombination führt automatisch zu einer neuen Excel-Datei.</p>
 
-<h3>Wo wird die Excel-Datei gespeichert?</h3>
-<p>Im Ordner, der beim Prozessstart ausgewählt wurde &ndash; oder in dem Ordner, der in der Produktkonfiguration hinterlegt ist. Die Datei heißt z.B.:</p>
-<pre>IPC1_Vorschneiden_REF31962_Schicht2_2026-04-22.xlsx</pre>
+<h3>Eingabe wird nicht akzeptiert / falsches Format</h3>
+<div class="warn">
+    Bei Zahlenfeldern: Punkt oder Komma als Dezimaltrennzeichen verwenden. Das Programm normalisiert das automatisch &ndash; <code>1.250,5</code> und <code>1250.5</code> werden beide als 1250,5 verstanden.
+</div>
 
-<h3>Problem nicht aufgeführt?</h3>
+<h3>Ich finde meinen Fehler hier nicht</h3>
 <p>Administrator oder Vorgesetzte informieren und folgende Angaben bereitstellen:</p>
 <ul>
     <li>Welches Produkt und welcher Prozess war ausgewählt?</li>
-    <li>Was genau wurde angezeigt (Fehlermeldung, Farbe, Text)?</li>
+    <li>Was wurde genau angezeigt (Fehlermeldung, Farbe, Text)?</li>
     <li>Was war der letzte Schritt vor dem Problem?</li>
 </ul>
 
 <hr />
-<p style="color:#888; font-size:0.9em;">QAInput v1.1.0 &ndash; Questalpha GmbH</p>
+<p style="color:#888; font-size:0.9em;">QAInput v1.4.0 &ndash; Questalpha GmbH</p>
 
 </body>
 </html>

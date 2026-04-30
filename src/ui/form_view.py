@@ -27,6 +27,20 @@ from src.ui.review_dialog import ReviewDialog
 from src.ui.theme import COLORS
 
 
+def _format_spec_text(fd: FieldDef) -> str:
+    """Einheitliche Toleranz-/Optional-Anzeige für alle Render-Pfade."""
+    parts: list[str] = []
+    if fd.spec_min is not None and fd.spec_max is not None:
+        parts.append(f"{fd.spec_min} – {fd.spec_max}")
+    elif fd.spec_min is not None:
+        parts.append(f"≥{fd.spec_min}")
+    elif fd.spec_max is not None:
+        parts.append(f"≤{fd.spec_max}")
+    if fd.optional and not parts:
+        parts.append("optional")
+    return "  ".join(parts)
+
+
 class FormView(BaseView):
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
@@ -55,20 +69,6 @@ class FormView(BaseView):
 
         self.meta_label = ttk.Label(top_bar, text="", wraplength=600)
         self.meta_label.grid(row=0, column=0, sticky="w")
-
-        btn_frame = ttk.Frame(top_bar)
-        btn_frame.grid(row=0, column=1)
-
-        self.layout_btn = ttk.Button(btn_frame, text="Layout: Vertikal",
-                                     command=self._toggle_layout)
-        self.layout_btn.pack(side="left", padx=(5, 0))
-
-        ttk.Button(btn_frame, text="Kontext ändern",
-                   command=self._change_context).pack(side="left", padx=(5, 0))
-        ttk.Button(btn_frame, text="Prozess wechseln",
-                   command=self._change_process).pack(side="left", padx=(5, 0))
-        ttk.Button(btn_frame, text="Abmelden",
-                   command=self._logout).pack(side="left", padx=(5, 0))
 
         self.header_bar = ttk.Frame(self)
         self.header_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 5))
@@ -117,7 +117,7 @@ class FormView(BaseView):
                    style="Accent.TButton").pack(side="left", padx=10)
 
         history_frame = ttk.LabelFrame(self, text="Letzte 10 Messungen", padding=10)
-        history_frame.grid(row=5, column=0, sticky="ew", padx=40, pady=(5, 15))
+        history_frame.grid(row=5, column=0, sticky="ew", padx=40, pady=(5, 5))
         history_frame.columnconfigure(0, weight=1)
 
         tree_container = ttk.Frame(history_frame)
@@ -144,6 +144,25 @@ class FormView(BaseView):
         self.history_tree.configure(yscrollcommand=history_scrollbar.set)
         self.history_tree.grid(row=0, column=0, sticky="nsew")
         history_scrollbar.grid(row=0, column=1, sticky="ns")
+
+        # Navigations-Leiste am unteren Fensterrand
+        nav_bar = ttk.Frame(self)
+        nav_bar.grid(row=6, column=0, sticky="ew", padx=10, pady=(0, 10))
+        nav_bar.columnconfigure(1, weight=1)
+
+        self.layout_btn = ttk.Button(
+            nav_bar, text="Layout: Vertikal", command=self._toggle_layout,
+        )
+        self.layout_btn.grid(row=0, column=0, sticky="w")
+
+        nav_right = ttk.Frame(nav_bar)
+        nav_right.grid(row=0, column=2, sticky="e")
+        ttk.Button(
+            nav_right, text="Prozess wechseln", command=self._change_process,
+        ).pack(side="left", padx=(5, 0))
+        ttk.Button(
+            nav_right, text="Abmelden", command=self._logout,
+        ).pack(side="left", padx=(5, 0))
 
     def _update_scroll_region(self) -> None:
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -216,10 +235,7 @@ class FormView(BaseView):
             ttk.Label(
                 cell, text=pv.get(fd.display_name, "") or "—",
                 foreground=COLORS["accent"],
-            ).pack(side="left", padx=(4, 2))
-            ttk.Button(
-                cell, text="✎", width=2, command=self._change_context,
-            ).pack(side="left")
+            ).pack(side="left", padx=(4, 0))
 
     def _set_initial_focus(self) -> None:
         if self._first_focus_widget is not None:
@@ -269,6 +285,7 @@ class FormView(BaseView):
             )
             ctx_frame.pack(fill="x", padx=5, pady=(5, 10))
             ctx_frame.columnconfigure(1, weight=1)
+            ctx_frame.columnconfigure(2, weight=0)
 
             for i, fd in enumerate(persistent_fields):
                 ttk.Label(ctx_frame, text=f"{fd.display_name}:").grid(
@@ -287,6 +304,15 @@ class FormView(BaseView):
                     widget = ttk.Entry(ctx_frame, textvariable=var, width=25)
 
                 widget.grid(row=i, column=1, sticky="w", pady=3)
+
+                spec_text = _format_spec_text(fd)
+                if spec_text:
+                    ttk.Label(
+                        ctx_frame, text=spec_text,
+                        foreground=COLORS["text_secondary"],
+                        font=("Segoe UI", 8),
+                    ).grid(row=i, column=2, sticky="w", pady=3, padx=(5, 0))
+
                 self.persistent_vars[fd.display_name] = var
 
         if self._is_multi_nutzen:
@@ -434,13 +460,14 @@ class FormView(BaseView):
                 )
                 container.grid(row=row_idx, column=1, sticky="w", pady=5, padx=(0, 10))
 
-                if fd.spec_min is not None and fd.spec_max is not None:
+                spec_text = _format_spec_text(fd)
+                if spec_text:
                     ttk.Label(
                         section,
-                        text=f"{fd.spec_min} – {fd.spec_max}",
+                        text=spec_text,
                         foreground=COLORS["text_secondary"],
                         font=("Segoe UI", 8),
-                    ).grid(row=row_idx, column=2, sticky="w", pady=5)
+                    ).grid(row=row_idx, column=2, sticky="w", pady=5, padx=(5, 0))
 
                 self.field_vars[key] = var
 
@@ -498,16 +525,10 @@ class FormView(BaseView):
             widget, container = self._create_field_widget(parent, fd, var)
             container.grid(row=i, column=1, sticky="w", pady=5, padx=(0, 10))
 
-            if fd.spec_min is not None or fd.spec_max is not None:
-                spec_parts = []
-                if fd.spec_min is not None:
-                    spec_parts.append(f"≥{fd.spec_min}")
-                if fd.spec_max is not None:
-                    spec_parts.append(f"≤{fd.spec_max}")
-                if fd.spec_min is not None and fd.spec_max is not None:
-                    spec_parts = [f"{fd.spec_min} – {fd.spec_max}"]
+            spec_text = _format_spec_text(fd)
+            if spec_text:
                 ttk.Label(
-                    parent, text="  ".join(spec_parts),
+                    parent, text=spec_text,
                     foreground=COLORS["text_secondary"],
                     font=("Segoe UI", 8),
                 ).grid(row=i, column=2, sticky="w", pady=5, padx=(5, 0))
@@ -537,10 +558,7 @@ class FormView(BaseView):
             cell.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
             cell.columnconfigure(0, weight=1)
 
-            label_text = fd.display_name
-            if fd.spec_min is not None and fd.spec_max is not None:
-                label_text += f" [{fd.spec_min}-{fd.spec_max}]"
-            ttk.Label(cell, text=f"{label_text}:",
+            ttk.Label(cell, text=f"{fd.display_name}:",
                       font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
 
             var = tk.StringVar()
@@ -551,6 +569,14 @@ class FormView(BaseView):
 
             widget, container = self._create_field_widget(cell, fd, var)
             container.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+
+            spec_text = _format_spec_text(fd)
+            if spec_text:
+                ttk.Label(
+                    cell, text=spec_text,
+                    foreground=COLORS["text_secondary"],
+                    font=("Segoe UI", 8),
+                ).grid(row=2, column=0, sticky="w", pady=(2, 0))
 
             self.field_vars[fd.display_name] = var
             if i == 0:
@@ -564,22 +590,30 @@ class FormView(BaseView):
         self, parent: tk.Widget, fd: FieldDef, var: tk.StringVar,
         border_key: str | None = None,
     ) -> tuple[tk.Widget, tk.Widget]:
-        """Gibt (input_widget, container) zurück. Container ist bei Spec-Feldern ein
-        farbiger Border-Frame, sonst identisch mit dem input_widget.
+        """Gibt (input_widget, container) zurück.
 
-        `border_key` wird zum Speichern des Borders verwendet (default = display_name);
-        bei per-Nutzen-Feldern wird ein eindeutiger Schlüssel mit Suffix `_n{i}` benötigt,
-        damit Borders unabhängig validiert werden können."""
+        Alle Felder werden in einen 3px-Container gewickelt, damit die
+        Außenmaße identisch sind (Spec-Felder haben einen farbigen Border,
+        andere einen transparenten Spacer in der Hintergrundfarbe).
+
+        `border_key` wird zum Speichern des Borders verwendet (default =
+        display_name); bei per-Nutzen-Feldern wird ein eindeutiger Schlüssel
+        mit Suffix `_n{i}` benötigt, damit Borders unabhängig validiert
+        werden können."""
         has_spec = fd.type == "number" and (fd.spec_min is not None or fd.spec_max is not None)
         key = border_key if border_key is not None else fd.display_name
 
         if fd.type == "choice" and fd.options:
+            container = tk.Frame(
+                parent, bg=COLORS["background"], padx=3, pady=3,
+            )
             widget = ttk.Combobox(
-                parent, textvariable=var, values=fd.options,
+                container, textvariable=var, values=fd.options,
                 state="readonly", width=23,
             )
+            widget.pack(fill="both", expand=True)
             widget.bind("<Return>", self._focus_next)
-            return widget, widget
+            return widget, container
 
         if has_spec:
             border = tk.Frame(parent, bg=COLORS["border"], padx=3, pady=3)
@@ -595,11 +629,13 @@ class FormView(BaseView):
             self._validation_borders[key] = border
             return entry, border
 
-        widget = ttk.Entry(parent, textvariable=var, width=25)
+        container = tk.Frame(parent, bg=COLORS["background"], padx=3, pady=3)
+        widget = ttk.Entry(container, textvariable=var, width=23)
+        widget.pack(fill="both", expand=True)
         widget.bind("<Return>", self._focus_next)
         widget.bind("<Down>", self._focus_next)
         widget.bind("<Up>", self._focus_prev)
-        return widget, widget
+        return widget, container
 
     def _focus_next(self, event) -> str:
         event.widget.tk_focusNext().focus_set()
@@ -754,100 +790,72 @@ class FormView(BaseView):
                 )
 
     def _do_multi_nutzen_save(self) -> None:
-        """Validierung und Bestätigung für Multi-Nutzen, dann Schreiben."""
+        """Öffnet den Multi-Nutzen-ReviewDialog mit getrennten Blöcken pro Nutzen."""
         process = self.app_state.selected_process
         if not process:
             return
 
         nutzen_count = self.app_state.nutzen_count
 
-        # Pflichtfeld-Prüfung: Gemeinsame Werte
-        for fd in self._field_defs:
-            if not fd.optional and fd.role != "context":
-                val = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
-                if not val:
-                    messagebox.showwarning(
-                        "Fehlende Eingabe",
-                        f"Bitte '{fd.display_name}' ausfüllen.",
-                    )
-                    return
+        shared_raw = {
+            fd.display_name: self.field_vars.get(fd.display_name, tk.StringVar()).get()
+            for fd in self._field_defs
+        }
 
-        # Pflichtfeld-Prüfung: Per-Nutzen-Felder
+        nutzen_raw_list: list[dict[str, str]] = []
         for i in range(1, nutzen_count + 1):
-            for fd in self._nutzen_field_defs:
-                if not fd.optional:
-                    key = f"{fd.display_name}_n{i}"
-                    val = self.field_vars.get(key, tk.StringVar()).get().strip()
-                    if not val:
-                        messagebox.showwarning(
-                            "Fehlende Eingabe",
-                            f"Bitte '{fd.display_name}' für Nutzen {i} ausfüllen.",
-                        )
-                        return
-
-        summary_lines = []
-        for fd in self._field_defs:
-            val = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
-            if val:
-                summary_lines.append(f"  {fd.display_name}: {val}")
-        for i in range(1, nutzen_count + 1):
-            summary_lines.append(f"  --- Nutzen {i} ---")
+            nutzen_raw: dict[str, str] = {}
             for fd in self._nutzen_field_defs:
                 key = f"{fd.display_name}_n{i}"
-                val = self.field_vars.get(key, tk.StringVar()).get().strip()
-                if val:
-                    summary_lines.append(f"  {fd.display_name}: {val}")
+                nutzen_raw[fd.display_name] = self.field_vars.get(
+                    key, tk.StringVar(),
+                ).get()
+            nutzen_raw_list.append(nutzen_raw)
 
-        confirmed = messagebox.askyesno(
-            "Messung speichern",
-            f"{nutzen_count} Nutzen speichern?\n\n" + "\n".join(summary_lines),
+        ReviewDialog(
+            parent=self,
+            app_state=self.app_state,
+            on_confirm=self._on_multi_nutzen_confirmed,
+            shared_values=shared_raw,
+            shared_field_defs=self._field_defs,
+            nutzen_values=nutzen_raw_list,
+            nutzen_field_defs=self._nutzen_field_defs,
         )
-        if confirmed:
-            self._do_multi_nutzen_write()
 
-    def _do_multi_nutzen_write(self) -> None:
+    def _on_multi_nutzen_confirmed(
+        self,
+        shared_normalized: dict[str, float | str | None],
+        nutzen_normalized: list[dict[str, float | str | None]],
+    ) -> None:
+        """Empfängt die normalisierten Werte aus dem ReviewDialog und schreibt."""
+        self._do_multi_nutzen_write(shared_normalized, nutzen_normalized)
+
+    def _do_multi_nutzen_write(
+        self,
+        shared_normalized: dict[str, float | str | None],
+        nutzen_normalized: list[dict[str, float | str | None]],
+    ) -> None:
         process = self.app_state.selected_process
         if not process:
             return
 
-        nutzen_count = self.app_state.nutzen_count
+        nutzen_count = len(nutzen_normalized)
         now = datetime.now()
 
         context_values: dict[str, str] = {}
         context_values.update(self.app_state.persistent_values)
-        for fd in self._field_defs:
-            if fd.role == "context":
-                val = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
-                context_values[fd.display_name] = val
-
         shared_meas: dict[str, float | str | None] = {}
         for fd in self._field_defs:
-            if fd.role == "measurement":
-                raw = self.field_vars.get(fd.display_name, tk.StringVar()).get().strip()
-                if fd.type == "number" and raw:
-                    try:
-                        from src.domain.validation import parse_numeric
-                        shared_meas[fd.display_name] = parse_numeric(raw)
-                    except (ValueError, OverflowError):
-                        shared_meas[fd.display_name] = raw
-                else:
-                    shared_meas[fd.display_name] = raw or None
+            value = shared_normalized.get(fd.display_name)
+            if fd.role == "context":
+                context_values[fd.display_name] = (
+                    str(value) if value is not None else ""
+                )
+            else:
+                shared_meas[fd.display_name] = value
 
         rows = []
-        for i in range(1, nutzen_count + 1):
-            per_nutzen: dict[str, float | str | None] = {}
-            for fd in self._nutzen_field_defs:
-                key = f"{fd.display_name}_n{i}"
-                raw = self.field_vars.get(key, tk.StringVar()).get().strip()
-                if fd.type == "number" and raw:
-                    try:
-                        from src.domain.validation import parse_numeric
-                        per_nutzen[fd.display_name] = parse_numeric(raw)
-                    except (ValueError, OverflowError):
-                        per_nutzen[fd.display_name] = raw
-                else:
-                    per_nutzen[fd.display_name] = raw or None
-
+        for i, per_nutzen in enumerate(nutzen_normalized, 1):
             auto: dict[str, str | float | None] = {}
             for fd in get_auto_fields(process):
                 if fd.id == "datum":
@@ -945,9 +953,6 @@ class FormView(BaseView):
                 [len(str(self.history_tree.set(item, col))) for item in self.history_tree.get_children()]
             )
             self.history_tree.column(col, width=max(max_len * 8, 80))
-
-    def _change_context(self) -> None:
-        self.on_navigate("context")
 
     def _change_process(self) -> None:
         self.app_state.reset_process()

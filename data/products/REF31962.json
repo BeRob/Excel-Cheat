@@ -14,7 +14,7 @@
         {"id": "ask", "display_name": "ASK Soll >=1000%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
         {"id": "breite_1", "display_name": "Breite 1", "type": "number", "role": "measurement", "persistent": false, "spec_target": 185, "spec_min": 180, "spec_max": 190},
         {"id": "breite_2", "display_name": "Breite 2", "type": "number", "role": "measurement", "persistent": false, "spec_target": 185, "spec_min": 180, "spec_max": 190},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -33,7 +33,7 @@
         {"id": "schalspalt_oben", "display_name": "Schalspalt oben", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
         {"id": "schalspalt_unten", "display_name": "Schalspalt unten", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
         {"id": "flaechengewicht", "display_name": "Flaechengewicht", "type": "number", "role": "measurement", "persistent": false, "spec_target": 150, "spec_min": 130, "spec_max": 170},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -49,7 +49,7 @@
         {"id": "rolle_bahn_nutzen", "display_name": "Rolle/Bahn/Nutzen Nr.", "type": "text", "role": "context", "persistent": false},
         {"id": "schichtdicke_links", "display_name": "Schichtdicke Links", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.5, "spec_min": 0.3, "spec_max": 0.6},
         {"id": "schichtdicke_rechts", "display_name": "Schichtdicke Rechts", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.5, "spec_min": 0.3, "spec_max": 0.6},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -66,7 +66,7 @@
         {"id": "pruefmuster", "display_name": "Pruefmuster", "type": "number", "role": "auto", "persistent": false},
         {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 80, "spec_min": 78, "spec_max": 82},
         {"id": "laenge", "display_name": "Laenge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 80, "spec_min": 78, "spec_max": 82},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -82,7 +82,7 @@
         {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
         {"id": "karton_nr", "display_name": "Karton Nr.", "type": "number", "role": "measurement", "persistent": false},
         {"id": "beutel_nr", "display_name": "Beutel Nr.", "type": "text", "role": "measurement", "persistent": false},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]

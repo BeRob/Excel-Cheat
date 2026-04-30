@@ -15,7 +15,7 @@
         {"id": "kanten", "display_name": "Kanten sauber und fusselfrei", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
         {"id": "bahn_1", "display_name": "Bahn 1", "type": "number", "role": "measurement", "persistent": false, "spec_target": 155, "spec_min": 153, "spec_max": 157},
         {"id": "bahn_2", "display_name": "Bahn 2", "type": "number", "role": "measurement", "persistent": false, "spec_target": 155, "spec_min": 153, "spec_max": 157},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -34,7 +34,7 @@
         {"id": "schalspalt_oben", "display_name": "Schalspalt oben", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
         {"id": "schalspalt_unten", "display_name": "Schalspalt unten", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
         {"id": "flaechengewicht", "display_name": "Flaechengewicht", "type": "number", "role": "measurement", "persistent": false, "spec_target": 135, "spec_min": 125, "spec_max": 150},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -52,7 +52,7 @@
         {"id": "kanten", "display_name": "Kanten sauber und fusselfrei", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
         {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 4, "spec_min": 3.2, "spec_max": 4.8},
         {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 155, "spec_min": 153, "spec_max": 157},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]
@@ -67,7 +67,7 @@
         {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
         {"id": "rolle_schicht_nr", "display_name": "Rollen/Schicht Nr.", "type": "text", "role": "context", "persistent": false},
         {"id": "beutel_nr", "display_name": "Beutel Nr.", "type": "number", "role": "auto", "persistent": false},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true, "default_value": "n/a"},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
         {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
         {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
       ]

@@ -1,0 +1,109 @@
+{
+  "product_id": "REF31842.3",
+  "display_name": "REF 31842.3 - Excelsior Sponge Strip 8,5 x 5,1 x 0,8 mm, non-sterile, bag 5000 pcs.",
+  "processes": [
+    {
+      "template_id": "IPC1_Vorschneiden",
+      "display_name": "IPC1 Vorschneiden",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_bahn_nr", "display_name": "Rolle/Bahn Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "position", "display_name": "Position", "type": "text", "role": "context", "persistent": false},
+        {"id": "ask", "display_name": "ASK Soll >=1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "nsd", "display_name": "NSD i.O.", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_min": 71},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC2_Walzen",
+      "display_name": "IPC2 Walzen",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_bahn_nutzen", "display_name": "Rolle/Bahn/Nutzen Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "rollen_nr_neu", "display_name": "Rollen Nr. neu", "type": "text", "role": "context", "persistent": false},
+        {"id": "position", "display_name": "Position", "type": "text", "role": "context", "persistent": false},
+        {"id": "ask", "display_name": "ASK Soll >=1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "nsd", "display_name": "NSD i.O.", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "klebestellen", "display_name": "max. Klebestellen", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "schichtdicke_links", "display_name": "Schichtdicke links", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.725, "spec_min": 0.7, "spec_max": 0.75},
+        {"id": "schichtdicke_rechts", "display_name": "Schichtdicke rechts", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.725, "spec_min": 0.7, "spec_max": 0.75},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC3_Fertigschneiden",
+      "display_name": "IPC3 Fertigschneiden",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_bahn_nutzen", "display_name": "Rolle/Bahn/Nutzen Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "position", "display_name": "Position", "type": "text", "role": "context", "persistent": false},
+        {"id": "probe", "display_name": "Probe", "type": "text", "role": "context", "persistent": false},
+        {"id": "ask", "display_name": "ASK Soll >=1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "klebestellen", "display_name": "max. Klebestellen", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 8.5, "spec_min": 8.2, "spec_max": 8.8},
+        {"id": "schichtdicke_links", "display_name": "Schichtdicke links", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "schichtdicke_rechts", "display_name": "Schichtdicke rechts", "type": "number", "role": "measurement", "persistent": false},
+        {"id": "kanten", "display_name": "Kanten sauber und fusselfrei", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC4_Stanzen",
+      "display_name": "IPC4 Stanzen",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_nr", "display_name": "Rolle Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "rolle_nutzen_schicht", "display_name": "Rolle/Nutzen/Schicht", "type": "text", "role": "context", "persistent": false},
+        {"id": "pruefmuster", "display_name": "Prüfmuster", "type": "number", "role": "auto", "persistent": false},
+        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 8.5, "spec_min": 8.2, "spec_max": 8.8},
+        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 5.1, "spec_min": 4.8, "spec_max": 5.4},
+        {"id": "durchmesser", "display_name": "Durchmesser außen", "type": "number", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "schichtdicke", "display_name": "Schichtdicke", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.8, "spec_min": 0.7, "spec_max": 0.9},
+        {"id": "kanten", "display_name": "Kanten sauber und fusselfrei", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC5_Packliste",
+      "display_name": "IPC5 Packliste",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "karton_nr", "display_name": "Karton Nr.", "type": "number", "role": "context", "persistent": false},
+        {"id": "beutel_nr", "display_name": "Beutel Nr.", "type": "number", "role": "auto", "persistent": false},
+        {"id": "schichtdicke", "display_name": "Schichtdicke Beutel", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.8, "spec_min": 0.7, "spec_max": 0.9},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    }
+  ]
+}

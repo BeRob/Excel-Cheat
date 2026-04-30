@@ -193,21 +193,21 @@ class TestWriteInfoHeader(unittest.TestCase):
         )
         wb = openpyxl.load_workbook(path, read_only=True)
         ws = wb.active
-        # Linke Spalten: fester Kern
-        self.assertEqual(ws.cell(1, 1).value, "Produkt:")
-        self.assertEqual(ws.cell(1, 2).value, "Test Product")
+        # Zeile 1: nur Produktname (fett)
+        self.assertEqual(ws.cell(1, 1).value, "Test Product")
+        # Linke Spalten ab Zeile 2: fester Kern
         self.assertEqual(ws.cell(2, 1).value, "Prozess:")
         self.assertEqual(ws.cell(2, 2).value, "IPC1 Test")
         self.assertEqual(ws.cell(3, 1).value, "Schicht:")
         self.assertEqual(ws.cell(3, 2).value, "1")
         self.assertEqual(ws.cell(4, 1).value, "Datum:")
         self.assertEqual(ws.cell(4, 2).value, "2026-04-01")
-        # Rechte Spalten: extra_info
-        self.assertEqual(ws.cell(1, 3).value, "FA-Nr.:")
-        self.assertEqual(ws.cell(1, 4).value, "FA-12345")
-        self.assertEqual(ws.cell(2, 3).value, "LOT Nr.:")
-        self.assertEqual(ws.cell(2, 4).value, "LOT001")
-        # Column headers still at HEADER_ROW
+        # Rechte Spalten ab Zeile 2: extra_info
+        self.assertEqual(ws.cell(2, 3).value, "FA-Nr.:")
+        self.assertEqual(ws.cell(2, 4).value, "FA-12345")
+        self.assertEqual(ws.cell(3, 3).value, "LOT Nr.:")
+        self.assertEqual(ws.cell(3, 4).value, "LOT001")
+        # Column headers in HEADER_ROW (=9)
         self.assertEqual(ws.cell(HEADER_ROW, 1).value, "LOT Nr.")
         wb.close()
 

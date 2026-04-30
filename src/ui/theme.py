@@ -102,17 +102,61 @@ def is_dark_mode() -> bool:
     return _dark_mode
 
 
-def toggle_dark_mode(root: tk.Tk) -> bool:
-    """Schaltet zwischen Hell und Dunkel um. Gibt True zurück wenn jetzt dunkel."""
+def toggle_dark_mode(root: tk.Tk, scale: int = 0) -> bool:
+    """Schaltet zwischen Hell und Dunkel um. Gibt True zurück wenn jetzt dunkel.
+
+    `scale` entspricht dem aktuellen Zoom-Faktor; ohne Übergabe würden
+    `apply_theme` und `_init_fonts` die Schrift auf Basisgrößen zurücksetzen."""
     global _dark_mode
     _dark_mode = not _dark_mode
     COLORS.update(_DARK_COLORS if _dark_mode else _LIGHT_COLORS)
-    apply_theme(root)
+    apply_theme(root, scale)
     return _dark_mode
 
 
+def _color_swap_map() -> dict[str, str]:
+    """Old→New Farbmapping für die jeweils andere Theme-Variante."""
+    if _dark_mode:
+        return {_LIGHT_COLORS[k]: _DARK_COLORS[k] for k in _DARK_COLORS}
+    return {_DARK_COLORS[k]: _LIGHT_COLORS[k] for k in _LIGHT_COLORS}
+
+
+def refresh_tk_widget_colors(widget: tk.Widget) -> None:
+    """Aktualisiert rekursiv alle tk-Widgets (Frame/Canvas/Text/Listbox) auf
+    die aktuellen Theme-Farben anhand eines Farbmappings.
+
+    Nutzt für jedes Widget die relevanten Optionen (bg, fg, selectbackground,
+    selectforeground, highlightbackground, troughcolor, insertbackground)
+    und ersetzt nur Werte, die im Old→New-Mapping vorkommen — andere
+    bleiben unangetastet."""
+    swap = _color_swap_map()
+
+    options = (
+        "background", "foreground", "selectbackground", "selectforeground",
+        "highlightbackground", "highlightcolor", "troughcolor",
+        "insertbackground",
+    )
+
+    def walk(w: tk.Widget) -> None:
+        for opt in options:
+            try:
+                current = str(w.cget(opt))
+            except tk.TclError:
+                continue
+            if current in swap:
+                try:
+                    w.configure({opt: swap[current]})
+                except tk.TclError:
+                    pass
+        for child in w.winfo_children():
+            walk(child)
+
+    walk(widget)
+
+
+# Backwards-kompatibler Name (wird in app.py genutzt)
 def update_tk_backgrounds(widget: tk.Widget, old_bg: str, new_bg: str) -> None:
-    """Aktualisiert rekursiv alle tk-Widgets mit explizitem bg=old_bg."""
+    """Veraltete Variante — bevorzugt `refresh_tk_widget_colors` nutzen."""
     try:
         if widget.cget("bg") == old_bg:
             widget.configure(bg=new_bg)
@@ -333,5 +377,63 @@ def apply_theme(root: tk.Tk, scale: int = 0) -> None:
         bordercolor=COLORS["border"],
         arrowcolor=COLORS["text_secondary"],
     )
+
+    style.configure(
+        "TRadiobutton",
+        background=COLORS["background"],
+        foreground=COLORS["text_primary"],
+        font=FONTS["body"],
+        focuscolor=COLORS["accent"],
+    )
+    style.map(
+        "TRadiobutton",
+        background=[("active", COLORS["background"])],
+        foreground=[("disabled", COLORS["text_secondary"])],
+        indicatorcolor=[
+            ("selected", COLORS["accent"]),
+            ("!selected", COLORS["surface"]),
+        ],
+    )
+
+    style.configure(
+        "TCheckbutton",
+        background=COLORS["background"],
+        foreground=COLORS["text_primary"],
+        font=FONTS["body"],
+        focuscolor=COLORS["accent"],
+    )
+    style.map(
+        "TCheckbutton",
+        background=[("active", COLORS["background"])],
+        foreground=[("disabled", COLORS["text_secondary"])],
+        indicatorcolor=[
+            ("selected", COLORS["accent"]),
+            ("!selected", COLORS["surface"]),
+        ],
+    )
+
+    style.configure(
+        "TSpinbox",
+        fieldbackground=COLORS["surface"],
+        foreground=COLORS["text_primary"],
+        background=COLORS["surface"],
+        arrowcolor=COLORS["text_primary"],
+        bordercolor=COLORS["border"],
+        font=FONTS["body"],
+    )
+    style.map(
+        "TSpinbox",
+        fieldbackground=[
+            ("disabled", COLORS["disabled"]),
+            ("readonly", COLORS["surface"]),
+        ],
+    )
+
+    # Combobox-Popup (System-Listbox) ist kein ttk-Widget — über option_add stylen
+    root.option_add("*TCombobox*Listbox.background", COLORS["surface"])
+    root.option_add("*TCombobox*Listbox.foreground", COLORS["text_primary"])
+    root.option_add("*TCombobox*Listbox.selectBackground", COLORS["accent"])
+    root.option_add("*TCombobox*Listbox.selectForeground", COLORS["text_on_primary"])
+    root.option_add("*TCombobox*Listbox.font", FONTS["body"])
 
     root.configure(background=COLORS["background"])

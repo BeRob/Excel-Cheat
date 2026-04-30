@@ -35,6 +35,7 @@ class ContextView(BaseView):
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
         top_bar = ttk.Frame(self)
         top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
@@ -42,13 +43,6 @@ class ContextView(BaseView):
 
         self.info_label = ttk.Label(top_bar, text="")
         self.info_label.grid(row=0, column=0, sticky="w")
-
-        btn_frame = ttk.Frame(top_bar)
-        btn_frame.grid(row=0, column=1)
-        ttk.Button(btn_frame, text="Prozess wechseln",
-                   command=self._change_process).pack(side="left", padx=(5, 0))
-        ttk.Button(btn_frame, text="Abmelden",
-                   command=self._logout).pack(side="left", padx=(5, 0))
 
         ttk.Label(self, text="Feste Werte setzen", style="Subtitle.TLabel").grid(
             row=1, column=0, pady=(10, 5)
@@ -73,6 +67,20 @@ class ContextView(BaseView):
             style="Accent.TButton",
         )
         self.next_btn.grid(row=5, column=0, pady=15)
+
+        # Navigations-Leiste am unteren Fensterrand
+        nav_bar = ttk.Frame(self)
+        nav_bar.grid(row=6, column=0, sticky="ew", padx=10, pady=(0, 10))
+        nav_bar.columnconfigure(0, weight=1)
+
+        nav_right = ttk.Frame(nav_bar)
+        nav_right.grid(row=0, column=1, sticky="e")
+        ttk.Button(
+            nav_right, text="Prozess wechseln", command=self._change_process,
+        ).pack(side="left", padx=(5, 0))
+        ttk.Button(
+            nav_right, text="Abmelden", command=self._logout,
+        ).pack(side="left", padx=(5, 0))
 
     def on_show(self) -> None:
         user = self.app_state.current_user

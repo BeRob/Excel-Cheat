@@ -77,8 +77,10 @@ WINDOW_HEIGHT = 650
 USERS_KV_PATH = USERS_DIR / "users.kv"
 AUDIT_LOG_PATH = AUDIT_DIR / "audit_log.jsonl"
 
-# Zeile 1-5: Info-Block (Produkt, Prozess, FA-Nr., Schicht, Datum)
-# Zeile 6: Spaltenüberschriften, ab Zeile 7 Daten
-HEADER_ROW = 6
+# Zeile 1: nur Produktname (groß, fett)
+# Zeilen 2-5 (Spalten A-B): Prozess, Schicht, Datum
+# Zeilen 2-8 (Spalten C-D): dynamische Info-Felder (FA-Nr., LOT, ...)
+# Zeile 9: Spaltenüberschriften, ab Zeile 10 Daten
+HEADER_ROW = 9
 
 APP_CONFIG_PATH = CONFIG_DIR / "app_config.json"

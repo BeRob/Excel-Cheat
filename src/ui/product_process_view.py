@@ -38,15 +38,22 @@ class ProductProcessView(BaseView):
         self.user_label = ttk.Label(top_bar, text="")
         self.user_label.grid(row=0, column=0, sticky="w")
 
-        ttk.Button(top_bar, text="Abmelden", command=self._logout).grid(
-            row=0, column=1
-        )
-
         # Je nach Admin-Flag wird in on_show ein Notebook oder nur die Auswahl angezeigt
         self.main_container = ttk.Frame(self)
         self.main_container.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
         self.main_container.columnconfigure(0, weight=1)
         self.main_container.rowconfigure(0, weight=1)
+
+        # Navigations-Leiste am unteren Fensterrand
+        nav_bar = ttk.Frame(self)
+        nav_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
+        nav_bar.columnconfigure(0, weight=1)
+
+        nav_right = ttk.Frame(nav_bar)
+        nav_right.grid(row=0, column=1, sticky="e")
+        ttk.Button(
+            nav_right, text="Abmelden", command=self._logout,
+        ).pack(side="left", padx=(5, 0))
 
     def _build_selection_ui(self, parent: tk.Widget) -> None:
         frame = ttk.Frame(parent, padding=20)

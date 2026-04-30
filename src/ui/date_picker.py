@@ -89,10 +89,29 @@ class DatePickerDialog(tk.Toplevel):
         nav.pack(fill="x", pady=(0, 8))
 
         ttk.Button(nav, text="◀", width=3, command=self._prev_month).pack(side="left")
-        self._title_var = tk.StringVar()
-        ttk.Label(
-            nav, textvariable=self._title_var, style="Subtitle.TLabel", anchor="center",
-        ).pack(side="left", expand=True, fill="x")
+
+        self._month_var = tk.StringVar(value=_MONTHS_DE[self._month - 1])
+        self._month_combo = ttk.Combobox(
+            nav, textvariable=self._month_var, values=list(_MONTHS_DE),
+            state="readonly", width=12,
+        )
+        self._month_combo.pack(side="left", padx=(4, 4))
+        self._month_combo.bind("<<ComboboxSelected>>", self._on_month_change)
+
+        current_year = date.today().year
+        self._year_var = tk.IntVar(value=self._year)
+        self._year_spin = ttk.Spinbox(
+            nav,
+            from_=current_year - 20,
+            to=current_year + 5,
+            textvariable=self._year_var,
+            width=6,
+            command=self._on_year_change,
+        )
+        self._year_spin.pack(side="left", padx=(0, 4))
+        self._year_spin.bind("<Return>", self._on_year_change)
+        self._year_spin.bind("<FocusOut>", self._on_year_change)
+
         ttk.Button(nav, text="▶", width=3, command=self._next_month).pack(side="left")
 
         self._grid = ttk.Frame(outer)
@@ -115,7 +134,12 @@ class DatePickerDialog(tk.Toplevel):
             if int(info.get("row", 0)) >= 1:
                 child.destroy()
 
-        self._title_var.set(f"{_MONTHS_DE[self._month - 1]} {self._year}")
+        # Nav-Widgets mit aktuellem Monat/Jahr synchron halten
+        try:
+            self._month_var.set(_MONTHS_DE[self._month - 1])
+            self._year_var.set(self._year)
+        except (AttributeError, tk.TclError):
+            pass
 
         weeks = calendar.monthcalendar(self._year, self._month)
         today = date.today()
@@ -133,6 +157,24 @@ class DatePickerDialog(tk.Toplevel):
                     command=lambda dd=d: self._pick(dd),
                 )
                 btn.grid(row=r, column=c, padx=1, pady=1)
+
+    def _on_month_change(self, event=None) -> None:
+        try:
+            idx = _MONTHS_DE.index(self._month_var.get())
+        except ValueError:
+            return
+        self._month = idx + 1
+        self._render_calendar()
+
+    def _on_year_change(self, event=None) -> None:
+        try:
+            year = int(self._year_var.get())
+        except (tk.TclError, ValueError):
+            self._year_var.set(self._year)
+            return
+        if year != self._year:
+            self._year = year
+            self._render_calendar()
 
     def _prev_month(self) -> None:
         if self._month == 1:

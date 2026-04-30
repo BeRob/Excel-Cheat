@@ -20,6 +20,7 @@ THIN_BORDER = Border(
     top=Side("thin"), bottom=Side("thin"),
 )
 INFO_LABEL_FONT = Font(bold=True, size=10)
+INFO_TITLE_FONT = Font(bold=True, size=14)
 
 SHEET_PROTECTION_PASSWORD = "hexhex"
 
@@ -133,11 +134,12 @@ def write_info_header(
     dt: date,
     extra_info: list[tuple[str, str]] | None = None,
 ) -> None:
-    """Schreibt den Info-Block in die Zeilen 1-5.
+    """Schreibt den Info-Block in die Zeilen 1-8.
 
-    Linke Spalten (1-2): fester Kern (Produkt/Prozess/Schicht/Datum).
-    Rechte Spalten (3-4): zusätzliche Header-Felder aus dem Prozess
-    (z. B. FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel)."""
+    Zeile 1 Spalte A: Produktname (fett, groß).
+    Zeilen 2-4 Spalten A/B: Prozess, Schicht, Datum.
+    Zeilen 2-8 Spalten C/D: zusätzliche Header-Felder (FA-Nr., LOT,
+    Verwendbarkeitsdatum, Messmittel)."""
     try:
         wb = openpyxl.load_workbook(filepath)
     except Exception:
@@ -145,14 +147,18 @@ def write_info_header(
 
     try:
         ws = wb.active
+
+        title_cell = ws.cell(1, 1, product_name)
+        title_cell.font = INFO_TITLE_FONT
+
         core_rows = [
-            ("Produkt:", product_name),
             ("Prozess:", process_name),
             ("Schicht:", shift),
             ("Datum:", dt.strftime("%Y-%m-%d")),
         ]
 
-        for row_idx, (label, value) in enumerate(core_rows, 1):
+        for offset, (label, value) in enumerate(core_rows):
+            row_idx = 2 + offset
             cell_label = ws.cell(row_idx, 1, label)
             cell_label.font = INFO_LABEL_FONT
             ws.cell(row_idx, 2, value)
@@ -160,8 +166,9 @@ def write_info_header(
         if extra_info:
             ws.column_dimensions["C"].width = 24
             ws.column_dimensions["D"].width = 24
-            for row_idx, (label, value) in enumerate(extra_info, 1):
-                if row_idx > 5:
+            for offset, (label, value) in enumerate(extra_info):
+                row_idx = 2 + offset
+                if row_idx > 8:
                     break
                 cell_label = ws.cell(row_idx, 3, label)
                 cell_label.font = INFO_LABEL_FONT

@@ -6,6 +6,7 @@ import tkinter as tk
 from typing import Callable
 
 from src.domain.state import AppState
+from src.ui.theme import COLORS
 
 
 class BaseView(tk.Frame):
@@ -15,7 +16,7 @@ class BaseView(tk.Frame):
         app_state: AppState,
         on_navigate: Callable[[str], None],
     ) -> None:
-        super().__init__(parent, bg="#FFFFFF")
+        super().__init__(parent, bg=COLORS["background"])
         self.app_state = app_state
         self.on_navigate = on_navigate
 

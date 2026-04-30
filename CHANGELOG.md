@@ -1,5 +1,28 @@
 # Versionshistorie – QAInput
 
+## v1.4.0 – 2026-04-30
+
+### Neu
+- **Direkte Jahresauswahl im Datums-Picker** – Monat als Combobox, Jahr als Spinbox (±20 Jahre vom aktuellen Jahr); ◀/▶-Buttons für Schnell-Navigation bleiben erhalten
+- **Toleranz-/Optional-Hinweise konsistent angezeigt** – einheitliche Anzeige der Spec-Grenzen (z. B. `153 – 157`, `≥1000`, `≤50`) und `optional`-Markierung in allen Render-Pfaden: Vertikales Layout, Horizontales Layout, Multi-Nutzen-Sektionen und Feste Werte. Vorher fehlten Toleranzen z. B. in den Festen Werten und bei Feldern mit nur einer Grenze
+- **Multi-Nutzen-Übersichtsdialog mit Spec-Validierung** – Statt einer einfachen Bestätigungs-Box gibt es jetzt einen vollwertigen Review-Dialog mit eigenem Block pro Nutzen, farblicher Status-Anzeige (Fehler/Warnung/OK) und Senden-Sperre bei Fehlern – analog zum Single-Nutzen-Modus
+- **Excel-Header auf 8 Zeilen vergrößert** – Zeile 1 enthält nur den Produktnamen (fett, Größe 14). Prozess/Schicht/Datum stehen ab Zeile 2 in Spalten A/B; FA-Nr./LOT/Verwendbarkeitsdatum/Messmittel ab Zeile 2 in Spalten C/D mit Reserve bis Zeile 8. Spaltenüberschriften in Zeile 9, Daten ab Zeile 10
+
+### Geändert
+- **Navigations-Buttons am unteren Fensterrand** – „Abmelden", „Prozess wechseln" und „Layout: …" sind jetzt am unteren Rand jedes Bildschirms (Login, Produkt/Prozess, Kontext, Messwert) angeordnet, ergonomischer für Bedienpulte
+- **„Kontext ändern"-Button entfernt** – sowohl der Button im Top-Bar als auch das ✎-Symbol pro Header-Feld; die Info-Header-Zeile ist jetzt rein zur Anzeige
+- **Bemerkungen-Feld leer mit Optional-Hinweis** – statt der Vorbelegung „n/a" ist das Feld leer; rechts vom Eingabefeld erscheint die Markierung `optional`, damit Mitarbeiter erkennen, dass sie das Feld leer lassen oder eine Bemerkung eintragen können
+- **Eingabefelder einheitliche Maße** – Felder mit und ohne Toleranz-Rahmen sind jetzt gleich groß und linksbündig ausgerichtet; vorher waren Border-Felder durch ihren 3px-Wrapper minimal größer und wirkten verschoben
+
+### Behoben
+- **Schriftgröße bleibt beim Theme-Wechsel erhalten** – `+`/`–` skalierte Schriften wurden beim Klick auf „◑ Dark" / „◑ Hell" auf die Standardgröße zurückgesetzt; jetzt bleibt der Zoom-Faktor erhalten
+- **Lesbarkeit im Dark Mode** – mehrere tk-Widgets (Canvas, Validation-Borders, Listbox, Text) und ttk-Styles (Radiobutton, Checkbutton, Spinbox) sowie die Combobox-Popup-Listbox waren im Dark Mode nicht oder schlecht lesbar; jetzt einheitliches Mapping beim Theme-Wechsel
+
+### Hinweis zur Datenmigration
+- Excel-Dateien aus v1.3.x (Header-Zeile 6, Daten ab Zeile 7) sind mit v1.4.0 **nicht kompatibel** für Resume. Neue Messungen schreiben in das neue 8-Zeilen-Layout. Bestandsdateien bitte abschließen oder archivieren
+
+---
+
 ## v1.3.1 – 2026-04-27
 
 ### Neu
