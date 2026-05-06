@@ -1,5 +1,18 @@
 # Versionshistorie – QAInput
 
+## v1.4.1 – 2026-05-07
+
+### Neu
+- **Maschine→Rolle-Bindung pro Messung (`machine_scoped`)** – Neues Feld-Flag in der Produkt-Config: ein als `machine_scoped: true` markiertes Kontextfeld (typisch `rollen_nr`) wird im Formular nicht mehr direkt eingegeben, sondern aus einem oben angezeigten Block „Aktive Rolle pro Maschine" gelesen. Pro Maschinen-Option (z. B. M1/M2) ein eigener Slot. Bei jeder Messung wählt der MA nur die Maschine; der für sie hinterlegte Rolle-Wert wird automatisch in die Datenzeile übernommen. Beim physischen Rollenwechsel auf einer Maschine wird nur der zugehörige Slot angepasst – alle weiteren Messungen mit dieser Maschine bekommen automatisch die neue Rolle. Anwendungsfall: zwei parallele Stanzmaschinen mit unabhängigen Rollenwechseln (kein Tippfehler-Risiko mehr durch manuelles Nachpflegen)
+- **Karton-Auto-Berechnung aus Bag-Nr.** – Felder mit `id: "karton"` und `role: "auto"` werden automatisch aus der laufenden Bag-Nr. (`pruefmuster`) abgeleitet: 20 Beutel pro Karton (`((bag-1)//20)+1`). Setzt voraus, dass `pruefmuster` in der JSON vor `karton` deklariert ist
+- **Simulations-Skript `scripts/simulate_inputs.py`** – Entwicklungstool, das die App-Schreib-Pfade direkt aufruft (ohne UI) und für ein Produkt eine Excel-Datei pro IPC-Prozess erzeugt. Ermöglicht Format-/Strukturvergleich mit Bestandsdaten ohne manuelles Eintippen
+
+### Geändert
+- **`AppState` um `machine_scoped_values` erweitert** – persistente Map `field_id → maschine_wert → wert` für die Aktive-Rolle-Slots; wird in `reset_process()` geleert
+- **`FieldDef.machine_scoped: bool`** – neues serialisierbares Flag, abwärtskompatibel (Default `False`); im Config-Editor als zusätzliches Property speicherbar
+
+---
+
 ## v1.4.0 – 2026-04-30
 
 ### Neu

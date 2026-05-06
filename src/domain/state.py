@@ -46,6 +46,9 @@ class AppState:
         self.auto_sequence: int = 0
         self.nutzen_count: int = 1
 
+        # field_id -> machine_value -> current value
+        self.machine_scoped_values: dict[str, dict[str, str]] = {}
+
         self.audit: AuditLogger | None = None
         self.layout_mode: str = "vertical"
 
@@ -72,6 +75,7 @@ class AppState:
         self.row_group_counter = 0
         self.auto_sequence = 0
         self.nutzen_count = 1
+        self.machine_scoped_values = {}
         self.reset_context()
 
     def reset_context(self) -> None:

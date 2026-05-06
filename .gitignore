@@ -11,7 +11,9 @@ data/configs/
 dist/
 build/
 deployment/
+simulation_output/
 .env
 CLAUDE.md
 excel files/
 Manual_QAInput.pdf
+develop/

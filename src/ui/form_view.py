@@ -56,6 +56,12 @@ class FormView(BaseView):
         self._nutzen_sections_parent: tk.Widget | None = None
         self._is_multi_nutzen: bool = False
         self._validation_borders: dict[str, tk.Frame] = {}
+        # Machine-scoped (Variante 2): pro Maschine eine "aktive" Rolle merken,
+        # automatisch in das machine_scoped Feld übernehmen sobald Maschine gewählt wird.
+        self._machine_scoped_fields: list[FieldDef] = []
+        self._machine_field: FieldDef | None = None
+        self._machine_scoped_entry_vars: dict[tuple[str, str], tk.StringVar] = {}
+        self._machine_scoped_trace_lock: bool = False
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -255,6 +261,98 @@ class FormView(BaseView):
         self._generate_fields()
         self._last_fields_key = f"{self.app_state.selected_process.display_name}_{self.app_state.layout_mode}"
 
+    def _render_machine_scoped_panel(self) -> None:
+        """Rendert oben einen Block mit je einer Eingabe pro
+        (machine_scoped-Feld × Maschine-Option).
+
+        Beispiel IPC5: zwei Eingaben "Aktive Rolle M1" und "Aktive Rolle M2".
+        Der Mitarbeiter trägt hier die gerade laufende Rolle pro Maschine ein
+        und ändert nur dann etwas, wenn die Rolle physisch gewechselt wurde.
+        Bei jeder Messung wählt er nur die Maschine — die Rolle wird automatisch
+        in das Datenfeld übernommen."""
+        if not self._machine_scoped_fields or not self._machine_field:
+            return
+
+        panel = ttk.LabelFrame(
+            self.scrollable_frame,
+            text="Aktive Rolle pro Maschine",
+            padding=10,
+        )
+        panel.pack(fill="x", padx=5, pady=(5, 10))
+
+        col = 0
+        for fd in self._machine_scoped_fields:
+            for opt in self._machine_field.options or []:
+                cell = ttk.Frame(panel)
+                cell.grid(row=0, column=col, padx=10, sticky="w")
+                ttk.Label(
+                    cell,
+                    text=f"{fd.display_name} M{opt}:",
+                    font=("Segoe UI", 9, "bold"),
+                ).pack(side="left")
+                var = tk.StringVar()
+                stored = self.app_state.machine_scoped_values.get(fd.id, {}).get(opt, "")
+                var.set(stored)
+                entry = ttk.Entry(cell, textvariable=var, width=14)
+                entry.pack(side="left", padx=(4, 0))
+
+                self._machine_scoped_entry_vars[(fd.id, opt)] = var
+
+                var.trace_add(
+                    "write",
+                    lambda *_args, fid=fd.id, machine_opt=opt, v=var:
+                    self._on_machine_scoped_entry_change(fid, machine_opt, v),
+                )
+                col += 1
+
+    def _on_machine_scoped_entry_change(
+        self, field_id: str, machine_value: str, var: tk.StringVar,
+    ) -> None:
+        """Aktive-Rolle-Eingabe geändert: Wert merken und ggf. Datenfeld aktualisieren."""
+        if self._machine_scoped_trace_lock:
+            return
+        val = var.get().strip()
+        self.app_state.machine_scoped_values.setdefault(field_id, {})[machine_value] = val
+        # Wenn aktuell genau diese Maschine gewählt ist, das Datenfeld synchron halten.
+        if not self._machine_field:
+            return
+        machine_var = self.field_vars.get(self._machine_field.display_name)
+        if machine_var and machine_var.get() == machine_value:
+            for fd in self._machine_scoped_fields:
+                if fd.id == field_id and fd.display_name in self.field_vars:
+                    self._machine_scoped_trace_lock = True
+                    try:
+                        self.field_vars[fd.display_name].set(val)
+                    finally:
+                        self._machine_scoped_trace_lock = False
+                    break
+
+    def _install_machine_change_trace(self) -> None:
+        """Bindet die Maschine-Auswahl an die machine_scoped Datenfelder."""
+        if not self._machine_field:
+            return
+        machine_var = self.field_vars.get(self._machine_field.display_name)
+        if machine_var is None:
+            return
+
+        def on_machine_change(*_args):
+            if self._machine_scoped_trace_lock:
+                return
+            value = machine_var.get()
+            for fd in self._machine_scoped_fields:
+                stored = self.app_state.machine_scoped_values.get(fd.id, {}).get(value, "")
+                target = self.field_vars.get(fd.display_name)
+                if target is not None:
+                    self._machine_scoped_trace_lock = True
+                    try:
+                        target.set(stored)
+                    finally:
+                        self._machine_scoped_trace_lock = False
+
+        machine_var.trace_add("write", on_machine_change)
+        # Initial einmal triggern, falls Maschine bereits einen Wert hat
+        on_machine_change()
+
     def _generate_fields(self) -> None:
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
@@ -266,6 +364,9 @@ class FormView(BaseView):
         self._nutzen_sections_parent = None
         self._first_focus_widget = None
         self._validation_borders.clear()
+        self._machine_scoped_fields = []
+        self._machine_field = None
+        self._machine_scoped_entry_vars.clear()
 
         process = self.app_state.selected_process
         if not process:
@@ -275,6 +376,23 @@ class FormView(BaseView):
         self._is_multi_nutzen = bool(
             process.row_group_size and get_group_shared_fields(process)
         )
+
+        # Machine-scoped Setup (Variante 2): wenn Felder mit machine_scoped=true
+        # existieren UND ein Maschine-Choice-Feld vorhanden ist, oben einen Slot
+        # pro (Feld × Maschine) anzeigen und dem Datenfeld den passenden Wert zuweisen.
+        self._machine_scoped_fields = [f for f in process.fields if f.machine_scoped]
+        if self._machine_scoped_fields:
+            self._machine_field = next(
+                (f for f in process.fields
+                 if f.id == "maschine" and f.type == "choice" and f.options),
+                None,
+            )
+            if self._machine_field is None:
+                # Keine Maschine-Auswahl gefunden – Feature deaktivieren
+                self._machine_scoped_fields = []
+
+        if self._machine_scoped_fields and self._machine_field:
+            self._render_machine_scoped_panel()
 
         persistent_fields = get_form_persistent_fields(process)
         self._persistent_field_defs = persistent_fields
@@ -318,28 +436,39 @@ class FormView(BaseView):
         if self._is_multi_nutzen:
             self._generate_multi_nutzen_fields(process)
         else:
-            per_meas_ctx = get_per_measurement_context_fields(process)
+            per_meas_ctx_all = get_per_measurement_context_fields(process)
             measurement = get_measurement_fields(process)
 
+            scoped_ids = {f.id for f in self._machine_scoped_fields}
+            per_meas_ctx_render = [
+                f for f in per_meas_ctx_all if f.id not in scoped_ids
+            ]
+            # Hidden StringVars für machine_scoped Felder, damit sie im Save-Pfad
+            # auftauchen obwohl sie kein eigenes Eingabe-Widget haben.
+            for fd in self._machine_scoped_fields:
+                self.field_vars[fd.display_name] = tk.StringVar()
+
             shared_frame_first: tk.Widget | None = None
-            if per_meas_ctx:
+            if per_meas_ctx_render:
                 shared_frame = ttk.LabelFrame(
                     self.scrollable_frame, text="Gemeinsame Werte", padding=10,
                 )
                 shared_frame.pack(fill="x", padx=5, pady=(0, 5))
                 if self.app_state.layout_mode == "vertical":
                     shared_frame_first, _ = self._generate_vertical_fields(
-                        per_meas_ctx, shared_frame,
+                        per_meas_ctx_render, shared_frame,
                     )
                 else:
                     shared_frame_first, _ = self._generate_horizontal_fields(
-                        per_meas_ctx, shared_frame,
+                        per_meas_ctx_render, shared_frame,
                     )
 
             choice_fields = [f for f in measurement if f.type == "choice"]
             other_fields = [f for f in measurement if f.type != "choice"]
             display_fields = choice_fields + other_fields
-            self._field_defs = per_meas_ctx + display_fields
+            # _field_defs enthält ALLE per_meas_ctx Felder (auch machine_scoped),
+            # damit ReviewDialog und Writer die Werte sehen.
+            self._field_defs = per_meas_ctx_all + display_fields
 
             meas_frame = ttk.LabelFrame(
                 self.scrollable_frame, text="Messwerte", padding=10,
@@ -358,6 +487,10 @@ class FormView(BaseView):
             self._first_focus_widget = (
                 first_choice or shared_frame_first or first_meas
             )
+
+        # Maschine→Rolle-Bindung installieren, sobald die Maschine-Var existiert.
+        if self._machine_scoped_fields and self._machine_field:
+            self._install_machine_change_trace()
 
         self._set_initial_focus()
         self.canvas.yview_moveto(0)
@@ -744,6 +877,11 @@ class FormView(BaseView):
             elif fd.id in ("pruefmuster", "beutel_nr"):
                 self.app_state.auto_sequence += 1
                 auto_values[fd.display_name] = self.app_state.auto_sequence
+            elif fd.id == "karton":
+                # 20 Beutel pro Karton — abgeleitet aus dem aktuellen auto_sequence
+                # (Bag-Nr.). pruefmuster muss in process.fields VOR karton stehen.
+                bag_no = self.app_state.auto_sequence
+                auto_values[fd.display_name] = ((bag_no - 1) // 20) + 1 if bag_no >= 1 else 1
 
         result = write_measurement_row(
             filepath=self.app_state.current_file,

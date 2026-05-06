@@ -22,6 +22,7 @@ class FieldDef:
     default_value: str | None = None
     group_shared: bool = False
     info_header: bool = False
+    machine_scoped: bool = False
 
 
 @dataclass
@@ -70,6 +71,7 @@ def _parse_field(data: dict) -> FieldDef:
         default_value=data.get("default_value"),
         group_shared=data.get("group_shared", False),
         info_header=data.get("info_header", False),
+        machine_scoped=data.get("machine_scoped", False),
     )
 
 

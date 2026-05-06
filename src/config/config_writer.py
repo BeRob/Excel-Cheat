@@ -34,6 +34,8 @@ def field_to_dict(field: FieldDef) -> dict:
         d["group_shared"] = True
     if field.info_header:
         d["info_header"] = True
+    if field.machine_scoped:
+        d["machine_scoped"] = True
     return d
 
 
