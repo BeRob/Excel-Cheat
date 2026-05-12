@@ -39,6 +39,7 @@ class ProductConfig:
     display_name: str
     processes: list[ProcessConfig]
     output_dir: str | None = None
+    revision: int = 1
 
 
 @dataclass
@@ -87,11 +88,16 @@ def _parse_process(data: dict) -> ProcessConfig:
 def load_product_config(path: Path) -> ProductConfig:
     """Lädt eine Produkt-Konfiguration aus einer JSON-Datei."""
     data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        revision = int(data.get("revision", 1))
+    except (TypeError, ValueError):
+        revision = 1
     return ProductConfig(
         product_id=data["product_id"],
         display_name=data["display_name"],
         processes=[_parse_process(p) for p in data["processes"]],
         output_dir=data.get("output_dir"),
+        revision=revision,
     )
 
 

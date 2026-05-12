@@ -1,5 +1,29 @@
 # Versionshistorie – QAInput
 
+## v1.5.0 – 2026-05-13
+
+### Neu
+- **UI-Optimierung Messeingabe** – Kompakte 1-Zeilen-Metaleiste, Info-Header-Chips mit ✎-Bearbeiten-Button, einklappbarer Verlauf (default eingeklappt) mit Toggle-Button und 1-Zeilen-Last-Message, frei wählbare Verlaufsspalten via ⚙-Button (persistent pro Prozess in `data/ui_prefs.json`), zusammengefasste Action-Bar unten (Navigation links, Felder leeren/Speichern rechts). Mitarbeiter sehen alle Messfelder ohne Scrollen
+- **Out-of-Spec mit Bemerkungspflicht (GMP)** – Eingaben außerhalb der Spezifikation sind möglich, das Senden wird aber blockiert, solange `Bemerkungen` leer oder `n/a`/`-`/`—` enthält. Bei Multi-Nutzen pro Nutzen separat geprüft. Roter Banner im Review-Dialog nennt die betroffene(n) Sektion(en)
+- **Messmittel mit Komma trennen** – Messmittel-Eingabe wie „Bügelmessschraube, Messschieber" landet im Excel-Info-Block als separate Zeilen untereinander
+- **Info-Dialog (ⓘ-Button im App-Header)** – Zeigt App-Version, Datum, Python/OS, Host, Windows-Benutzer, App-Benutzer, Session-ID, alle Daten-/Log-Pfade und eine Tabelle aller Produkt-Revisionen
+- **Lückenloses Audit + Debug/Error-Logs** – Zusätzlich zu `audit_log.jsonl` werden `debug.log` (5 MB × 5 Rotation, gepuffert für Netzlauffwerk-Effizienz) und `error.log` (2 MB × 5) angelegt. `sys.excepthook` und `tk.Tk.report_callback_exception` fangen alle Exceptions ab und schreiben Traceback in `error.log` plus `exception`-Event ins Audit. Neue Event-Kategorien: `navigate`, `product_select`, `process_select`, `file_created`/`file_resumed`, `review_opened`/`review_cancelled`, `oos_blocked`, `fields_cleared`, `layout_toggled`, `dark_mode_toggled`, `font_scaled`, `history_toggled`/`history_columns_changed`, `app_exit`, `exception`
+- **Audit-Trail um Workstation-Identität erweitert** – Jeder Event-Eintrag enthält jetzt zusätzlich `app_version`, `host` (Rechnername), `win_user` (Windows-Account) und `session` (UUID je App-Start). Damit eindeutig nachvollziehbar, von welcher Workstation und welchem Windows-Account eine Aktion stammt (unabhängig vom angemeldeten App-Benutzer)
+- **Tagesrotation des Audit-Logs** – `audit_log.jsonl` wird täglich automatisch in `audit_log.jsonl.YYYY-MM-DD` umbenannt. Alte Tagesdateien bleiben dauerhaft erhalten (GMP). Rename geschieht innerhalb des Inter-Prozess-Locks → race-frei auch mit mehreren parallelen Workstations
+- **Netzlaufwerk-Robustheit** – Lock-Acquire mit 5-Sekunden-Timeout statt Endlos-Schleife; bei Timeout/Fehler wird das Event in `%LOCALAPPDATA%\QAInput\audit_local_fallback.jsonl` zwischengespeichert und beim nächsten erfolgreichen Audit-Schreibvorgang automatisch ins zentrale Log nachgereicht. Kein verlorener Event-Eintrag bei kurzem Netzaussetzer
+- **Produkt-Revisionen** – Jedes Produkt-JSON trägt jetzt ein Top-Level-Feld `revision` (Start bei 1). Wird beim Bearbeiten/Speichern erhalten und im Info-Dialog gelistet
+- **Zentrale Versionsdatei `src/version.py`** – Single Source of Truth für `APP_VERSION`, `APP_VERSION_TUPLE`, `APP_VERSION_DATE`. Settings, Info-Dialog und Audit-Logger lesen hier. `version_info.txt` für PyInstaller wird daraus abgeleitet
+
+### Geändert
+- **Horizontales Layout als Default** – Neue Sessions starten im horizontalen Layout-Modus; manuelles Umschalten via Button bleibt
+- **`ValidationResult` um `oos_fields: set[str]`** – Spec-Verletzungen werden zusätzlich als strukturierte Menge geliefert (vorher nur als Warning-String). Macht den Out-of-Spec-Gate sauber implementierbar
+- **`AuditLogger.log_event(event, level, ...)`** als Hauptmethode mit Level-Differenzierung (`info`/`warn`/`error`); altes `log(...)` als Shim für Rückwärtskompatibilität. Pro Event wird gleichzeitig in den passenden `logging`-Logger geschrieben (debug.log/error.log)
+- **Excel-Info-Block-Kapazität auf 12 Zeilen** (vorher 8) – nötig für Messmittel mit mehreren komma-getrennten Einträgen
+
+### Behoben
+- **Umlaute in Fehlermeldungen** – "schliessen" → "schließen" in den Excel-Writer-Fehlertexten; ASCII-Variante kam bei deutschen Anwendern als unsauber rüber
+- **`test_load_ref31962` robust gegen weitere Produkte** – Test sucht REF31962 jetzt per Filter statt `products[0]`; vorher brach er bei jedem neu hinzugefügten Produkt mit alphabetisch früherem Namen
+
 ## v1.4.1 – 2026-05-07
 
 ### Neu

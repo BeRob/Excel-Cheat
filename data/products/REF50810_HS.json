@@ -1,65 +1,375 @@
 {
   "product_id": "REF50810_HS",
   "display_name": "Art. 50810.HS - Sugi sponge roll, 152,8 mm",
+  "revision": 1,
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
       "display_name": "IPC1 Vorschneiden",
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context", "persistent": false},
-        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "flaechengewicht", "display_name": "Flächengewicht ≥ 560 g/m²", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
-        {"id": "ask", "display_name": "ASK ≥ 1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
-        {"id": "bahn_1", "display_name": "Bahn 1 [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 160},
-        {"id": "bahn_2", "display_name": "Bahn 2 [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 160},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "flaechengewicht",
+          "display_name": "Flächengewicht ≥ 560 g/m²",
+          "type": "choice",
+          "role": "measurement",
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
+        },
+        {
+          "id": "ask",
+          "display_name": "ASK ≥ 1200%",
+          "type": "choice",
+          "role": "measurement",
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
+        },
+        {
+          "id": "bahn_1",
+          "display_name": "Bahn 1 [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_min": 160
+        },
+        {
+          "id": "bahn_2",
+          "display_name": "Bahn 2 [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_min": 160
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     },
     {
       "template_id": "IPC2_Walzen",
       "display_name": "IPC2 Walzen",
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context", "persistent": false},
-        {"id": "rolle_bahn_nr", "display_name": "Rolle/Bahn Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "laenge", "display_name": "Länge [m]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 30, "spec_max": 75},
-        {"id": "flaechengewicht", "display_name": "Flächengewicht ≥ 560 g/m²", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
-        {"id": "ask", "display_name": "ASK ≥ 1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
-        {"id": "schichtdicke_anfang_links", "display_name": "Schichtdicke Anfang links [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.95, "spec_min": 0.9, "spec_max": 1.1},
-        {"id": "schichtdicke_anfang_rechts", "display_name": "Schichtdicke Anfang rechts [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.95, "spec_min": 0.9, "spec_max": 1.1},
-        {"id": "schichtdicke_ende_links", "display_name": "Schichtdicke Ende links [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.95, "spec_min": 0.9, "spec_max": 1.1},
-        {"id": "schichtdicke_ende_rechts", "display_name": "Schichtdicke Ende rechts [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_target": 0.95, "spec_min": 0.9, "spec_max": 1.1},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rolle_bahn_nr",
+          "display_name": "Rolle/Bahn Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "laenge",
+          "display_name": "Länge [m]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_min": 30,
+          "spec_max": 75
+        },
+        {
+          "id": "flaechengewicht",
+          "display_name": "Flächengewicht ≥ 560 g/m²",
+          "type": "choice",
+          "role": "measurement",
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
+        },
+        {
+          "id": "ask",
+          "display_name": "ASK ≥ 1200%",
+          "type": "choice",
+          "role": "measurement",
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
+        },
+        {
+          "id": "schichtdicke_anfang_links",
+          "display_name": "Schichtdicke Anfang links [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 0.95,
+          "spec_min": 0.9,
+          "spec_max": 1.1
+        },
+        {
+          "id": "schichtdicke_anfang_rechts",
+          "display_name": "Schichtdicke Anfang rechts [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 0.95,
+          "spec_min": 0.9,
+          "spec_max": 1.1
+        },
+        {
+          "id": "schichtdicke_ende_links",
+          "display_name": "Schichtdicke Ende links [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 0.95,
+          "spec_min": 0.9,
+          "spec_max": 1.1
+        },
+        {
+          "id": "schichtdicke_ende_rechts",
+          "display_name": "Schichtdicke Ende rechts [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 0.95,
+          "spec_min": 0.9,
+          "spec_max": 1.1
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     },
     {
       "template_id": "IPC3_Fertigschneiden",
       "display_name": "IPC3 Fertigschneiden",
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context", "persistent": false},
-        {"id": "rollen_bahn", "display_name": "Rollen Nr./Bahn", "type": "text", "role": "context", "persistent": false},
-        {"id": "rollennummer_hs", "display_name": "Rollennummer Art. 50810.HS", "type": "number", "role": "auto", "persistent": false},
-        {"id": "breite", "display_name": "Breite [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_target": 152.8, "spec_min": 152.3, "spec_max": 153.3},
-        {"id": "rollenlaenge", "display_name": "Rollenlänge [m]", "type": "number", "role": "measurement", "persistent": false, "spec_target": 65, "spec_min": 30, "spec_max": 75},
-        {"id": "schnittkante", "display_name": "Schnittkante i.O.", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rollen_bahn",
+          "display_name": "Rollen Nr./Bahn",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rollennummer_hs",
+          "display_name": "Rollennummer Art. 50810.HS",
+          "type": "number",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "breite",
+          "display_name": "Breite [mm]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 152.8,
+          "spec_min": 152.3,
+          "spec_max": 153.3
+        },
+        {
+          "id": "rollenlaenge",
+          "display_name": "Rollenlänge [m]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 65,
+          "spec_min": 30,
+          "spec_max": 75
+        },
+        {
+          "id": "schnittkante",
+          "display_name": "Schnittkante i.O.",
+          "type": "choice",
+          "role": "measurement",
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     }
   ]

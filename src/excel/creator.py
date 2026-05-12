@@ -166,9 +166,12 @@ def write_info_header(
         if extra_info:
             ws.column_dimensions["C"].width = 24
             ws.column_dimensions["D"].width = 24
+            # Cap auf Zeile 12 — bis zu 11 Zusatzeinträge (FA-Nr., LOT,
+            # Verwendbarkeitsdatum, Messmittel + bis zu 7 weitere Messmittel
+            # bei komma-getrennter Eingabe).
             for offset, (label, value) in enumerate(extra_info):
                 row_idx = 2 + offset
-                if row_idx > 8:
+                if row_idx > 12:
                     break
                 cell_label = ws.cell(row_idx, 3, label)
                 cell_label.font = INFO_LABEL_FONT

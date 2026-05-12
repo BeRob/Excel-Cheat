@@ -54,6 +54,7 @@ def product_to_dict(product: ProductConfig) -> dict:
     d: dict = {
         "product_id": product.product_id,
         "display_name": product.display_name,
+        "revision": product.revision,
         "processes": [process_to_dict(p) for p in product.processes],
     }
     if product.output_dir is not None:

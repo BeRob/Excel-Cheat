@@ -7,6 +7,7 @@ data/audit_log.jsonl
 data/audit_log.jsonl.lock
 data/users.kv
 data/configs/
+data/products/_pending/
 *.egg-info/
 dist/
 build/

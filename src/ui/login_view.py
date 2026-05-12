@@ -5,6 +5,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
+from src.audit.events import Event
 from src.auth.login import AuthService
 from src.config.settings import USERS_KV_PATH
 from src.ui.base_view import BaseView
@@ -129,8 +130,8 @@ class LoginView(BaseView):
     def _on_login_success(self, user, method: str) -> None:
         self.app_state.current_user = user
         if self.app_state.audit:
-            self.app_state.audit.log(
-                "login_success",
+            self.app_state.audit.log_event(
+                Event.LOGIN_SUCCESS,
                 user=user.user_id,
                 details={"method": method},
             )
@@ -139,8 +140,8 @@ class LoginView(BaseView):
     def _on_login_fail(self, attempted: str, method: str) -> None:
         self.status_var.set("Anmeldung fehlgeschlagen.")
         if self.app_state.audit:
-            self.app_state.audit.log(
-                "login_fail",
+            self.app_state.audit.log_event(
+                Event.LOGIN_FAIL, level="warn",
                 user=attempted,
                 details={"method": method},
             )

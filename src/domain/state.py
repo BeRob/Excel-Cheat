@@ -50,7 +50,13 @@ class AppState:
         self.machine_scoped_values: dict[str, dict[str, str]] = {}
 
         self.audit: AuditLogger | None = None
-        self.layout_mode: str = "vertical"
+        self.layout_mode: str = "horizontal"
+
+        # Vom Hauptfenster gesetzt — aktuelle View, fürs Audit nutzbar
+        self.current_view: str | None = None
+
+        # UI-Präferenzen (Verlaufsspalten u.a.), persistiert in data/ui_prefs.json
+        self.ui_prefs: dict = {}
 
     def reset_user(self) -> None:
         self.current_user = None

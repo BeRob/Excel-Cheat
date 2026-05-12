@@ -98,6 +98,7 @@
 
 <h1>QAInput &ndash; Kurzanleitung für Mitarbeiter</h1>
 <p>Diese Anleitung erklärt, wie Sie QAInput im Alltag bedienen. Sie richtet sich an Mitarbeiter ohne Vorkenntnisse.</p>
+<p style="color:#666; font-size:0.95em;">Version 1.5.0</p>
 
 <div class="toc">
     <strong>Inhalt</strong>
@@ -109,7 +110,9 @@
         <li><a href="#messwerte">Messwerte erfassen</a></li>
         <li><a href="#multi-nutzen">Mehrere Nutzen pro Rolle</a></li>
         <li><a href="#pruefen-senden">Speichern und Senden</a></li>
-        <li><a href="#bedienhilfen">Bedienhilfen (Schrift, Dark Mode)</a></li>
+        <li><a href="#oos">Eingabe außerhalb der Spezifikation</a></li>
+        <li><a href="#verlauf">Verlauf der letzten Messungen</a></li>
+        <li><a href="#bedienhilfen">Bedienhilfen (Schrift, Dark Mode, Info)</a></li>
         <li><a href="#troubleshooting">Was tun, wenn …?</a></li>
     </ol>
 </div>
@@ -144,7 +147,7 @@
 </div>
 
 <div class="tip">
-    <strong>Buttons unten am Bildschirm:</strong> <em>Abmelden</em> und <em>Prozess wechseln</em> finden Sie auf jedem Bildschirm am unteren Fensterrand.
+    <strong>Buttons unten am Bildschirm:</strong> <em>Abmelden</em>, <em>Prozess wechseln</em>, <em>Layout</em> sowie <em>Felder leeren</em> und <em>Speichern</em> liegen alle in einer Leiste am unteren Fensterrand. So gibt es keine Buttons mehr mitten im Formular.
 </div>
 
 <hr />
@@ -192,7 +195,7 @@
         <tr><td>FA-Nr.</td><td>Fertigungsauftragsnummer</td></tr>
         <tr><td>LOT-Nr.</td><td>Chargennummer des Materials</td></tr>
         <tr><td>Verwendbarkeitsdatum</td><td>Ablaufdatum des Messmittels &ndash; per 📅-Symbol öffnet sich der Kalender. Monat als Dropdown, Jahr als Drehrad direkt anwählbar.</td></tr>
-        <tr><td>Messmittel</td><td>Bezeichnung des verwendeten Messmittels</td></tr>
+        <tr><td>Messmittel</td><td>Bezeichnung des verwendeten Messmittels. <strong>Mehrere Messmittel</strong> einfach durch Komma trennen, z. B. <code>Bügelmessschraube, Messschieber</code>. Diese werden in der Excel-Datei dann untereinander als separate Einträge gelistet.</td></tr>
     </tbody>
 </table>
 <p>Je nach Prozess kann ein zusätzliches Feld erscheinen (z. B. <em>Rollencharge</em>).</p>
@@ -207,10 +210,15 @@
 
 <h3>Aufbau des Bildschirms</h3>
 <ul>
-    <li><strong>Oben:</strong> Anzeige der festen Werte (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel) &ndash; nur lesend.</li>
+    <li><strong>Ganz oben:</strong> Eine kompakte 1-Zeilen-Info zeigt Benutzer, Produkt, Prozess, Schicht und Dateiname (klein und grau).</li>
+    <li><strong>Darunter:</strong> Anzeige der festen Werte (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel) &ndash; nur lesend. Neben jedem Wert ein kleines <em>✎</em>-Symbol; ein Klick darauf bringt Sie zurück zum Bildschirm „Feste Werte", um die Eingabe zu korrigieren.</li>
     <li><strong>Mitte:</strong> Eingabefelder für die Messwerte. Bei manchen Prozessen zusätzlich ein Block <em>Gemeinsame Werte</em> oder <em>Feste Werte</em>.</li>
-    <li><strong>Unten:</strong> Buttons <em>Felder leeren</em> und <em>Speichern</em>. Darunter eine Tabelle mit den letzten 10 Messungen, ganz unten die Navigations-Buttons.</li>
+    <li><strong>Darunter:</strong> Schmale Verlaufs-Leiste mit dem <em>▼ Verlauf</em>-Knopf und der letzten Messung als 1-Zeilen-Vorschau (siehe Abschnitt <em>Verlauf</em> weiter unten).</li>
+    <li><strong>Ganz unten:</strong> Eine einzige Action-Bar &ndash; links die Navigations-Buttons (<em>Layout</em>, <em>Prozess wechseln</em>, <em>Abmelden</em>), rechts die großen Buttons <em>Felder leeren</em> und <em>Speichern</em>.</li>
 </ul>
+<div class="tip">
+    Das Layout ist so optimiert, dass Sie alle Messfelder ohne Scrollen sehen können. Standard-Anordnung der Felder ist <em>horizontal</em> (mehrere Spalten nebeneinander).
+</div>
 
 <h3>Eingabe</h3>
 <ul>
@@ -244,7 +252,7 @@
     </tbody>
 </table>
 <div class="warn">
-    Ein roter Rahmen ist eine <strong>Warnung</strong>, kein Fehler &ndash; das Senden bleibt möglich. Im Übersichtsdialog wird der Wert deutlich orange/rot markiert.
+    Ein roter Rahmen ist eine <strong>Warnung</strong>, kein Fehler. Sie können den Wert speichern &ndash; wenn Sie im Feld <em>Bemerkungen</em> eine echte Begründung eintragen (siehe Abschnitt <em>Eingabe außerhalb der Spezifikation</em>).
 </div>
 
 <h3>Tastaturnavigation</h3>
@@ -275,7 +283,7 @@
 
 <h2 id="pruefen-senden">6. Speichern und Senden</h2>
 <ol>
-    <li>Auf <em>Speichern</em> klicken (zentral im unteren Bereich).</li>
+    <li>Auf <em>Speichern</em> klicken (unten rechts in der Action-Bar).</li>
     <li>Im Übersichtsdialog werden alle Werte zusammengefasst:
         <ul>
             <li><span class="green">Grün</span>: Wert ist in der Toleranz</li>
@@ -284,10 +292,41 @@
         </ul>
     </li>
     <li>Bei Fehlern: <em>Bearbeiten</em> klicken, Wert korrigieren, erneut <em>Speichern</em>.</li>
-    <li>Bei Warnungen: Sie können trotzdem <em>Senden</em> klicken &ndash; oder die Eingabe noch einmal prüfen.</li>
+    <li>Bei Werten außerhalb der Spezifikation: Bemerkungen ausfüllen, dann <em>Senden</em> &ndash; siehe nächster Abschnitt.</li>
 </ol>
 <div class="tip">
     Nach dem Senden wird das Formular für die nächste Messung zurückgesetzt. Feste Werte (FA-Nr., LOT, …) und Auswahlfelder bleiben erhalten.
+</div>
+
+<hr />
+
+<h2 id="oos">Eingabe außerhalb der Spezifikation</h2>
+<p>Werte, die außerhalb der vorgegebenen Toleranz liegen, dürfen erfasst werden &ndash; aber nur mit einer schriftlichen Begründung. Das ist eine GMP-Anforderung.</p>
+<ol>
+    <li>Wert wie gewohnt eingeben. Der Rahmen wird <span class="red">rot</span> &ndash; das ist nur ein Hinweis, kein Fehler.</li>
+    <li>Im Feld <strong>Bemerkungen</strong> eine reale Begründung eintragen, z. B. <em>„Werkzeug stumpf"</em> oder <em>„Material zu zäh"</em>. Eintragungen wie <code>n/a</code>, <code>-</code>, leer oder nur Leerzeichen werden <strong>nicht</strong> akzeptiert.</li>
+    <li>Auf <em>Speichern</em> klicken. Im Übersichtsdialog erscheint:
+        <ul>
+            <li>Ein <span class="red">roter Banner</span> oben, wenn die Bemerkung fehlt oder nur ein Platzhalter ist. Der <em>Senden</em>-Button ist gesperrt.</li>
+            <li>Sobald die Bemerkung gefüllt ist, wird der <em>Senden</em>-Button aktiv und die Messung kann gespeichert werden.</li>
+        </ul>
+    </li>
+</ol>
+<div class="warn">
+    <strong>Bei mehreren Nutzen:</strong> Wenn nur Nutzen 2 außerhalb der Toleranz liegt, muss auch nur Nutzen 2 eine Bemerkung haben. Die anderen Nutzen bleiben unangetastet.
+</div>
+
+<hr />
+
+<h2 id="verlauf">Verlauf der letzten Messungen</h2>
+<p>Im Messwert-Bildschirm gibt es zwischen Eingabefeldern und Action-Bar eine schmale Verlaufs-Leiste.</p>
+<ul>
+    <li><strong>1-Zeilen-Vorschau:</strong> Rechts vom Verlaufs-Knopf erscheint die letzte gespeicherte Messung in Kurzform.</li>
+    <li><strong>Aufklappen:</strong> Auf <em>▼ Verlauf (n)</em> klicken &ndash; darunter erscheint eine Tabelle mit den letzten Messungen (max. 10). Erneut klicken oder <em>▲ Verlauf</em> drücken &ndash; eingeklappt.</li>
+    <li><strong>Spalten wählen:</strong> Das <em>⚙</em>-Symbol rechts in der Verlaufs-Leiste öffnet einen Dialog, in dem Sie ankreuzen können, welche Spalten Sie sehen möchten (z. B. nur Breite und Schichtdicke, oder zusätzlich Rollencharge/Bahn-Nr.). Die Auswahl wird pro Prozess gespeichert und bleibt bei allen weiteren Anmeldungen erhalten.</li>
+</ul>
+<div class="tip">
+    Default ist <em>eingeklappt</em> &ndash; so haben Sie maximal Platz für die Eingabefelder. Klappen Sie den Verlauf nur auf, wenn Sie ihn brauchen.
 </div>
 
 <hr />
@@ -300,11 +339,21 @@
 <h3>Dark Mode</h3>
 <p>Oben rechts: <em>◑ Dark</em> bzw. <em>◑ Hell</em> &ndash; schaltet zwischen hellem und dunklem Design um. Die eingestellte Schriftgröße bleibt dabei erhalten.</p>
 
-<h3>Layout: Vertikal / Horizontal</h3>
-<p>Im Messwert-Bildschirm unten links: Button <em>Layout: Vertikal</em> bzw. <em>Layout: Horizontal</em>. Bei vertikalem Layout stehen die Felder untereinander, bei horizontalem in 4 Spalten nebeneinander &ndash; nützlich für viele Messwerte auf einen Blick.</p>
+<h3>Layout: Horizontal / Vertikal</h3>
+<p>Im Messwert-Bildschirm unten links: Button <em>Layout: Horizontal</em> bzw. <em>Layout: Vertikal</em>. Default ist horizontal &ndash; Felder stehen in mehreren Spalten nebeneinander, mehr Werte auf einen Blick. Vertikal stellt sie untereinander.</p>
 
-<h3>Hilfe-Button</h3>
+<h3>Hilfe-Button (?)</h3>
 <p>Das <em>?</em>-Symbol oben rechts öffnet diese Kurzanleitung.</p>
+
+<h3>Info-Button (ⓘ)</h3>
+<p>Das <em>ⓘ</em>-Symbol oben rechts öffnet ein kleines Fenster mit:</p>
+<ul>
+    <li>App-Version und Datum</li>
+    <li>Host (Rechnername), Windows-Benutzer und der gerade angemeldete App-Benutzer</li>
+    <li>Pfade zu den Daten- und Log-Verzeichnissen</li>
+    <li>Tabelle aller Produkte mit ihrer aktuellen Revisionsnummer</li>
+</ul>
+<p>Diese Informationen sind hilfreich, wenn Sie den Administrator wegen eines Problems kontaktieren.</p>
 
 <hr />
 
@@ -334,8 +383,10 @@
 
 <h3>Senden-Button ist ausgegraut</h3>
 <div class="error-box">
-    <strong>Ursache:</strong> Mindestens ein Wert ist als Fehler markiert (rot, mit Status <em>Fehler</em>).<br>
-    <strong>Lösung:</strong> <em>Bearbeiten</em> klicken, alle als Fehler markierten Felder korrigieren (z. B. Text statt Zahl, Pflichtfeld leer), erneut <em>Speichern</em>.
+    <strong>Ursache 1 &ndash; Fehler:</strong> Mindestens ein Wert ist als Fehler markiert (rot, mit Status <em>Fehler</em>).<br>
+    <strong>Lösung:</strong> <em>Bearbeiten</em> klicken, alle als Fehler markierten Felder korrigieren (z. B. Text statt Zahl, Pflichtfeld leer), erneut <em>Speichern</em>.<br><br>
+    <strong>Ursache 2 &ndash; Spec-Verletzung ohne Bemerkung:</strong> Ein Wert liegt außerhalb der Toleranz, aber das Bemerkungen-Feld ist leer, enthält nur <code>n/a</code> oder <code>-</code>.<br>
+    <strong>Lösung:</strong> <em>Bearbeiten</em> klicken und eine echte Begründung im Bemerkungen-Feld eintragen.
 </div>
 
 <h3>Falscher Wert wurde gesendet</h3>
@@ -354,7 +405,7 @@
 </div>
 
 <h3>Feste Werte (FA-Nr., LOT, …) müssen geändert werden</h3>
-<p>Die Werte sind im Messwert-Bildschirm nur lesend angezeigt. Für eine Änderung unten auf <em>Prozess wechseln</em> klicken &ndash; danach werden FA-Nr., LOT, Verwendbarkeitsdatum und Messmittel erneut abgefragt. Eine andere LOT-/FA-Kombination führt automatisch zu einer neuen Excel-Datei.</p>
+<p>Klicken Sie im Messwert-Bildschirm direkt auf das kleine <em>✎</em>-Symbol neben dem betreffenden Wert &ndash; Sie kommen zurück zum Bildschirm „Feste Werte" und können dort korrigieren. Alternativ: unten auf <em>Prozess wechseln</em> klicken. Eine andere LOT-/FA-Kombination führt automatisch zu einer neuen Excel-Datei.</p>
 
 <h3>Eingabe wird nicht akzeptiert / falsches Format</h3>
 <div class="warn">
@@ -370,7 +421,7 @@
 </ul>
 
 <hr />
-<p style="color:#888; font-size:0.9em;">QAInput v1.4.0 &ndash; Questalpha GmbH</p>
+<p style="color:#888; font-size:0.9em;">QAInput v1.5.0 &ndash; Questalpha GmbH</p>
 
 </body>
 </html>

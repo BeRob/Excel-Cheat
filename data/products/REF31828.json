@@ -1,21 +1,94 @@
 {
   "product_id": "REF31828",
   "display_name": "REF 31828 - Lifecell sponge, 300 x 600 mm sterile, 122PO291",
+  "revision": 1,
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
       "display_name": "IPC1 Vorschneiden",
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "ask", "display_name": "ASK Soll >=1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
-        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 300, "spec_min": 297, "spec_max": 303},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "ask",
+          "display_name": "ASK Soll >=1200%",
+          "type": "choice",
+          "role": "measurement",
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
+        },
+        {
+          "id": "breite",
+          "display_name": "Breite",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 300,
+          "spec_min": 297,
+          "spec_max": 303
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     },
     {
@@ -23,18 +96,102 @@
       "display_name": "IPC2 Stanzen der Platten",
       "row_group_size": 3,
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "nutzen", "display_name": "Nutzen", "type": "number", "role": "auto", "persistent": false},
-        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 300, "spec_min": 297, "spec_max": 303},
-        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 600, "spec_min": 597, "spec_max": 603},
-        {"id": "rohausbeute", "display_name": "Rohausbeute Platten", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "nutzen",
+          "display_name": "Nutzen",
+          "type": "number",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "breite",
+          "display_name": "Breite",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 300,
+          "spec_min": 297,
+          "spec_max": 303
+        },
+        {
+          "id": "laenge",
+          "display_name": "Länge",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 600,
+          "spec_min": 597,
+          "spec_max": 603
+        },
+        {
+          "id": "rohausbeute",
+          "display_name": "Rohausbeute Platten",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "group_shared": true
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     },
     {
@@ -42,56 +199,328 @@
       "display_name": "IPC3 Schälen der Platten",
       "row_group_size": 3,
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "nutzen", "display_name": "Nutzen", "type": "number", "role": "auto", "persistent": false},
-        {"id": "ask", "display_name": "ASK %", "type": "number", "role": "measurement", "persistent": false, "spec_min": 1200, "group_shared": true},
-        {"id": "spalt2", "display_name": "Spalt2", "type": "number", "role": "measurement", "persistent": false, "group_shared": true},
-        {"id": "schichtdicke_trocken_oben", "display_name": "Schichtdicke trocken oben", "type": "number", "role": "measurement", "persistent": false, "spec_target": 2.15, "spec_min": 1.8, "spec_max": 2.5},
-        {"id": "schichtdicke_trocken_unten", "display_name": "Schichtdicke trocken unten", "type": "number", "role": "measurement", "persistent": false, "spec_target": 2.15, "spec_min": 1.8, "spec_max": 2.5},
-        {"id": "schichtdicke_nass_oben", "display_name": "Schichtdicke nass oben", "type": "number", "role": "measurement", "persistent": false, "spec_target": 2.5, "spec_min": 2.0, "spec_max": 3.0},
-        {"id": "schichtdicke_nass_unten", "display_name": "Schichtdicke nass unten", "type": "number", "role": "measurement", "persistent": false, "spec_target": 2.5, "spec_min": 2.0, "spec_max": 3.0},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "nutzen",
+          "display_name": "Nutzen",
+          "type": "number",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "ask",
+          "display_name": "ASK %",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_min": 1200,
+          "group_shared": true
+        },
+        {
+          "id": "spalt2",
+          "display_name": "Spalt2",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "group_shared": true
+        },
+        {
+          "id": "schichtdicke_trocken_oben",
+          "display_name": "Schichtdicke trocken oben",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 2.15,
+          "spec_min": 1.8,
+          "spec_max": 2.5
+        },
+        {
+          "id": "schichtdicke_trocken_unten",
+          "display_name": "Schichtdicke trocken unten",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 2.15,
+          "spec_min": 1.8,
+          "spec_max": 2.5
+        },
+        {
+          "id": "schichtdicke_nass_oben",
+          "display_name": "Schichtdicke nass oben",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 2.5,
+          "spec_min": 2.0,
+          "spec_max": 3.0
+        },
+        {
+          "id": "schichtdicke_nass_unten",
+          "display_name": "Schichtdicke nass unten",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 2.5,
+          "spec_min": 2.0,
+          "spec_max": 3.0
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     },
     {
       "template_id": "IPC4_Ausschussplatten",
       "display_name": "IPC4 Verarbeiten der Ausschussplatten",
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "format", "display_name": "Format", "type": "choice", "role": "context", "persistent": false, "options": ["Länge", "Breite"]},
-        {"id": "platten_nr", "display_name": "Platten Nr.", "type": "number", "role": "measurement", "persistent": false},
-        {"id": "aus_fa", "display_name": "Ausschussplatten aus FA", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "persistent": false, "spec_target": 600, "spec_min": 597, "spec_max": 603, "optional": true},
-        {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "persistent": false, "spec_target": 300, "spec_min": 297, "spec_max": 303, "optional": true},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "format",
+          "display_name": "Format",
+          "type": "choice",
+          "role": "context",
+          "persistent": false,
+          "options": [
+            "Länge",
+            "Breite"
+          ]
+        },
+        {
+          "id": "platten_nr",
+          "display_name": "Platten Nr.",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false
+        },
+        {
+          "id": "aus_fa",
+          "display_name": "Ausschussplatten aus FA",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "laenge",
+          "display_name": "Länge",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 600,
+          "spec_min": 597,
+          "spec_max": 603,
+          "optional": true
+        },
+        {
+          "id": "breite",
+          "display_name": "Breite",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "spec_target": 300,
+          "spec_min": 297,
+          "spec_max": 303,
+          "optional": true
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     },
     {
       "template_id": "IPC5_Menge_Ausschussplatten",
       "display_name": "IPC5 Menge Ausschussplatten",
       "fields": [
-        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
-        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
-        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
-        {"id": "menge_schaelen", "display_name": "Menge Ausschuß Schälen", "type": "number", "role": "measurement", "persistent": false},
-        {"id": "menge_verpacken", "display_name": "Menge Ausschuß Verpacken", "type": "number", "role": "measurement", "persistent": false},
-        {"id": "ausschuss_m2", "display_name": "Ausschuß [m²]", "type": "number", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
-        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
-        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+        {
+          "id": "fa_nr",
+          "display_name": "FA-Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "lot_nr",
+          "display_name": "LOT Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "verwendbarkeitsdatum",
+          "display_name": "Verwendbarkeitsdatum",
+          "type": "date",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "messmittel",
+          "display_name": "Messmittel",
+          "type": "text",
+          "role": "context",
+          "persistent": true,
+          "info_header": true
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "menge_schaelen",
+          "display_name": "Menge Ausschuß Schälen",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false
+        },
+        {
+          "id": "menge_verpacken",
+          "display_name": "Menge Ausschuß Verpacken",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false
+        },
+        {
+          "id": "ausschuss_m2",
+          "display_name": "Ausschuß [m²]",
+          "type": "number",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "bemerkungen",
+          "display_name": "Bemerkungen",
+          "type": "text",
+          "role": "measurement",
+          "persistent": false,
+          "optional": true
+        },
+        {
+          "id": "datum",
+          "display_name": "Datum",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        },
+        {
+          "id": "bearbeiter",
+          "display_name": "Bearbeiter",
+          "type": "text",
+          "role": "auto",
+          "persistent": false
+        }
       ]
     }
   ]

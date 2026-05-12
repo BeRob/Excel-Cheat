@@ -80,7 +80,7 @@
 </head>
 <body>
 <h1>QAInput &ndash; Bedienungsanleitung</h1>
-<p>Technische Dokumentation für Administratoren, Entwickler und Wartung. Beschreibt Architektur, Code-Aufbau, Konfigurationssystem und Datenfluss von QAInput v1.4.0.</p>
+<p>Technische Dokumentation für Administratoren, Entwickler und Wartung. Beschreibt Architektur, Code-Aufbau, Konfigurationssystem und Datenfluss von QAInput v1.5.0.</p>
 <p>Eine schlanke Anleitung für Endbenutzer (Mitarbeiter im Produktionsbetrieb) liegt separat als <code>Kurzanleitung.html</code> bei.</p>
 
 <div class="toc">
@@ -97,7 +97,8 @@
         <li><a href="#ui-module">UI-Module</a></li>
         <li><a href="#theme">Theme, Dark Mode, Zoom</a></li>
         <li><a href="#validation">Eingabevalidierung</a></li>
-        <li><a href="#audit">Audit-Log</a></li>
+        <li><a href="#audit">Audit-Log, Debug- und Error-Log</a></li>
+        <li><a href="#versionierung">Versionierung und Produkt-Revisionen</a></li>
         <li><a href="#paths">Pfad-Konfiguration</a></li>
         <li><a href="#tests">Tests</a></li>
         <li><a href="#neues-produkt">Neues Produkt hinzufügen</a></li>
@@ -127,24 +128,30 @@
 |-- data/
 |   |-- app_config.json                 Globale Einstellungen (Schichten)
 |   |-- products/
-|   |   |-- REF31962.json               Produktkonfiguration
+|   |   |-- REF31962.json               Produktkonfiguration (mit revision)
 |   |   |-- REF31963.json
 |   |   |-- REF32102.json
 |   |-- users.kv                        Benutzerliste (Passwort, QR-Code, Name, Admin)
-|   |-- audit_log.jsonl                 Audit-Trail (JSON-Lines)
+|   |-- audit_log.jsonl                 Audit-Trail (JSON-Lines, Tagesrotation)
+|   |-- debug.log                       Vollständiges Vorgangsprotokoll (5 MB × 5 Rotation)
+|   |-- error.log                       Errors und Tracebacks (2 MB × 5 Rotation)
+|   |-- ui_prefs.json                   UI-Einstellungen (Verlaufsspalten pro Prozess)
 |-- src/
+|   |-- version.py                      Zentrale APP_VERSION + Produkt-Revisions-Aggregator
 |   |-- audit/
-|   |   |-- audit_logger.py             JSONL-Audit-Trail mit Inter-Prozess-Locking
+|   |   |-- audit_logger.py             JSONL-Audit-Trail mit Inter-Prozess-Locking, Tagesrotation, Fallback
+|   |   |-- events.py                   Event-Namens-Konstanten (typo-sicher)
+|   |   |-- logging_setup.py            debug.log/error.log Setup, sys.excepthook, Tk-Hook
 |   |-- auth/
 |   |   |-- login.py                    Passwort- und QR-Authentifizierung
 |   |   |-- users_kv.py                 Parser für die Benutzerdatei
 |   |-- config/
-|   |   |-- settings.py                 Pfad-Resolution, Konstanten (HEADER_ROW=9)
+|   |   |-- settings.py                 Pfad-Resolution, Konstanten (HEADER_ROW=9), UI-Prefs-Helper
 |   |   |-- process_config.py           JSON-Lader, Datenklassen, Filter-Helfer
 |   |   |-- config_writer.py            Datenklassen → JSON, Validierung
 |   |-- domain/
 |   |   |-- state.py                    AppState (zentraler Zustand), UserInfo
-|   |   |-- validation.py               Dezimal-Normalisierung, Spec-Validierung
+|   |   |-- validation.py               Dezimal-Normalisierung, Spec-Validierung, oos_fields
 |   |-- excel/
 |   |   |-- creator.py                  Datei anlegen, Info-Header schreiben, Resume-Suche
 |   |   |-- reader.py                   Excel-Daten lesen (für Analyse-Ansicht)
@@ -209,8 +216,11 @@
 <tr><td><code>row_group_counter</code></td><td>Nutzen-Zähler bei Multi-Nutzen-Prozessen</td></tr>
 <tr><td><code>auto_sequence</code></td><td>Globaler Zähler für Auto-Sequenz-Felder (Prüfmuster, Beutel-Nr.)</td></tr>
 <tr><td><code>nutzen_count</code></td><td>Anzahl der gerade angezeigten Nutzen-Sektionen</td></tr>
-<tr><td><code>layout_mode</code></td><td><code>"vertical"</code> oder <code>"horizontal"</code></td></tr>
+<tr><td><code>layout_mode</code></td><td><code>"horizontal"</code> (Default) oder <code>"vertical"</code></td></tr>
 <tr><td><code>is_resume</code></td><td><code>True</code> wenn die aktuelle Datei fortgesetzt wird</td></tr>
+<tr><td><code>current_view</code></td><td>Vom Navigator gesetzte aktive View (fürs Audit-Log)</td></tr>
+<tr><td><code>ui_prefs</code></td><td>Geladene UI-Einstellungen aus <code>data/ui_prefs.json</code> (Verlaufsspalten pro Prozess)</td></tr>
+<tr><td><code>machine_scoped_values</code></td><td><code>field_id → maschine → wert</code> für die Aktive-Rolle-Slots (Variante 2)</td></tr>
 <tr><td><code>audit</code></td><td><code>AuditLogger</code>-Instanz</td></tr>
 </tbody>
 </table>
@@ -246,6 +256,7 @@
 <pre><code class="language-json">{
   "product_id": "REF31962",
   "display_name": "Sugi Standard, 60 Stk.",
+  "revision": 1,
   "output_dir": "X:/Produktion/14_QAInput/Daten",
   "processes": [
     {
@@ -297,6 +308,7 @@
 <ul>
 <li><code>product_id</code> &mdash; eindeutig, wird im Dateinamen verwendet</li>
 <li><code>display_name</code> &mdash; im Produkt-Dropdown</li>
+<li><code>revision</code> &mdash; Revisionsnummer der Konfiguration (Default 1). Wird im Info-Dialog gelistet und sollte bei inhaltlichen Änderungen an Specs/Feldern hochgezählt werden</li>
 <li><code>output_dir</code> &mdash; absoluter oder relativer Pfad. Leer/nicht gesetzt &rarr; Ordner-Auswahl-Dialog beim Prozessstart</li>
 <li><code>processes</code> &mdash; Liste der Prozesse</li>
 </ul>
@@ -428,12 +440,13 @@ user.max.admin=true</code></pre>
 <h2 id="ui-module">UI-Module</h2>
 
 <h3><code>app.py</code> &ndash; Hauptfenster und Navigation</h3>
-<p>Erzeugt das Tk-Hauptfenster im Vollbildmodus, startet den AuditLogger, lädt die App-Konfiguration und stapelt die vier Views. Oben liegt eine durchgehende <strong>Header-Bar</strong>:</p>
+<p>Initialisiert vor allem anderen das Logging (<code>init_logging</code>) &mdash; damit Fehler in der Initialisierung selbst schon erfasst werden. Erzeugt das Tk-Hauptfenster im Vollbildmodus mit <code>WM_DELETE_WINDOW</code>-Handler (sauberes <code>APP_EXIT</code>-Event), startet den AuditLogger, lädt App-Konfiguration und UI-Prefs (<code>load_ui_prefs</code>), stapelt die vier Views. Oben liegt eine durchgehende <strong>Header-Bar</strong>:</p>
 <ul>
 <li><strong>Logo</strong> + Titel "QAInput &mdash; Messwerterfassung" links (PIL-skaliert; Fallback auf Textlabel)</li>
-<li><strong>Schalter rechts</strong> (von rechts nach links): <em>?</em> (Hilfe öffnet Kurzanleitung), <em>+</em> / <em>–</em> (Schrift), <em>◑ Dark</em> / <em>◑ Hell</em> (Theme)</li>
+<li><strong>Schalter rechts</strong> (von rechts nach links): <em>?</em> (Hilfe öffnet Kurzanleitung), <em>ⓘ</em> (Info-Dialog), <em>+</em> / <em>–</em> (Schrift), <em>◑ Dark</em> / <em>◑ Hell</em> (Theme)</li>
 </ul>
 <p>Schriftskala (<code>self._font_scale</code>) und Theme-Status werden zwischen Toggle-Aufrufen erhalten. <code>_toggle_dark()</code> übergibt die aktuelle Skala an <code>toggle_dark_mode()</code>, sodass <code>+</code>/<code>−</code>-Einstellungen beim Theme-Wechsel nicht verloren gehen.</p>
+<p><code>navigate(target)</code> loggt jeden View-Wechsel als <code>NAVIGATE</code>-Event mit <code>from</code>/<code>to</code>, ruft <code>audit.set_view(target)</code>, dann <code>on_hide()</code>/<code>on_show()</code> der jeweiligen Views.</p>
 
 <h3><code>theme.py</code> &ndash; Farben, Schriften, ttk-Styles</h3>
 <p>Definiert <code>_LIGHT_COLORS</code> und <code>_DARK_COLORS</code> als gespiegelte Dictionaries. <code>COLORS</code> wird beim Toggle aktualisiert. Skalierbare Schriften (<code>tkfont.Font</code>) sitzen in <code>FONTS</code> &mdash; <code>scale_fonts(delta, current_scale)</code> ändert sie global im Bereich −2 bis +5.</p>
@@ -484,7 +497,7 @@ user.max.admin=true</code></pre>
 <li><strong>Gemeinsame Werte</strong> &mdash; Per-Messung-Kontext (z. B. Rollen Nr.)</li>
 <li><strong>Messwerte</strong> &mdash; eigentliche Messfelder. Reihenfolge im UI: Choice-Felder zuerst, dann Zahlen-/Textfelder. (Excel-Spaltenreihenfolge bleibt unverändert &mdash; sie folgt der JSON-Reihenfolge.)</li>
 </ol>
-<p>Oberhalb dieser Frames liegt eine schmale <strong>Header-Bar</strong>: für jedes <code>info_header</code>-Feld erscheint <code>{Name}: {Wert}</code> nur lesend (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel). Eine Änderung erfolgt über <em>Prozess wechseln</em> (unten am Fensterrand).</p>
+<p>Ganz oben liegt eine 1-Zeilen-<strong>Meta-Leiste</strong> in <code>FONTS["small"]</code> und sekundärer Farbe: <code>{User} · {Produkt} · {Prozess} · Schicht {N} · {Dateiname}</code>. Direkt darunter die <strong>Header-Bar</strong>: für jedes <code>info_header</code>-Feld erscheint <code>{Name}: {Wert}</code> nur lesend (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel), inkl. <em>✎</em>-Button (<code>Manual.TButton</code>) pro Chip. Ein Klick auf <em>✎</em> loggt <code>CONTEXT_EDIT_REQUESTED</code> und navigiert zurück zur ContextView.</p>
 
 <h4>Layout-Aufbau (Multi-Nutzen)</h4>
 <p>Aktiviert sobald <code>row_group_size</code> gesetzt ist <strong>und</strong> mindestens ein <code>group_shared</code>-Messfeld existiert. Frames:</p>
@@ -518,27 +531,35 @@ user.max.admin=true</code></pre>
 </tbody>
 </table>
 
-<h4>History</h4>
-<p>Die letzten 10 erfolgreichen Schreibvorgänge werden in einem <code>ttk.Treeview</code> unter dem Formular angezeigt (Spalten: Zeit, Kontext, Werte). Beim Resume füllt <code>_preload_history()</code> die Tabelle aus der bestehenden Excel-Datei vor.</p>
+<h4>History (einklappbar mit Spaltenwahl)</h4>
+<p>Die letzten max. 10 erfolgreichen Schreibvorgänge werden als Dict-Einträge im <code>self._history</code>-Deque gehalten. Eine schmale <strong>History-Bar</strong> (zwischen Statuszeile und Action-Bar) zeigt:</p>
+<ul>
+<li><em>▼ Verlauf (n)</em> / <em>▲ Verlauf (n)</em> &mdash; Toggle-Button (Default: eingeklappt)</li>
+<li><em>Zuletzt {Zeit} &mdash; {Spalte}: {Wert}, &hellip;</em> &mdash; 1-Zeilen-Vorschau der letzten Messung, basierend auf den gewählten Spalten</li>
+<li><em>⚙</em> &mdash; öffnet den <strong>ColumnPicker-Dialog</strong>: Checkbox-Liste aller verfügbaren Felder (Kontext/Messung/Auto), Auswahl wird pro Prozess in <code>data/ui_prefs.json</code> persistiert (<code>history_columns[process_display_name]</code>)</li>
+</ul>
+<p>Aufgeklappt erscheint darunter ein <code>ttk.Treeview</code> mit <code>height=5</code> und dynamisch nur den ausgewählten Spalten. Audit-Events: <code>HISTORY_TOGGLED</code> beim Toggle, <code>HISTORY_COLUMNS_CHANGED</code> nach OK im Picker. Default-Spaltenwahl: alle <code>role:measurement</code> + <code>rollencharge</code>/<code>rollen_nr</code>/<code>bahn</code>/<code>nutzen</code>/<code>maschine</code> wenn vorhanden.</p>
 
 <h4>Felder leeren</h4>
-<p><code>_clear_fields()</code> nach dem Senden: setzt alle Variablen zurück. Persistente Kontextfelder, Choice-Felder und <code>group_shared</code>-Felder behalten ihren Wert; alle anderen werden auf <code>default_value</code> bzw. leer gesetzt. Validation-Borders gehen in den neutralen <code>border</code>-Zustand zurück.</p>
+<p><code>_clear_fields()</code> nach dem Senden: setzt alle Variablen zurück. Persistente Kontextfelder, Choice-Felder und <code>group_shared</code>-Felder behalten ihren Wert; alle anderen werden auf <code>default_value</code> bzw. leer gesetzt. Validation-Borders gehen in den neutralen <code>border</code>-Zustand zurück. Loggt <code>FIELDS_CLEARED</code> mit Feldanzahl.</p>
 
 <h4>Save-Pfad</h4>
 <ul>
-<li><strong>Single-Nutzen:</strong> <code>raw_values</code> (Dict aus <code>field_vars</code>) → <code>ReviewDialog</code> → <code>_do_write(normalized_values)</code> → <code>write_measurement_row</code></li>
-<li><strong>Multi-Nutzen:</strong> <code>shared_raw</code> + <code>nutzen_raw_list</code> → <code>ReviewDialog(shared_values=&hellip;, nutzen_values=&hellip;)</code> → <code>_do_multi_nutzen_write(shared_normalized, nutzen_normalized)</code> → <code>write_measurement_rows</code> (alle Nutzen in einem File-Open)</li>
+<li><strong>Single-Nutzen:</strong> <code>raw_values</code> (Dict aus <code>field_vars</code>) → <code>ReviewDialog(on_confirm, on_cancel)</code> → <code>_do_write(normalized_values)</code> → <code>write_measurement_row</code></li>
+<li><strong>Multi-Nutzen:</strong> <code>shared_raw</code> + <code>nutzen_raw_list</code> → <code>ReviewDialog(shared_values=&hellip;, nutzen_values=&hellip;, on_cancel=&hellip;)</code> → <code>_do_multi_nutzen_write(shared_normalized, nutzen_normalized)</code> → <code>write_measurement_rows</code> (alle Nutzen in einem File-Open)</li>
 </ul>
+<p>Bei jeder Speichern-Aktion wird <code>REVIEW_OPENED</code> geloggt, bei Cancel zusätzlich <code>REVIEW_CANCELLED</code>. Wenn der Dialog wegen fehlender OoS-Bemerkung gesperrt war, kommt zusätzlich <code>OOS_BLOCKED</code> mit Liste der betroffenen Sektionen.</p>
 
-<h4>Buttons</h4>
+<h4>Action-Bar (Layout v1.5.0)</h4>
+<p>Eine einzige Leiste am Fensterboden ersetzt die bisherige getrennte Anordnung (vorher: Buttons mittig + Navigation darunter):</p>
 <table>
 <thead><tr><th>Position</th><th>Buttons</th></tr></thead>
 <tbody>
-<tr><td>Mittig im Form</td><td><em>Felder leeren</em>, <em>Speichern</em></td></tr>
-<tr><td>Unten links</td><td><em>Layout: Vertikal/Horizontal</em></td></tr>
-<tr><td>Unten rechts</td><td><em>Prozess wechseln</em>, <em>Abmelden</em></td></tr>
+<tr><td>Links</td><td><em>Layout: Horizontal/Vertikal</em>, <em>Prozess wechseln</em>, <em>Abmelden</em></td></tr>
+<tr><td>Rechts</td><td><em>Felder leeren</em>, <em>Speichern</em> (Accent)</td></tr>
 </tbody>
 </table>
+<p>Damit liegt nichts mehr mitten im Form. Layout-Default ist <strong>horizontal</strong> (<code>AppState.layout_mode = "horizontal"</code>).</p>
 
 <h3><code>review_dialog.py</code> &ndash; Übersichtsdialog</h3>
 <p>Modaler <code>tk.Toplevel</code> mit zwei Modi:</p>
@@ -547,6 +568,21 @@ user.max.admin=true</code></pre>
 <li><strong>Multi-Nutzen:</strong> Konstruktorparameter <code>shared_values</code>/<code>shared_field_defs</code> und <code>nutzen_values</code>/<code>nutzen_field_defs</code>. Pro Nutzen ein eigener <em>Nutzen i</em>-Block mit Status-Header (<em>N Warnung(en), M Fehler</em> in Warning/Error/Success-Style) und Wertliste.</li>
 </ul>
 <p>In beiden Modi prüft <code>validate_measurements()</code> (siehe Validation) jedes Block-Dict separat. Der <em>Senden</em>-Button ist disabled, wenn <strong>irgendein</strong> Block Fehler hat. Bei Klick liefert die Callback-Funktion entweder ein <code>normalized_values</code>-Dict (Single) oder ein Tupel <code>(shared, [nutzen_1, nutzen_2, &hellip;])</code> (Multi).</p>
+
+<h4>Out-of-Spec-Gate (v1.5.0, GMP-konform)</h4>
+<p>Werte außerhalb der Spezifikation sind nicht mehr nur eine Warnung &mdash; sie sperren das Senden, solange das <code>Bemerkungen</code>-Feld nicht echt ausgefüllt ist:</p>
+<pre><code class="language-python">_REMARK_PLACEHOLDERS = {"", "n/a", "n.a.", "na", "-", "—", "–"}
+
+def _remark_is_valid(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() not in _REMARK_PLACEHOLDERS</code></pre>
+<p>Die strukturierte Information für den Gate kommt aus <code>ValidationResult.oos_fields: set[str]</code> &mdash; gefüllt vom Validator bei Spec-Verletzung. Helper <code>_oos_without_remark()</code> liefert die Liste betroffener Sektionen:</p>
+<ul>
+<li><strong>Single-Modus:</strong> <code>["Messwerte"]</code> wenn OoS und Bemerkung leer/<code>n/a</code></li>
+<li><strong>Multi-Modus:</strong> pro Nutzen einzeln geprüft (<code>"Nutzen 2"</code>, &hellip;); zusätzlich <code>"Gemeinsame Werte"</code>, wenn der Shared-Block OoS hat und keine der Nutzen-Bemerkungen valide ist</li>
+</ul>
+<p>Im Dialog erscheint ein roter Banner mit den Namen der gesperrten Sektionen; der <em>Senden</em>-Button bleibt disabled. Der <code>on_cancel</code>-Callback liefert die Liste an die FormView, die daraufhin <code>OOS_BLOCKED</code> + <code>REVIEW_CANCELLED</code> ins Audit schreibt.</p>
 
 <h3><code>date_picker.py</code> &ndash; Kalender-Popup</h3>
 <p>Modaler <code>tk.Toplevel</code> ohne externe Dependencies. Navigationsleiste:</p>
@@ -616,11 +652,13 @@ user.max.admin=true</code></pre>
 <li><code>normalized_values</code> &mdash; Dict typkorrekter Werte (float / str / None)</li>
 <li><code>warnings</code> &mdash; Liste von Warntexten ("Feld: Wert liegt unter ...", "Feld ist leer", &hellip;)</li>
 <li><code>errors</code> &mdash; Liste von Fehlertexten ("Feld: keine gültige Zahl", "Feld: keine gültige Auswahl", &hellip;)</li>
+<li><code>oos_fields: set[str]</code> &mdash; Anzeigenamen der Felder mit Spec-Verletzung (für den OoS-Gate im ReviewDialog)</li>
 <li><code>has_errors</code> &mdash; <code>True</code> wenn mindestens ein Fehler</li>
+<li><code>has_oos</code> &mdash; <code>True</code> wenn <code>oos_fields</code> nicht leer</li>
 </ul>
 <p>Pro Feldtyp:</p>
 <ul>
-<li><code>number</code> &mdash; muss parsebar sein (Fehler) und in Spec liegen (sonst Warnung)</li>
+<li><code>number</code> &mdash; muss parsebar sein (sonst Fehler). Spec-Verletzung erzeugt eine Warnung <strong>und</strong> einen Eintrag in <code>oos_fields</code></li>
 <li><code>choice</code> &mdash; muss in <code>options</code> sein (sonst Fehler)</li>
 <li><code>text</code> / <code>date</code> &mdash; durchgereicht ohne Prüfung</li>
 </ul>
@@ -629,11 +667,96 @@ user.max.admin=true</code></pre>
 
 <hr />
 
-<h2 id="audit">Audit-Log</h2>
-<p><code>src/audit/audit_logger.py</code> schreibt JSON-Lines in <code>data/audit_log.jsonl</code>. Jeder Eintrag enthält <code>timestamp</code>, <code>event</code> und beliebige Detail-Felder (User, File, Context, Details).</p>
-<p>Aufgerufen bei: <em>app_start</em>, <em>login_success</em>, <em>login_fail</em>, <em>process_selected</em>, <em>context_set</em>, <em>write_attempt</em>, <em>write_success</em>, <em>write_fail</em>, <em>logout</em>.</p>
-<p><strong>Multi-Instance-Support:</strong> Vor jedem Append wird eine sibling Lock-Datei <code>audit_log.jsonl.lock</code> exklusiv gesperrt &mdash; auf Windows via <code>msvcrt.locking</code>, auf Unix via <code>fcntl.flock</code>. Mehrere parallel laufende QAInput-Instanzen können so gleichzeitig schreiben, ohne sich zu verstümmeln.</p>
-<p>Fehler beim Logging werden auf <code>stderr</code> ausgegeben, niemals propagiert &mdash; das Audit-Log darf die App nicht blockieren.</p>
+<h2 id="audit">Audit-Log, Debug- und Error-Log</h2>
+<p>Seit v1.5.0 gibt es drei getrennte Log-Quellen, alle im aufgelösten <code>audit_dir</code>:</p>
+<table>
+<thead><tr><th>Datei</th><th>Inhalt</th><th>Format</th><th>Rotation</th></tr></thead>
+<tbody>
+<tr><td><code>audit_log.jsonl</code></td><td>GMP-relevante Geschäftsereignisse</td><td>JSONL (1 Event = 1 Zeile)</td><td>Tagesrotation, unbegrenzte Aufbewahrung</td></tr>
+<tr><td><code>debug.log</code></td><td>Vollständiges Vorgangsprotokoll inkl. Klicks/Navigation</td><td>Plaintext mit Timestamp+Level</td><td>5 MB &times; 5 Files (gepuffert für SMB-Effizienz)</td></tr>
+<tr><td><code>error.log</code></td><td>Nur Errors + Exceptions inkl. Traceback</td><td>Plaintext</td><td>2 MB &times; 5 Files (unbuffered)</td></tr>
+</tbody>
+</table>
+
+<h3>Audit-Eintrag-Struktur</h3>
+<pre><code class="language-json">{
+  "ts": "2026-05-13T14:32:18.412+02:00",
+  "event": "write_success",
+  "level": "info",
+  "app_version": "1.5.0",
+  "session": "e2feb64b8c624e7989...",
+  "host": "ws-prod-01",
+  "win_user": "max.mustermann",
+  "view": "form",
+  "user": "mmuster",
+  "file": "X:/.../LOT01_FA01_REF31962_..._Schicht1.xlsx",
+  "context": {"FA-Nr.": "FA01", "LOT Nr.": "LOT01", ...},
+  "details": {"row": 42}
+}</code></pre>
+<p>Felder pro Eintrag:</p>
+<ul>
+<li><code>ts</code> &mdash; ISO-8601 mit lokaler Timezone</li>
+<li><code>event</code> &mdash; Name aus <code>src/audit/events.Event</code> (Konstanten verhindern Tippfehler)</li>
+<li><code>level</code> &mdash; <code>info</code>, <code>warn</code> oder <code>error</code></li>
+<li><code>app_version</code> &mdash; aus <code>src/version.APP_VERSION</code></li>
+<li><code>session</code> &mdash; UUID je App-Start, ordnet Events einer Session zu (über View-Wechsel und Workstation-Grenzen hinweg auffindbar)</li>
+<li><code>host</code> &mdash; <code>socket.gethostname()</code> der Workstation</li>
+<li><code>win_user</code> &mdash; <code>getpass.getuser()</code>, der Windows-Account (<strong>unabhängig vom App-Benutzer</strong>; bei Schichtwechsel auf demselben Rechner kann sich nur <code>user</code> ändern, <code>win_user</code> bleibt gleich)</li>
+<li><code>view</code> &mdash; aktive UI-View (gesetzt durch <code>MeasurementApp.navigate</code>)</li>
+<li><code>user</code> &mdash; der gerade in QAInput angemeldete App-Mitarbeiter</li>
+</ul>
+
+<h3>Event-Konstanten (<code>src/audit/events.py</code>)</h3>
+<p>Lifecycle: <code>APP_START</code>, <code>APP_EXIT</code>, <code>EXCEPTION</code>. Auth: <code>LOGIN_SUCCESS</code>, <code>LOGIN_FAIL</code>, <code>LOGOUT</code>. Navigation: <code>NAVIGATE</code>, <code>PRODUCT_SELECT</code>, <code>PROCESS_SELECT</code>, <code>OUTPUT_DIR_CHOSEN</code>, <code>CONTEXT_SET</code>, <code>CONTEXT_EDIT_REQUESTED</code>, <code>FILE_CREATED</code>, <code>FILE_RESUMED</code>. Messung: <code>REVIEW_OPENED</code>, <code>REVIEW_CANCELLED</code>, <code>OOS_BLOCKED</code>, <code>WRITE_ATTEMPT</code>, <code>WRITE_SUCCESS</code>, <code>WRITE_FAIL</code>, <code>FIELDS_CLEARED</code>. UI: <code>NUTZEN_COUNT_CHANGED</code>, <code>LAYOUT_TOGGLED</code>, <code>DARK_MODE_TOGGLED</code>, <code>FONT_SCALED</code>, <code>HISTORY_TOGGLED</code>, <code>HISTORY_COLUMNS_CHANGED</code>. Admin: <code>CONFIG_EDITED</code>.</p>
+
+<h3>Logging-Setup (<code>src/audit/logging_setup.py</code>)</h3>
+<ul>
+<li><code>RotatingFileHandler</code> für <code>debug.log</code> und <code>error.log</code> mit <code>delay=True</code> (Datei wird erst beim ersten Write geöffnet)</li>
+<li><code>MemoryHandler</code> als Puffer-Wrapper um den Debug-Handler &mdash; Capacity 20, Flush automatisch bei <code>WARNING</code>+. Reduziert die Schreiblast aufs Netzlaufwerk bei vielen <code>INFO</code>/<code>DEBUG</code>-Events</li>
+<li><code>sys.excepthook</code> &mdash; uncaught Exceptions landen mit vollem Traceback in <code>error.log</code>, plus <code>EXCEPTION</code>-Event im Audit, plus <code>messagebox.showerror</code></li>
+<li><code>tk.Tk.report_callback_exception</code> &mdash; abgefangene Tk-Callback-Exceptions (gehen sonst still in stderr verloren)</li>
+</ul>
+
+<h3>Multi-Instance-Support und Netzlaufwerk-Robustheit</h3>
+<p>Vor jedem Append wird eine sibling Lock-Datei <code>audit_log.jsonl.lock</code> exklusiv gesperrt &mdash; auf Windows via <code>msvcrt.locking</code>, auf Unix via <code>fcntl.flock</code>. Mehrere parallel laufende QAInput-Instanzen können so gleichzeitig schreiben, ohne sich zu verstümmeln.</p>
+<p><strong>Lock-Timeout 5 Sekunden</strong> (statt Endlos-Retry): bei Netzaussetzer wird das Event in <code>%LOCALAPPDATA%\QAInput\audit_local_fallback.jsonl</code> zwischengespeichert. Beim nächsten erfolgreichen Audit-Schreibvorgang wird der Fallback automatisch ins zentrale Log gemerged und geleert (<em>"merge on recovery"</em>) &mdash; kein verlorenes Event bei kurzem Netzaussetzer.</p>
+
+<h3>Tagesrotation</h3>
+<p>Vor jedem Schreiben prüft <code>AuditLogger._maybe_rotate()</code>, ob die <code>mtime</code> der aktiven Datei vor heute liegt. Wenn ja, wird sie in <code>audit_log.jsonl.YYYY-MM-DD</code> umbenannt. Race-frei, weil der Rename innerhalb des Locks geschieht und vorher <code>archived.exists()</code> geprüft wird (andere Workstation war eventuell schneller). Alte Tagesdateien bleiben dauerhaft erhalten &mdash; keine automatische Löschung, GMP-konforme Aufbewahrung.</p>
+
+<p>Fehler beim Logging werden in den Error-Logger geschrieben, niemals propagiert &mdash; das Audit-Log darf die App nicht blockieren.</p>
+
+<hr />
+
+<h2 id="versionierung">Versionierung und Produkt-Revisionen</h2>
+
+<h3>App-Version &mdash; Single Source of Truth</h3>
+<p><code>src/version.py</code> ist die zentrale Datei für die Anwendungsversion:</p>
+<pre><code class="language-python">APP_VERSION_TUPLE: tuple[int, int, int, int] = (1, 5, 0, 0)
+APP_VERSION: str = "1.5.0"
+APP_VERSION_FULL: str = "1.5.0.0"
+APP_VERSION_DATE: str = "2026-05-13"</code></pre>
+<p>Beim Versions-Bump nur dieses Tuple und das Datum anpassen. Alle anderen Module importieren von hier:</p>
+<ul>
+<li><code>src/config/settings.py</code> &mdash; Re-Export für Komponenten, die ohnehin Settings lesen</li>
+<li><code>src/audit/audit_logger.py</code> &mdash; Anhängen an jeden Event-Eintrag</li>
+<li><code>app.py</code> Info-Dialog &mdash; Anzeige im UI</li>
+</ul>
+<p><code>version_info.txt</code> für PyInstaller (Windows-Versionsressource) muss manuell synchron gehalten werden &mdash; <code>filevers</code>, <code>prodvers</code>, <code>FileVersion</code>, <code>ProductVersion</code>.</p>
+
+<h3>Produkt-Revisionen</h3>
+<p>Jedes Produkt-JSON enthält ein Top-Level-Feld <code>"revision": int</code> (Default 1). Beim Speichern via Config-Editor wird das Feld erhalten. Inhaltliche Änderungen an Specs/Feldern sollten die Revision hochzählen, damit nachvollziehbar bleibt, mit welchem Konfigurationsstand eine Excel-Datei geschrieben wurde.</p>
+<p>Aggregator <code>collect_product_revisions(products_dir)</code> in <code>src/version.py</code> liefert eine Map <code>product_id → revision</code> &mdash; wird im Info-Dialog für die Tabellenanzeige genutzt.</p>
+
+<h3>Info-Dialog (ⓘ-Button)</h3>
+<p>Oben rechts im App-Header öffnet das <em>ⓘ</em>-Symbol einen modalen Dialog mit:</p>
+<ul>
+<li>App-Version + Datum</li>
+<li>Python-Version, OS-Name und -Release</li>
+<li>Host, Windows-Benutzer, App-Benutzer, Session-ID (gekürzt)</li>
+<li>Pfade: Datenverzeichnis, Produkte, Audit-Log, Debug-Log, Error-Log</li>
+<li>Treeview-Tabelle aller Produkte mit ihrer Revision (sortiert nach <code>product_id</code>)</li>
+</ul>
 
 <hr />
 
@@ -641,9 +764,11 @@ user.max.admin=true</code></pre>
 <p>Sämtliche Datenverzeichnisse in <code>settings.py</code> werden in dieser Priorität aufgelöst:</p>
 <ol>
 <li><strong>Umgebungsvariable</strong> &mdash; <code>QAINPUT_USERS_DIR</code>, <code>QAINPUT_CONFIG_DIR</code>, <code>QAINPUT_PRODUCTS_DIR</code>, <code>QAINPUT_AUDIT_DIR</code>; <code>QAINPUT_DATA_DIR</code> als gemeinsamer Fallback</li>
-<li><strong>Bootstrap-Datei</strong> <code>&lt;APP_ROOT&gt;/config.json</code> mit den optionalen Keys <code>users_dir</code>, <code>config_dir</code>, <code>products_dir</code>, <code>audit_dir</code></li>
+<li><strong>Bootstrap-Datei</strong> <code>&lt;APP_ROOT&gt;/config.json</code> mit den optionalen Keys <code>users_dir</code>, <code>config_dir</code>, <code>products_dir</code>, <code>audit_dir</code>, <code>data_dir</code></li>
 <li><strong>Default</strong> &mdash; Unterordner von <code>&lt;APP_ROOT&gt;/data</code></li>
 </ol>
+<p><code>DEBUG_LOG_PATH</code> und <code>ERROR_LOG_PATH</code> liegen automatisch im aufgelösten <code>AUDIT_DIR</code> &mdash; im Produktionsbetrieb zeigt das auf das zentrale Netzlaufwerk-Verzeichnis, sodass alle Workstations in dieselben Logs schreiben.</p>
+<p><code>UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"</code> speichert pro Prozess die gewählten Verlaufsspalten. Diese Datei kann ruhig im Datenverzeichnis liegen &mdash; sie ist nicht-kritisch und der Code hat eine Best-Effort-Fehlerbehandlung.</p>
 <p>Die Bootstrap-Datei <code>config.json</code> ist <strong>nicht</strong> identisch mit <code>app_config.json</code>. <code>app_config.json</code> liegt im aufgelösten <code>config_dir</code> &mdash; ein Pfadverzeichnis dort wäre zirkulär.</p>
 <p><strong>Wichtig (PyInstaller):</strong> <code>APP_ROOT</code> in <code>settings.py</code> verwendet <code>sys.frozen</code>/<code>Path(sys.executable).parent</code> &rarr; zeigt im Bundle auf das EXE-Verzeichnis (neben <code>config.json</code>, <code>data/</code>). <code>app.py</code> verwendet hingegen <code>Path(__file__).resolve().parent</code> &rarr; zeigt im Bundle auf <code>_internal/</code> (Logo, HTML-Manuals). Bei neuen gebundelten Ressourcen den passenden Root verwenden.</p>
 
@@ -662,10 +787,10 @@ python -m unittest tests.test_validation.TestNormalizeDecimal.test_german_thousa
 <tr><td><code>test_config_writer.py</code></td><td>26</td><td>Serialisierung, Roundtrip, Validierungsregeln (leere/doppelte IDs, ungültige Typen, Spec-Logik, Choice-Optionen), Datei schreiben/überschreiben</td></tr>
 <tr><td><code>test_creator.py</code></td><td>19</td><td>Dateinamen-Format, Schicht-3-Datumsanpassung, <code>create_measurement_file</code> mit Header-Zeile 9, Info-Header (Zeile 1 Produktname, Zeilen 2-8 Info-Block), Resume-Suche, Datenzeilen-Zähler</td></tr>
 <tr><td><code>test_writer.py</code></td><td>6</td><td>Zeile wird ab Zeile 10 angehängt, Spalten-Mapping aus Datei, mehrere Schreibvorgänge nacheinander, Fehlerbehandlung, None-Werte</td></tr>
-<tr><td><code>test_validation.py</code></td><td>27</td><td>Dezimal-Normalisierung, numerisches Parsing, Validierung mit/ohne FieldDefs, Spec-Limits, Choice-Optionen, optional vs. Pflichtfeld</td></tr>
+<tr><td><code>test_validation.py</code></td><td>34</td><td>Dezimal-Normalisierung, numerisches Parsing, Validierung mit/ohne FieldDefs, Spec-Limits, Choice-Optionen, optional vs. Pflichtfeld, <code>oos_fields</code>-Detektion, Bemerkungen-Placeholder-Erkennung</td></tr>
 <tr><td><code>test_kv_parser.py</code></td><td>7</td><td>Single/Multi-User, Kommentare, Leerzeilen, Sonderzeichen, fehlerhafte Zeilen</td></tr>
 <tr><td><code>test_reader.py</code></td><td>10</td><td>Header-Extraktion (Fixture <code>tests/fixtures/sample_reader.xlsx</code>), Spalten-Map, Sheet-Namen, Fehlerbehandlung, Duplikat-Header, Whitespace-Stripping</td></tr>
-<tr><td><strong>Summe</strong></td><td><strong>120</strong></td><td></td></tr>
+<tr><td><strong>Summe</strong></td><td><strong>127</strong></td><td></td></tr>
 </tbody>
 </table>
 
@@ -719,10 +844,10 @@ build.bat</code></pre>
 <li><code>data/</code> &mdash; Konfiguration und Produkte (vom Build mitkopiert; an dieselbe Stelle wie EXE)</li>
 <li><code>config.json</code> &mdash; Produktions-Netzwerkpfade</li>
 </ul>
-<p>Versionsinformationen für die EXE liegen in <code>version_info.txt</code>; sie sind kein Schutz, aber ein Reputations-Signal gegen False-Positive-Antivirenmeldungen für unsignierte EXEs.</p>
+<p>Versionsinformationen für die EXE liegen in <code>version_info.txt</code>; sie sind kein Schutz, aber ein Reputations-Signal gegen False-Positive-Antivirenmeldungen für unsignierte EXEs. <strong>Beim Versions-Bump</strong>: Tuple <code>filevers</code>/<code>prodvers</code> und die Strings <code>FileVersion</code>/<code>ProductVersion</code> synchron zu <code>src/version.py</code> halten.</p>
 <p>Zielordner auf dem Produktionsserver: <code>X:\Produktion\14_QAInput\QAInput\</code>.</p>
 
 <hr />
-<p style="color:#888; font-size:0.9em;">QAInput v1.4.0 &ndash; Questalpha GmbH</p>
+<p style="color:#888; font-size:0.9em;">QAInput v1.5.0 &ndash; Questalpha GmbH</p>
 </body>
 </html>

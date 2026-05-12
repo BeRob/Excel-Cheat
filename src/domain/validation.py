@@ -14,10 +14,15 @@ class ValidationResult:
     normalized_values: dict[str, float | str | None] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    oos_fields: set[str] = field(default_factory=set)
 
     @property
     def has_errors(self) -> bool:
         return len(self.errors) > 0
+
+    @property
+    def has_oos(self) -> bool:
+        return len(self.oos_fields) > 0
 
 
 def normalize_decimal(value_str: str) -> str:
@@ -96,10 +101,12 @@ def _validate_typed(
                 result.warnings.append(
                     f"{header}: {parsed} liegt unter Minimum {fd.spec_min}"
                 )
+                result.oos_fields.add(header)
             if fd.spec_max is not None and parsed > fd.spec_max:
                 result.warnings.append(
                     f"{header}: {parsed} liegt über Maximum {fd.spec_max}"
                 )
+                result.oos_fields.add(header)
         except (ValueError, OverflowError):
             result.errors.append(f"{header}: '{value}' ist keine gültige Zahl.")
             result.normalized_values[header] = None

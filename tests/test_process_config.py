@@ -316,7 +316,11 @@ class TestLoadRealConfig(unittest.TestCase):
         app_config = load_app_config(config_path, products_dir)
         self.assertGreaterEqual(len(app_config.products), 1)
 
-        ref = app_config.products[0]
+        ref = next(
+            (p for p in app_config.products if p.product_id == "REF31962"),
+            None,
+        )
+        self.assertIsNotNone(ref, "REF31962 nicht in geladenen Produkten gefunden")
         self.assertEqual(ref.product_id, "REF31962")
         self.assertEqual(len(ref.processes), 5)
 

@@ -162,5 +162,71 @@ class TestValidateWithFieldDefs(unittest.TestCase):
         self.assertAlmostEqual(result.normalized_values["Breite 1"], 185.5)
 
 
+class TestOosDetection(unittest.TestCase):
+    """Out-of-Spec-Erkennung über die neue oos_fields-Menge."""
+
+    def _fields(self) -> list[FieldDef]:
+        return [
+            FieldDef(id="b", display_name="Breite", type="number",
+                     role="measurement", spec_min=180, spec_max=190),
+            FieldDef(id="h", display_name="Höhe", type="number",
+                     role="measurement", spec_min=10, spec_max=12),
+        ]
+
+    def test_no_oos_when_in_spec(self):
+        result = validate_measurements(
+            {"Breite": "185", "Höhe": "11"}, field_defs=self._fields(),
+        )
+        self.assertEqual(result.oos_fields, set())
+        self.assertFalse(result.has_oos)
+
+    def test_oos_below_minimum(self):
+        result = validate_measurements(
+            {"Breite": "170"}, field_defs=self._fields(),
+        )
+        self.assertIn("Breite", result.oos_fields)
+        self.assertTrue(result.has_oos)
+
+    def test_oos_above_maximum(self):
+        result = validate_measurements(
+            {"Breite": "200"}, field_defs=self._fields(),
+        )
+        self.assertIn("Breite", result.oos_fields)
+
+    def test_oos_multiple_fields(self):
+        result = validate_measurements(
+            {"Breite": "170", "Höhe": "15"}, field_defs=self._fields(),
+        )
+        self.assertEqual(result.oos_fields, {"Breite", "Höhe"})
+
+    def test_invalid_number_is_error_not_oos(self):
+        result = validate_measurements(
+            {"Breite": "abc"}, field_defs=self._fields(),
+        )
+        self.assertTrue(result.has_errors)
+        self.assertEqual(result.oos_fields, set())
+
+
+class TestRemarkPlaceholder(unittest.TestCase):
+    """Bemerkungen-Gate: 'n/a' und Varianten zählen als nicht ausgefüllt."""
+
+    def test_placeholders_invalid(self):
+        from src.ui.review_dialog import _remark_is_valid
+        for placeholder in ["", "  ", "n/a", "N/A", "n.a.", "NA",
+                            "-", "—", "–", "  n/a  "]:
+            self.assertFalse(
+                _remark_is_valid(placeholder),
+                f"{placeholder!r} sollte als ungültig gelten",
+            )
+
+    def test_real_remark_valid(self):
+        from src.ui.review_dialog import _remark_is_valid
+        for valid in ["Werkzeug stumpf", "Material zäh", "n/a ist okay"]:
+            self.assertTrue(
+                _remark_is_valid(valid),
+                f"{valid!r} sollte als gültig gelten",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

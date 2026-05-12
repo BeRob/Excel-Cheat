@@ -248,7 +248,7 @@ def simulate_ipc3(product) -> Path:
         for nutzen, (links, rechts) in enumerate(bahn_data, 1):
             rows.append({
                 "Rolle Nr.": rolle_nr,
-                "Bahn": nutzen,
+                "Bahn Nr.": str(nutzen),
                 "Schichtdicke links": links,
                 "Schichtdicke rechts": rechts,
                 "Bemerkungen": "n/a",

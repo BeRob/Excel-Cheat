@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import openpyxl
 
 from src.config.settings import HEADER_ROW
+
+
+_logger = logging.getLogger("excel.writer")
 
 
 @dataclass
@@ -40,13 +44,16 @@ def write_measurement_row(
     try:
         wb = openpyxl.load_workbook(filepath)
     except PermissionError:
-        result.error = "Datei ist gesperrt. Bitte Excel schliessen und erneut versuchen."
+        result.error = "Datei ist gesperrt. Bitte Excel schließen und erneut versuchen."
+        _logger.error("write_measurement_row: %s (%s)", result.error, filepath)
         return result
     except FileNotFoundError:
         result.error = f"Datei nicht gefunden: {filepath}"
+        _logger.error("write_measurement_row: %s", result.error)
         return result
     except Exception as e:
         result.error = f"Datei konnte nicht geöffnet werden: {e}"
+        _logger.exception("write_measurement_row: open failed")
         return result
 
     try:
@@ -69,9 +76,11 @@ def write_measurement_row(
         result.row_number = next_row
 
     except PermissionError:
-        result.error = "Datei ist gesperrt. Bitte Excel schliessen und erneut versuchen."
+        result.error = "Datei ist gesperrt. Bitte Excel schließen und erneut versuchen."
+        _logger.error("write_measurement_row: %s (%s)", result.error, filepath)
     except Exception as e:
         result.error = f"Unerwarteter Fehler beim Schreiben: {e}"
+        _logger.exception("write_measurement_row: write failed")
     finally:
         wb.close()
 
@@ -91,13 +100,16 @@ def write_measurement_rows(
     try:
         wb = openpyxl.load_workbook(filepath)
     except PermissionError:
-        result.error = "Datei ist gesperrt. Bitte Excel schliessen und erneut versuchen."
+        result.error = "Datei ist gesperrt. Bitte Excel schließen und erneut versuchen."
+        _logger.error("write_measurement_rows: %s (%s)", result.error, filepath)
         return result
     except FileNotFoundError:
         result.error = f"Datei nicht gefunden: {filepath}"
+        _logger.error("write_measurement_rows: %s", result.error)
         return result
     except Exception as e:
         result.error = f"Datei konnte nicht geöffnet werden: {e}"
+        _logger.exception("write_measurement_rows: open failed")
         return result
 
     try:
@@ -117,9 +129,11 @@ def write_measurement_rows(
         result.row_number = next_row - 1
 
     except PermissionError:
-        result.error = "Datei ist gesperrt. Bitte Excel schliessen und erneut versuchen."
+        result.error = "Datei ist gesperrt. Bitte Excel schließen und erneut versuchen."
+        _logger.error("write_measurement_rows: %s (%s)", result.error, filepath)
     except Exception as e:
         result.error = f"Unerwarteter Fehler beim Schreiben: {e}"
+        _logger.exception("write_measurement_rows: write failed")
     finally:
         wb.close()
 

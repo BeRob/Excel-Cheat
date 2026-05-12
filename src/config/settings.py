@@ -70,12 +70,41 @@ AUDIT_DIR = _resolve_dir(
     "QAINPUT_AUDIT_DIR", _BOOTSTRAP.get("audit_dir"), DATA_DIR,
 )
 
+from src.version import APP_VERSION  # noqa: F401  re-export
+
 APP_TITLE = "QAInput - Messwerterfassung"
 WINDOW_WIDTH = 900
 WINDOW_HEIGHT = 650
 
 USERS_KV_PATH = USERS_DIR / "users.kv"
 AUDIT_LOG_PATH = AUDIT_DIR / "audit_log.jsonl"
+DEBUG_LOG_PATH = AUDIT_DIR / "debug.log"
+ERROR_LOG_PATH = AUDIT_DIR / "error.log"
+
+UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"
+
+
+def load_ui_prefs() -> dict:
+    """Lädt UI-Einstellungen (Spaltenauswahl Historie, etc.). Fehler → leeres Dict."""
+    try:
+        if UI_PREFS_PATH.exists():
+            data = json.loads(UI_PREFS_PATH.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        pass
+    return {}
+
+
+def save_ui_prefs(prefs: dict) -> None:
+    """Speichert UI-Einstellungen. Fehler werden geschluckt (best-effort)."""
+    try:
+        UI_PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        UI_PREFS_PATH.write_text(
+            json.dumps(prefs, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
 
 # Zeile 1: nur Produktname (groß, fett)
 # Zeilen 2-5 (Spalten A-B): Prozess, Schicht, Datum

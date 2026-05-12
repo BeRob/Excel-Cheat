@@ -7,6 +7,7 @@ from tkinter import ttk, filedialog
 from datetime import datetime
 from pathlib import Path
 
+from src.audit.events import Event
 from src.config.process_config import (
     determine_shift,
     get_all_headers,
@@ -175,6 +176,15 @@ class ProductProcessView(BaseView):
         if not product:
             return
 
+        if self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.PRODUCT_SELECT,
+                user=(self.app_state.current_user.user_id
+                      if self.app_state.current_user else None),
+                details={"product": product.product_id,
+                         "display_name": product.display_name},
+            )
+
         process_names = [p.display_name for p in product.processes]
         self.process_combo["values"] = process_names
 
@@ -205,6 +215,15 @@ class ProductProcessView(BaseView):
         process = next(
             (p for p in product.processes if p.display_name == process_name), None
         )
+
+        if process and self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.PROCESS_SELECT,
+                user=(self.app_state.current_user.user_id
+                      if self.app_state.current_user else None),
+                details={"process": process.template_id,
+                         "display_name": process.display_name},
+            )
 
         self._update_info(process)
         self.next_btn.config(state="normal" if process else "disabled")
@@ -291,6 +310,13 @@ class ProductProcessView(BaseView):
                 self.status_var.set("Kein Speicherort gewählt.")
                 return
             output_dir = Path(chosen)
+            if self.app_state.audit:
+                self.app_state.audit.log_event(
+                    Event.OUTPUT_DIR_CHOSEN,
+                    user=(self.app_state.current_user.user_id
+                          if self.app_state.current_user else None),
+                    details={"dir": str(output_dir)},
+                )
 
         self.app_state.selected_product = product
         self.app_state.selected_process = process
@@ -308,5 +334,10 @@ class ProductProcessView(BaseView):
         self.on_navigate("context")
 
     def _logout(self) -> None:
+        if self.app_state.audit:
+            user = self.app_state.current_user
+            self.app_state.audit.log_event(
+                Event.LOGOUT, user=user.user_id if user else None,
+            )
         self.app_state.reset_user()
         self.on_navigate("login")

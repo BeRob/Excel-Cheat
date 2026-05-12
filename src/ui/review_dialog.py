@@ -16,6 +16,22 @@ if TYPE_CHECKING:
     from src.config.process_config import FieldDef
 
 
+_REMARK_PLACEHOLDERS = {"", "n/a", "n.a.", "na", "-", "—", "–"}
+_REMARK_FIELD_ID = "bemerkungen"
+_REMARK_DISPLAY_NAME = "Bemerkungen"
+
+
+def _remark_is_valid(value: str | None) -> bool:
+    """Bemerkungen gilt als 'echt ausgefüllt', wenn es kein Placeholder ist.
+
+    GMP-Anforderung: nicht ausgefüllte Felder werden via 'n/a' entwertet —
+    semantisch identisch zu leer. Im Out-of-Spec-Fall muss eine reale
+    Begründung stehen, sonst greift der Senden-Block."""
+    if value is None:
+        return False
+    return value.strip().lower() not in _REMARK_PLACEHOLDERS
+
+
 class ReviewDialog(tk.Toplevel):
     """Modaler Dialog zur Kontrolle der Messwerte vor dem Speichern.
 
@@ -38,10 +54,13 @@ class ReviewDialog(tk.Toplevel):
         shared_field_defs: list["FieldDef"] | None = None,
         nutzen_values: list[dict[str, str]] | None = None,
         nutzen_field_defs: list["FieldDef"] | None = None,
+        on_cancel: Callable | None = None,
     ) -> None:
         super().__init__(parent)
         self.app_state = app_state
         self.on_confirm = on_confirm
+        self.on_cancel = on_cancel
+        self._oos_blocked_sections: list[str] = []
 
         self._is_multi = nutzen_values is not None
 
@@ -89,6 +108,42 @@ class ReviewDialog(tk.Toplevel):
                 return True
             return any(v.has_errors for v in self.nutzen_validations)
         return self.validation.has_errors
+
+    def _oos_without_remark(self) -> list[str]:
+        """Liste betroffener Sektions-Labels, die OoS-Werte haben aber
+        keine valide Bemerkung tragen.
+
+        Im Single-Modus: ["Messwerte"] oder leer.
+        Im Multi-Modus: ["Nutzen 2", "Nutzen 3"]. "Gemeinsame Werte"
+        wird nur dann gelistet, wenn ein OoS-Feld zu den gemeinsamen
+        Werten gehört — diese Sektion hat keine eigene Bemerkungen,
+        also wird der Bemerkungen-Wert der jeweiligen Nutzen-Sektionen
+        bewertet (Approximation: wenn min. eine Nutzen-Bemerkung valide
+        ist, gilt der gemeinsame OoS als begründet)."""
+        bad: list[str] = []
+        if self._is_multi:
+            for i, (raw, val) in enumerate(
+                zip(self.nutzen_values, self.nutzen_validations), 1,
+            ):
+                if not val.oos_fields:
+                    continue
+                if not _remark_is_valid(raw.get(_REMARK_DISPLAY_NAME)):
+                    bad.append(f"Nutzen {i}")
+            if self.shared_validation.oos_fields:
+                # Wenn nicht mindestens eine Nutzen-Bemerkung valide ist,
+                # ist auch der gemeinsame OoS unbegründet.
+                any_valid = any(
+                    _remark_is_valid(nv.get(_REMARK_DISPLAY_NAME))
+                    for nv in self.nutzen_values
+                )
+                if not any_valid:
+                    bad.append("Gemeinsame Werte")
+        else:
+            if self.validation.oos_fields and not _remark_is_valid(
+                self.raw_values.get(_REMARK_DISPLAY_NAME)
+            ):
+                bad.append("Messwerte")
+        return bad
 
     def _total_warnings(self) -> int:
         if self._is_multi:
@@ -172,35 +227,49 @@ class ReviewDialog(tk.Toplevel):
                 self.validation,
             )
 
+        oos_blocked = self._oos_without_remark()
+        if oos_blocked:
+            banner = (
+                "Außerhalb der Spezifikation: Bemerkungen erforderlich "
+                "(nicht leer, nicht 'n/a'). Betrifft: "
+                + ", ".join(oos_blocked) + "."
+            )
+            ttk.Label(self, text=banner, style="Error.TLabel",
+                      wraplength=680).grid(row=4, column=0, pady=(5, 0), padx=15)
+
         summary_text = (
             f"{self._total_warnings()} Warnung(en), "
             f"{self._total_errors()} Fehler"
         )
-        if self._has_errors():
+        if self._has_errors() or oos_blocked:
             summary_style = "Error.TLabel"
         elif self._total_warnings():
             summary_style = "Warning.TLabel"
         else:
             summary_style = "Success.TLabel"
         ttk.Label(self, text=summary_text, style=summary_style).grid(
-            row=4, column=0, pady=5
+            row=5, column=0, pady=5
         )
 
         btn_frame = ttk.Frame(self)
-        btn_frame.grid(row=5, column=0, pady=(5, 15))
+        btn_frame.grid(row=6, column=0, pady=(5, 15))
 
         ttk.Button(btn_frame, text="Bearbeiten", command=self._cancel).pack(
             side="left", padx=10
         )
 
+        send_enabled = not self._has_errors() and not oos_blocked
         self.send_btn = ttk.Button(
             btn_frame,
             text="Senden",
             command=self._confirm,
-            state="normal" if not self._has_errors() else "disabled",
+            state="normal" if send_enabled else "disabled",
             style="Accent.TButton",
         )
         self.send_btn.pack(side="left", padx=10)
+
+        # Hinweis fürs Audit-Log, dass der Senden-Button gesperrt wurde
+        self._oos_blocked_sections = oos_blocked
 
     def _render_multi_blocks(self, parent: tk.Widget) -> None:
         """Rendert im Multi-Nutzen-Modus: Gemeinsame Werte + pro Nutzen einen Block."""
@@ -306,4 +375,9 @@ class ReviewDialog(tk.Toplevel):
         self.destroy()
 
     def _cancel(self) -> None:
+        if self.on_cancel is not None:
+            try:
+                self.on_cancel(list(self._oos_blocked_sections))
+            except Exception:
+                pass
         self.destroy()

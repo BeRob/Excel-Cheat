@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 
+from src.audit.events import Event
 from src.config.process_config import (
     get_persistent_context_fields,
     get_info_header_fields,
@@ -232,11 +233,13 @@ class ContextView(BaseView):
 
         if self._pending_file and self._pending_file.exists():
             filepath = self._pending_file
+            file_event = Event.FILE_RESUMED
         else:
             filepath = create_measurement_file(
                 process, product.product_id, output_dir,
                 lot, fa_nr, shift, shift_date,
             )
+            file_event = Event.FILE_CREATED
 
         self.app_state.current_file = filepath
         self.app_state.is_resume = self._is_resume
@@ -251,7 +254,19 @@ class ContextView(BaseView):
         extra_info: list[tuple[str, str]] = []
         for fd in get_info_header_fields(process):
             value = self.app_state.persistent_values.get(fd.display_name, "")
-            extra_info.append((f"{fd.display_name}:", value))
+            # Messmittel: komma-getrennte Einträge werden in den Excel-
+            # Info-Block als separate Zeilen geschrieben (untereinander),
+            # damit jeder Messmittel-Eintrag einzeln lesbar bleibt.
+            if fd.id == "messmittel" and "," in value:
+                items = [v.strip() for v in value.split(",") if v.strip()]
+                if items:
+                    extra_info.append((f"{fd.display_name}:", items[0]))
+                    for it in items[1:]:
+                        extra_info.append(("", it))
+                else:
+                    extra_info.append((f"{fd.display_name}:", value))
+            else:
+                extra_info.append((f"{fd.display_name}:", value))
 
         write_info_header(
             filepath=filepath,
@@ -263,12 +278,22 @@ class ContextView(BaseView):
         )
 
         if self.app_state.audit:
-            self.app_state.audit.log(
-                "context_set",
-                user=self.app_state.current_user.user_id if self.app_state.current_user else None,
+            user_id = (
+                self.app_state.current_user.user_id
+                if self.app_state.current_user else None
+            )
+            self.app_state.audit.log_event(
+                Event.CONTEXT_SET,
+                user=user_id,
                 file=str(filepath),
                 context=dict(self.app_state.persistent_values),
                 details={"resumed": self._is_resume},
+            )
+            self.app_state.audit.log_event(
+                file_event,
+                user=user_id,
+                file=str(filepath),
+                details={"row_count": row_count},
             )
 
         self.on_navigate("form")

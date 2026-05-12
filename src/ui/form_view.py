@@ -8,6 +8,7 @@ from pathlib import Path
 from collections import deque
 from datetime import datetime
 
+from src.audit.events import Event
 from src.config.process_config import (
     get_measurement_fields,
     get_per_measurement_context_fields,
@@ -18,13 +19,13 @@ from src.config.process_config import (
     get_auto_fields,
     FieldDef,
 )
-from src.config.settings import HEADER_ROW
+from src.config.settings import HEADER_ROW, save_ui_prefs
 from src.domain.validation import parse_numeric
 from src.excel.reader import read_all_data
 from src.excel.writer import write_measurement_row, write_measurement_rows
 from src.ui.base_view import BaseView
 from src.ui.review_dialog import ReviewDialog
-from src.ui.theme import COLORS
+from src.ui.theme import COLORS, FONTS
 
 
 def _format_spec_text(fd: FieldDef) -> str:
@@ -66,19 +67,26 @@ class FormView(BaseView):
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
+        # row 2 (Messfelder-Scrollbereich) bekommt den ganzen Platz
         self.rowconfigure(2, weight=1)
-        self.rowconfigure(5, weight=0)
 
+        # row 0: 1-zeilige Meta-Info (klein, sekundäre Farbe)
         top_bar = ttk.Frame(self)
-        top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+        top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 2))
         top_bar.columnconfigure(0, weight=1)
 
-        self.meta_label = ttk.Label(top_bar, text="", wraplength=600)
+        self.meta_label = ttk.Label(
+            top_bar, text="",
+            foreground=COLORS["text_secondary"],
+            font=FONTS["small"],
+        )
         self.meta_label.grid(row=0, column=0, sticky="w")
 
+        # row 1: Info-Header-Chips (FA-Nr., LOT, Verwendbarkeit, Messmittel) ✎
         self.header_bar = ttk.Frame(self)
-        self.header_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 5))
+        self.header_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 4))
 
+        # row 2: Scrollbarer Messfelder-Bereich
         scroll_container = ttk.Frame(self)
         scroll_container.grid(row=2, column=0, sticky="nsew", padx=40, pady=5)
         scroll_container.columnconfigure(0, weight=1)
@@ -109,66 +117,78 @@ class FormView(BaseView):
         self.canvas.bind("<Enter>", self._bind_mousewheel)
         self.canvas.bind("<Leave>", self._unbind_mousewheel)
 
+        # row 3: Statuszeile (Erfolg/Fehler nach Speichern)
         self.status_var = tk.StringVar()
         self.status_label = ttk.Label(self, textvariable=self.status_var,
                                       style="Success.TLabel")
-        self.status_label.grid(row=3, column=0, pady=5)
+        self.status_label.grid(row=3, column=0, pady=2)
 
-        bottom_bar = ttk.Frame(self)
-        bottom_bar.grid(row=4, column=0, pady=(5, 10))
+        # row 4: History-Bar (Toggle + Letzte-Messung-Inline + ⚙)
+        self._build_history_bar()
 
-        ttk.Button(bottom_bar, text="Felder leeren",
-                   command=self._clear_fields).pack(side="left", padx=10)
-        ttk.Button(bottom_bar, text="Speichern", command=self._save,
-                   style="Accent.TButton").pack(side="left", padx=10)
+        # row 5: Action-Bar (Navigation links + Felder leeren/Speichern rechts)
+        action_bar = ttk.Frame(self)
+        action_bar.grid(row=5, column=0, sticky="ew", padx=10, pady=(4, 8))
+        action_bar.columnconfigure(1, weight=1)
 
-        history_frame = ttk.LabelFrame(self, text="Letzte 10 Messungen", padding=10)
-        history_frame.grid(row=5, column=0, sticky="ew", padx=40, pady=(5, 5))
-        history_frame.columnconfigure(0, weight=1)
-
-        tree_container = ttk.Frame(history_frame)
-        tree_container.pack(fill="both", expand=True)
-        tree_container.columnconfigure(0, weight=1)
-        tree_container.rowconfigure(0, weight=1)
-
-        self.history_tree = ttk.Treeview(
-            tree_container,
-            columns=("zeit", "kontext", "werte"),
-            show="headings",
-            height=6,
-        )
-        self.history_tree.heading("zeit", text="Zeit")
-        self.history_tree.heading("kontext", text="Kontext")
-        self.history_tree.heading("werte", text="Messwerte")
-        self.history_tree.column("zeit", width=150, minwidth=100)
-        self.history_tree.column("kontext", width=200, minwidth=150)
-        self.history_tree.column("werte", width=300, minwidth=200)
-
-        history_scrollbar = ttk.Scrollbar(
-            tree_container, orient="vertical", command=self.history_tree.yview
-        )
-        self.history_tree.configure(yscrollcommand=history_scrollbar.set)
-        self.history_tree.grid(row=0, column=0, sticky="nsew")
-        history_scrollbar.grid(row=0, column=1, sticky="ns")
-
-        # Navigations-Leiste am unteren Fensterrand
-        nav_bar = ttk.Frame(self)
-        nav_bar.grid(row=6, column=0, sticky="ew", padx=10, pady=(0, 10))
-        nav_bar.columnconfigure(1, weight=1)
-
+        nav_left = ttk.Frame(action_bar)
+        nav_left.grid(row=0, column=0, sticky="w")
         self.layout_btn = ttk.Button(
-            nav_bar, text="Layout: Vertikal", command=self._toggle_layout,
+            nav_left, text="Layout: Horizontal", command=self._toggle_layout,
         )
-        self.layout_btn.grid(row=0, column=0, sticky="w")
+        self.layout_btn.pack(side="left", padx=(0, 5))
+        ttk.Button(
+            nav_left, text="Prozess wechseln", command=self._change_process,
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            nav_left, text="Abmelden", command=self._logout,
+        ).pack(side="left", padx=5)
 
-        nav_right = ttk.Frame(nav_bar)
-        nav_right.grid(row=0, column=2, sticky="e")
+        action_right = ttk.Frame(action_bar)
+        action_right.grid(row=0, column=2, sticky="e")
         ttk.Button(
-            nav_right, text="Prozess wechseln", command=self._change_process,
-        ).pack(side="left", padx=(5, 0))
+            action_right, text="Felder leeren", command=self._clear_fields,
+        ).pack(side="left", padx=(5, 10))
         ttk.Button(
-            nav_right, text="Abmelden", command=self._logout,
-        ).pack(side="left", padx=(5, 0))
+            action_right, text="Speichern", command=self._save,
+            style="Accent.TButton",
+        ).pack(side="left", padx=(0, 5))
+
+    def _build_history_bar(self) -> None:
+        """Schmale Leiste oberhalb der Action-Bar:
+        Toggle ▼/▲ + 1-Zeilen-Last-Message + Spaltenwahl-Zahnrad.
+        Beim Aufklappen wird darunter ein kompaktes Treeview gegridded."""
+        self.history_container = ttk.Frame(self)
+        self.history_container.grid(row=4, column=0, sticky="ew", padx=40, pady=(2, 0))
+        self.history_container.columnconfigure(0, weight=1)
+
+        bar = ttk.Frame(self.history_container)
+        bar.grid(row=0, column=0, sticky="ew")
+        bar.columnconfigure(1, weight=1)
+
+        self.history_toggle_btn = ttk.Button(
+            bar, text="▼ Verlauf (0)", width=16,
+            command=self._toggle_history,
+        )
+        self.history_toggle_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+
+        self.history_last_var = tk.StringVar(value="Noch keine Messung.")
+        ttk.Label(
+            bar, textvariable=self.history_last_var,
+            foreground=COLORS["text_secondary"],
+        ).grid(row=0, column=1, sticky="w")
+
+        ttk.Button(
+            bar, text="⚙", width=3, command=self._open_history_column_picker,
+            style="Manual.TButton",
+        ).grid(row=0, column=2, sticky="e", padx=(8, 0))
+
+        # Frame für das Treeview – per default versteckt (collapsed).
+        self.history_tree_frame = ttk.Frame(self.history_container)
+        # nicht direkt gridden — _apply_history_collapsed entscheidet
+        self.history_tree: ttk.Treeview | None = None
+        self._history_columns: list[str] = []
+        self._history_collapsed: bool = True
 
     def _update_scroll_region(self) -> None:
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -197,14 +217,19 @@ class FormView(BaseView):
         user_name = user.display_name if user else "?"
         product_name = product.display_name if product else "?"
         process_name = process.display_name if process else "?"
-        file_name = Path(self.app_state.current_file).name if self.app_state.current_file else "?"
-
-        self.meta_label.config(
-            text=f"{user_name}  |  {product_name}  |  {process_name}"
-                 f"  |  Schicht {shift}  |  {file_name}"
+        file_name = (
+            Path(self.app_state.current_file).name
+            if self.app_state.current_file else "?"
         )
 
-        mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
+        self.meta_label.config(
+            text=f"{user_name}  ·  {product_name}  ·  {process_name}"
+                 f"  ·  Schicht {shift}  ·  {file_name}"
+        )
+
+        mode_text = (
+            "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
+        )
         self.layout_btn.config(text=f"Layout: {mode_text}")
 
         self._render_header_bar()
@@ -214,8 +239,12 @@ class FormView(BaseView):
             self._history.clear()
             self._generate_fields()
             self._last_fields_key = fields_key
+            self._load_history_columns_for_process()
+            self._apply_history_collapsed(initial=True)
+            self._rebuild_history_tree()
             if self.app_state.is_resume:
                 self._preload_history()
+            self._refresh_history_view()
         else:
             self._set_initial_focus()
 
@@ -233,7 +262,7 @@ class FormView(BaseView):
         pv = self.app_state.persistent_values
         for fd in get_info_header_fields(process):
             cell = ttk.Frame(self.header_bar)
-            cell.pack(side="left", padx=(0, 18))
+            cell.pack(side="left", padx=(0, 14))
             ttk.Label(
                 cell, text=f"{fd.display_name}:",
                 font=("Segoe UI", 9, "bold"),
@@ -241,7 +270,22 @@ class FormView(BaseView):
             ttk.Label(
                 cell, text=pv.get(fd.display_name, "") or "—",
                 foreground=COLORS["accent"],
-            ).pack(side="left", padx=(4, 0))
+            ).pack(side="left", padx=(4, 2))
+            ttk.Button(
+                cell, text="✎", width=2,
+                style="Manual.TButton",
+                command=self._change_context,
+            ).pack(side="left")
+
+    def _change_context(self) -> None:
+        """✎-Button: zurück zur ContextView, um Info-Header zu ändern."""
+        if self.app_state.audit:
+            user = self.app_state.current_user
+            self.app_state.audit.log_event(
+                Event.CONTEXT_EDIT_REQUESTED,
+                user=user.user_id if user else None,
+            )
+        self.on_navigate("context")
 
     def _set_initial_focus(self) -> None:
         if self._first_focus_widget is not None:
@@ -256,10 +300,20 @@ class FormView(BaseView):
         else:
             self.app_state.layout_mode = "vertical"
 
-        mode_text = "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
+        mode_text = (
+            "Vertikal" if self.app_state.layout_mode == "vertical" else "Horizontal"
+        )
         self.layout_btn.config(text=f"Layout: {mode_text}")
         self._generate_fields()
-        self._last_fields_key = f"{self.app_state.selected_process.display_name}_{self.app_state.layout_mode}"
+        self._last_fields_key = (
+            f"{self.app_state.selected_process.display_name}"
+            f"_{self.app_state.layout_mode}"
+        )
+        if self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.LAYOUT_TOGGLED,
+                details={"mode": self.app_state.layout_mode},
+            )
 
     def _render_machine_scoped_panel(self) -> None:
         """Rendert oben einen Block mit je einer Eingabe pro
@@ -549,6 +603,11 @@ class FormView(BaseView):
             return
 
         count = self._nutzen_count_var.get()
+        if count != self.app_state.nutzen_count and self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.NUTZEN_COUNT_CHANGED,
+                details={"from": self.app_state.nutzen_count, "to": count},
+            )
         self.app_state.nutzen_count = count
 
         # Alte per-nutzen Einträge aus field_vars und Border-Map entfernen
@@ -607,7 +666,10 @@ class FormView(BaseView):
         self.canvas.yview_moveto(0)
 
     def _preload_history(self) -> None:
-        """Lädt die letzten 10 Messungen aus der Excel-Datei beim Resume."""
+        """Lädt die letzten Messungen aus der Excel-Datei beim Resume.
+
+        Jeder Eintrag ist ein Dict mit allen Spaltenwerten plus 'Zeit'.
+        Welche Spalten angezeigt werden, entscheidet `_history_columns`."""
         if not self.app_state.current_file:
             return
         process = self.app_state.selected_process
@@ -618,22 +680,16 @@ class FormView(BaseView):
         if not rows:
             return
 
-        meas_display_names = {fd.display_name for fd in get_measurement_fields(process)}
-        pv = self.app_state.persistent_values
-
         self._history.clear()
         for row in rows[-10:]:
             datum = str(row.get("Datum", "") or "")
             zeit = datum[-8:] if len(datum) >= 8 else datum
-            kontext = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else "-"
-            werte_parts = [
-                f"{k}: {v}" for k, v in row.items()
-                if k in meas_display_names and v is not None
-            ]
-            werte = ", ".join(werte_parts) or "-"
-            self._history.append((zeit, kontext, werte))
-
-        self._update_history_display()
+            entry: dict[str, str] = {"Zeit": zeit}
+            for k, v in row.items():
+                if v is None:
+                    continue
+                entry[str(k)] = str(v)
+            self._history.append(entry)
 
     def _generate_vertical_fields(
         self, fields: list[FieldDef], parent: tk.Widget,
@@ -802,6 +858,13 @@ class FormView(BaseView):
 
     def _clear_fields(self) -> None:
         all_defs = self._field_defs + self._nutzen_field_defs
+        if self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.FIELDS_CLEARED,
+                user=(self.app_state.current_user.user_id
+                      if self.app_state.current_user else None),
+                details={"field_count": len(self.field_vars)},
+            )
         for name, var in self.field_vars.items():
             # Per-Nutzen-Keys haben Suffix "_n{i}" – Basis-Name für FieldDef-Suche ermitteln
             base_name = name
@@ -823,6 +886,14 @@ class FormView(BaseView):
         for header, var in self.persistent_vars.items():
             self.app_state.persistent_values[header] = var.get().strip()
 
+        if self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.REVIEW_OPENED,
+                user=(self.app_state.current_user.user_id
+                      if self.app_state.current_user else None),
+                details={"multi_nutzen": self._is_multi_nutzen},
+            )
+
         if self._is_multi_nutzen:
             self._do_multi_nutzen_save()
             return
@@ -835,6 +906,24 @@ class FormView(BaseView):
             raw_values=raw_values,
             field_defs=self._field_defs,
             on_confirm=self._do_write,
+            on_cancel=self._on_review_cancelled,
+        )
+
+    def _on_review_cancelled(self, blocked_sections: list[str]) -> None:
+        if not self.app_state.audit:
+            return
+        user_id = (
+            self.app_state.current_user.user_id
+            if self.app_state.current_user else None
+        )
+        if blocked_sections:
+            self.app_state.audit.log_event(
+                Event.OOS_BLOCKED, level="warn", user=user_id,
+                details={"sections": blocked_sections},
+            )
+        self.app_state.audit.log_event(
+            Event.REVIEW_CANCELLED, user=user_id,
+            details={"blocked_sections": blocked_sections},
         )
 
     def _do_write(self, normalized_values: dict[str, float | str | None]) -> None:
@@ -843,8 +932,8 @@ class FormView(BaseView):
             return
 
         if self.app_state.audit:
-            self.app_state.audit.log(
-                "write_attempt",
+            self.app_state.audit.log_event(
+                Event.WRITE_ATTEMPT,
                 user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                 file=str(self.app_state.current_file),
                 context=dict(self.app_state.persistent_values),
@@ -901,8 +990,8 @@ class FormView(BaseView):
             self._clear_fields()
 
             if self.app_state.audit:
-                self.app_state.audit.log(
-                    "write_success",
+                self.app_state.audit.log_event(
+                    Event.WRITE_SUCCESS,
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
@@ -913,14 +1002,14 @@ class FormView(BaseView):
             self.status_var.set(f"Fehler: {result.error}")
             self.status_label.config(style="Error.TLabel")
 
-            # Sequenz zuruecknehmen, wenn das Schreiben fehlschlug
+            # Sequenz zurücknehmen, wenn das Schreiben fehlschlug
             auto_ids = {f.id for f in get_auto_fields(process)}
             if "pruefmuster" in auto_ids or "beutel_nr" in auto_ids:
                 self.app_state.auto_sequence -= 1
 
             if self.app_state.audit:
-                self.app_state.audit.log(
-                    "write_fail",
+                self.app_state.audit.log_event(
+                    Event.WRITE_FAIL, level="error",
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
@@ -954,6 +1043,7 @@ class FormView(BaseView):
             parent=self,
             app_state=self.app_state,
             on_confirm=self._on_multi_nutzen_confirmed,
+            on_cancel=self._on_review_cancelled,
             shared_values=shared_raw,
             shared_field_defs=self._field_defs,
             nutzen_values=nutzen_raw_list,
@@ -1012,8 +1102,8 @@ class FormView(BaseView):
             rows.append(row)
 
         if self.app_state.audit:
-            self.app_state.audit.log(
-                "write_attempt",
+            self.app_state.audit.log_event(
+                Event.WRITE_ATTEMPT,
                 user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                 file=str(self.app_state.current_file),
                 context=dict(self.app_state.persistent_values),
@@ -1041,8 +1131,8 @@ class FormView(BaseView):
             self._clear_fields()
 
             if self.app_state.audit:
-                self.app_state.audit.log(
-                    "write_success",
+                self.app_state.audit.log_event(
+                    Event.WRITE_SUCCESS,
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
@@ -1053,53 +1143,238 @@ class FormView(BaseView):
             self.status_var.set(f"Fehler: {result.error}")
             self.status_label.config(style="Error.TLabel")
             if self.app_state.audit:
-                self.app_state.audit.log(
-                    "write_fail",
+                self.app_state.audit.log_event(
+                    Event.WRITE_FAIL, level="error",
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
                     details={"error": result.error},
                 )
 
-    def _add_to_history(self, measurements: dict[str, float | str | None], label: str = "") -> None:
+    def _add_to_history(
+        self, measurements: dict[str, float | str | None], label: str = "",
+        extra_context: dict[str, str] | None = None,
+    ) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
         if label:
             timestamp = f"{timestamp} ({label})"
 
-        pv = self.app_state.persistent_values
-        kontext = " | ".join(f"{k}: {v}" for k, v in pv.items()) if pv else "-"
+        entry: dict[str, str] = {"Zeit": timestamp}
+        # Persistente Kontext-Werte mit aufnehmen, damit die Spaltenwahl
+        # diese ebenfalls anzeigen kann.
+        for k, v in self.app_state.persistent_values.items():
+            if v:
+                entry[k] = str(v)
+        if extra_context:
+            for k, v in extra_context.items():
+                if v:
+                    entry[k] = str(v)
+        for k, v in measurements.items():
+            if v is not None:
+                entry[str(k)] = str(v)
 
-        werte_list = [
-            f"{header}: {value}"
-            for header, value in measurements.items()
-            if value is not None
-        ]
-        werte = ", ".join(werte_list) if werte_list else "-"
+        self._history.append(entry)
+        self._refresh_history_view()
 
-        self._history.append((timestamp, kontext, werte))
-        self._update_history_display()
+    def _refresh_history_view(self) -> None:
+        """Aktualisiert Toggle-Button-Text, Last-Message und ggf. Tree."""
+        count = len(self._history)
+        arrow = "▼" if self._history_collapsed else "▲"
+        self.history_toggle_btn.config(text=f"{arrow} Verlauf ({count})")
+
+        if self._history:
+            last = self._history[-1]
+            cols = [c for c in self._history_columns if c != "Zeit"]
+            if not cols:
+                cols = [k for k in last.keys() if k != "Zeit"]
+            parts = [f"{c}: {last[c]}" for c in cols if c in last]
+            zeit = last.get("Zeit", "")
+            msg = f"Zuletzt {zeit} — " + (", ".join(parts) if parts else "—")
+            self.history_last_var.set(msg)
+        else:
+            self.history_last_var.set("Noch keine Messung.")
+
+        if self.history_tree is not None:
+            self._update_history_display()
 
     def _update_history_display(self) -> None:
+        if self.history_tree is None:
+            return
         for item in self.history_tree.get_children():
             self.history_tree.delete(item)
-        for zeit, kontext, werte in reversed(self._history):
-            self.history_tree.insert("", "end", values=(zeit, kontext, werte))
-        for col in ("zeit", "kontext", "werte"):
-            header_len = len(self.history_tree.heading(col)["text"])
-            max_len = max(
-                [header_len] +
-                [len(str(self.history_tree.set(item, col))) for item in self.history_tree.get_children()]
-            )
-            self.history_tree.column(col, width=max(max_len * 8, 80))
+        for entry in reversed(self._history):
+            values = tuple(entry.get(col, "") for col in self._history_columns)
+            self.history_tree.insert("", "end", values=values)
 
     def _change_process(self) -> None:
         self.app_state.reset_process()
         self._history.clear()
-        self._update_history_display()
+        self._refresh_history_view()
         self.on_navigate("product_process")
 
     def _logout(self) -> None:
+        if self.app_state.audit:
+            user = self.app_state.current_user
+            self.app_state.audit.log_event(
+                Event.LOGOUT, user=user.user_id if user else None,
+            )
         self.app_state.reset_user()
         self._history.clear()
-        self._update_history_display()
+        self._refresh_history_view()
         self.on_navigate("login")
+
+    # ---------------------------------------------------------------
+    # History-Spaltenwahl und Einklapp-Logik
+    # ---------------------------------------------------------------
+
+    def _process_key(self) -> str:
+        """Schlüssel für ui_prefs.history_columns pro Prozess."""
+        process = self.app_state.selected_process
+        return process.display_name if process else "_"
+
+    def _default_history_columns(self) -> list[str]:
+        """Default: Zeit + alle measurement-Felder + ausgewählte Kontextfelder."""
+        process = self.app_state.selected_process
+        if not process:
+            return ["Zeit"]
+        cols: list[str] = ["Zeit"]
+        wanted_context_ids = {"rollencharge", "rollen_nr", "bahn", "nutzen", "maschine"}
+        for fd in process.fields:
+            if fd.role == "measurement":
+                cols.append(fd.display_name)
+            elif fd.id in wanted_context_ids and fd.role == "context":
+                cols.append(fd.display_name)
+            elif fd.id == "nutzen" and fd.role == "auto":
+                cols.append(fd.display_name)
+        return cols
+
+    def _load_history_columns_for_process(self) -> None:
+        prefs = self.app_state.ui_prefs or {}
+        hc = prefs.get("history_columns", {}) if isinstance(prefs, dict) else {}
+        saved = hc.get(self._process_key()) if isinstance(hc, dict) else None
+        if isinstance(saved, list) and saved:
+            self._history_columns = [str(c) for c in saved]
+        else:
+            self._history_columns = self._default_history_columns()
+        self._history_collapsed = bool(prefs.get("history_collapsed", True))
+
+    def _save_history_columns(self) -> None:
+        prefs = self.app_state.ui_prefs or {}
+        if not isinstance(prefs, dict):
+            prefs = {}
+        hc = prefs.get("history_columns")
+        if not isinstance(hc, dict):
+            hc = {}
+        hc[self._process_key()] = list(self._history_columns)
+        prefs["history_columns"] = hc
+        prefs["history_collapsed"] = self._history_collapsed
+        self.app_state.ui_prefs = prefs
+        save_ui_prefs(prefs)
+
+    def _rebuild_history_tree(self) -> None:
+        """Baut das Treeview mit den aktuell gewählten Spalten neu auf."""
+        for child in self.history_tree_frame.winfo_children():
+            child.destroy()
+        self.history_tree = None
+
+        if not self._history_columns:
+            return
+
+        self.history_tree_frame.columnconfigure(0, weight=1)
+        self.history_tree_frame.rowconfigure(0, weight=1)
+
+        self.history_tree = ttk.Treeview(
+            self.history_tree_frame,
+            columns=tuple(self._history_columns),
+            show="headings",
+            height=5,
+        )
+        for col in self._history_columns:
+            self.history_tree.heading(col, text=col)
+            self.history_tree.column(col, width=110, minwidth=70, anchor="w")
+
+        scrollbar = ttk.Scrollbar(
+            self.history_tree_frame, orient="vertical",
+            command=self.history_tree.yview,
+        )
+        self.history_tree.configure(yscrollcommand=scrollbar.set)
+        self.history_tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+    def _apply_history_collapsed(self, initial: bool = False) -> None:
+        """Zeigt/versteckt das Tree-Frame entsprechend `_history_collapsed`."""
+        if self._history_collapsed:
+            self.history_tree_frame.grid_forget()
+        else:
+            self.history_tree_frame.grid(
+                row=1, column=0, sticky="ew", pady=(4, 0),
+            )
+        # Toggle-Button-Text aktualisieren ist Aufgabe von _refresh_history_view
+
+    def _toggle_history(self) -> None:
+        self._history_collapsed = not self._history_collapsed
+        self._apply_history_collapsed()
+        self._refresh_history_view()
+        self._save_history_columns()
+        if self.app_state.audit:
+            self.app_state.audit.log_event(
+                Event.HISTORY_TOGGLED,
+                details={"collapsed": self._history_collapsed},
+            )
+
+    def _open_history_column_picker(self) -> None:
+        process = self.app_state.selected_process
+        if not process:
+            return
+        available: list[str] = ["Zeit"]
+        for fd in process.fields:
+            if fd.role in ("context", "measurement", "auto"):
+                if fd.display_name not in available:
+                    available.append(fd.display_name)
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Verlauf: Spalten auswählen")
+        dialog.transient(self.winfo_toplevel())
+        dialog.grab_set()
+        dialog.configure(bg=COLORS["background"])
+
+        ttk.Label(
+            dialog, text="Welche Spalten sollen im Verlauf angezeigt werden?",
+            style="Subtitle.TLabel",
+        ).pack(padx=15, pady=(15, 8), anchor="w")
+
+        check_frame = ttk.Frame(dialog)
+        check_frame.pack(fill="both", expand=True, padx=15)
+        vars_map: dict[str, tk.BooleanVar] = {}
+        for name in available:
+            v = tk.BooleanVar(value=name in self._history_columns)
+            vars_map[name] = v
+            ttk.Checkbutton(check_frame, text=name, variable=v).pack(anchor="w")
+
+        btn_row = ttk.Frame(dialog)
+        btn_row.pack(fill="x", padx=15, pady=15)
+
+        def on_ok():
+            new_cols = [name for name in available if vars_map[name].get()]
+            if not new_cols:
+                new_cols = ["Zeit"]
+            self._history_columns = new_cols
+            self._save_history_columns()
+            self._rebuild_history_tree()
+            self._refresh_history_view()
+            if self.app_state.audit:
+                self.app_state.audit.log_event(
+                    Event.HISTORY_COLUMNS_CHANGED,
+                    details={
+                        "process": self._process_key(),
+                        "columns": new_cols,
+                    },
+                )
+            dialog.destroy()
+
+        ttk.Button(btn_row, text="Abbrechen", command=dialog.destroy).pack(
+            side="right", padx=5,
+        )
+        ttk.Button(
+            btn_row, text="OK", command=on_ok, style="Accent.TButton",
+        ).pack(side="right", padx=5)
