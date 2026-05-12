@@ -5,7 +5,7 @@ dieser Prioritätsreihenfolge:
 
 1. Umgebungsvariable (z.B. QAINPUT_DATA_DIR als Fallback).
 2. Bootstrap-Datei <APP_ROOT>/config.json mit optionalen Keys
-   users_dir, config_dir, products_dir, audit_dir
+   users_dir, config_dir, products_dir, audit_dir, log_dir
    (absolute Pfade, ~ erlaubt). Malformed JSON wird ignoriert.
 3. Default: Unterordner von <APP_ROOT>/data (Entwicklungsstand).
 
@@ -13,6 +13,11 @@ Die Bootstrap-Datei ist nicht das gleiche wie app_config.json.
 app_config.json (Schichten, globale Einstellungen) liegt im
 aufgelösten config_dir -- eine Konfiguration der Pfade innerhalb
 dieser Datei wäre zirkulär.
+
+audit_dir   → audit_log.jsonl (GMP-Trail, Tagesrotation)
+log_dir     → debug.log + error.log (technische Logs, Größen-Rotation)
+Audit und Logs sind absichtlich getrennt — GMP-Trail darf zentral
+liegen, Debug/Error können in einen separaten Ordner.
 """
 
 import json
@@ -69,6 +74,11 @@ PRODUCTS_DIR = _resolve_dir(
 AUDIT_DIR = _resolve_dir(
     "QAINPUT_AUDIT_DIR", _BOOTSTRAP.get("audit_dir"), DATA_DIR,
 )
+# Logs (debug.log, error.log) liegen getrennt vom GMP-Audit-Trail.
+# Default: <DATA_DIR>/logs/ — also Sibling zum Audit, nicht im selben Ordner.
+LOG_DIR = _resolve_dir(
+    "QAINPUT_LOG_DIR", _BOOTSTRAP.get("log_dir"), DATA_DIR / "logs",
+)
 
 from src.version import APP_VERSION  # noqa: F401  re-export
 
@@ -78,8 +88,8 @@ WINDOW_HEIGHT = 650
 
 USERS_KV_PATH = USERS_DIR / "users.kv"
 AUDIT_LOG_PATH = AUDIT_DIR / "audit_log.jsonl"
-DEBUG_LOG_PATH = AUDIT_DIR / "debug.log"
-ERROR_LOG_PATH = AUDIT_DIR / "error.log"
+DEBUG_LOG_PATH = LOG_DIR / "debug.log"
+ERROR_LOG_PATH = LOG_DIR / "error.log"
 
 UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"
 

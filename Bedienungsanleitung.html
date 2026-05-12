@@ -668,7 +668,7 @@ def _remark_is_valid(value: str | None) -> bool:
 <hr />
 
 <h2 id="audit">Audit-Log, Debug- und Error-Log</h2>
-<p>Seit v1.5.0 gibt es drei getrennte Log-Quellen, alle im aufgelösten <code>audit_dir</code>:</p>
+<p>Seit v1.5.0 gibt es drei getrennte Log-Quellen. Audit-Trail (<code>audit_log.jsonl</code>) liegt im <code>audit_dir</code>; <code>debug.log</code> und <code>error.log</code> liegen davon getrennt im <code>log_dir</code> (Default <code>&lt;DATA_DIR&gt;/logs/</code>):</p>
 <table>
 <thead><tr><th>Datei</th><th>Inhalt</th><th>Format</th><th>Rotation</th></tr></thead>
 <tbody>
@@ -764,10 +764,14 @@ APP_VERSION_DATE: str = "2026-05-13"</code></pre>
 <p>Sämtliche Datenverzeichnisse in <code>settings.py</code> werden in dieser Priorität aufgelöst:</p>
 <ol>
 <li><strong>Umgebungsvariable</strong> &mdash; <code>QAINPUT_USERS_DIR</code>, <code>QAINPUT_CONFIG_DIR</code>, <code>QAINPUT_PRODUCTS_DIR</code>, <code>QAINPUT_AUDIT_DIR</code>; <code>QAINPUT_DATA_DIR</code> als gemeinsamer Fallback</li>
-<li><strong>Bootstrap-Datei</strong> <code>&lt;APP_ROOT&gt;/config.json</code> mit den optionalen Keys <code>users_dir</code>, <code>config_dir</code>, <code>products_dir</code>, <code>audit_dir</code>, <code>data_dir</code></li>
-<li><strong>Default</strong> &mdash; Unterordner von <code>&lt;APP_ROOT&gt;/data</code></li>
+<li><strong>Bootstrap-Datei</strong> <code>&lt;APP_ROOT&gt;/config.json</code> mit den optionalen Keys <code>users_dir</code>, <code>config_dir</code>, <code>products_dir</code>, <code>audit_dir</code>, <code>log_dir</code>, <code>data_dir</code></li>
+<li><strong>Default</strong> &mdash; Unterordner von <code>&lt;APP_ROOT&gt;/data</code>; <code>log_dir</code> defaultet auf <code>&lt;DATA_DIR&gt;/logs/</code></li>
 </ol>
-<p><code>DEBUG_LOG_PATH</code> und <code>ERROR_LOG_PATH</code> liegen automatisch im aufgelösten <code>AUDIT_DIR</code> &mdash; im Produktionsbetrieb zeigt das auf das zentrale Netzlaufwerk-Verzeichnis, sodass alle Workstations in dieselben Logs schreiben.</p>
+<p><code>AUDIT_LOG_PATH</code> liegt im aufgelösten <code>AUDIT_DIR</code>, <code>DEBUG_LOG_PATH</code> und <code>ERROR_LOG_PATH</code> hingegen im <code>LOG_DIR</code> &mdash; bewusst getrennte Verzeichnisse, damit der GMP-Audit-Trail räumlich vom technischen Debug-Output isoliert werden kann. Beispiel für eine Produktions-<code>config.json</code>:</p>
+<pre><code class="language-json">{
+  "audit_dir": "\\\\server\\QAInput\\audit",
+  "log_dir":   "\\\\server\\QAInput\\logs"
+}</code></pre>
 <p><code>UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"</code> speichert pro Prozess die gewählten Verlaufsspalten. Diese Datei kann ruhig im Datenverzeichnis liegen &mdash; sie ist nicht-kritisch und der Code hat eine Best-Effort-Fehlerbehandlung.</p>
 <p>Die Bootstrap-Datei <code>config.json</code> ist <strong>nicht</strong> identisch mit <code>app_config.json</code>. <code>app_config.json</code> liegt im aufgelösten <code>config_dir</code> &mdash; ein Pfadverzeichnis dort wäre zirkulär.</p>
 <p><strong>Wichtig (PyInstaller):</strong> <code>APP_ROOT</code> in <code>settings.py</code> verwendet <code>sys.frozen</code>/<code>Path(sys.executable).parent</code> &rarr; zeigt im Bundle auf das EXE-Verzeichnis (neben <code>config.json</code>, <code>data/</code>). <code>app.py</code> verwendet hingegen <code>Path(__file__).resolve().parent</code> &rarr; zeigt im Bundle auf <code>_internal/</code> (Logo, HTML-Manuals). Bei neuen gebundelten Ressourcen den passenden Root verwenden.</p>
