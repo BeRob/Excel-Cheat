@@ -1,0 +1,68 @@
+{
+  "product_id": "REF40861",
+  "display_name": "REF 40861 - Cellulose Sponge Roll, Breite 183,5 mm, Schichtdicke 0,95 mm, roll 60-80 m",
+  "processes": [
+    {
+      "template_id": "IPC1_Walzen",
+      "display_name": "IPC1 Walzen",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context", "persistent": false},
+        {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "context", "persistent": false},
+        {"id": "rollen_nr_hs", "display_name": "Rollen Nr. H&S", "type": "text", "role": "context", "persistent": false},
+        {"id": "fg", "display_name": "FG ≥ 560", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "ask", "display_name": "ASK > 1200%", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "schichtdicke_anfang_links", "display_name": "Schichtdicke Anfang links [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0.9, "spec_max": 1.0},
+        {"id": "schichtdicke_anfang_rechts", "display_name": "Schichtdicke Anfang rechts [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0.9, "spec_max": 1.0},
+        {"id": "position_klebestellen", "display_name": "Position Klebestellen (Laufmeter)", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "anzahl_klebestellen", "display_name": "Anzahl Klebestellen", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0, "spec_max": 10},
+        {"id": "laenge_teilstueck", "display_name": "Länge Teilstück [m]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0, "spec_max": 75},
+        {"id": "laenge_rolle_ges", "display_name": "Länge Rolle ges. [m]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 61, "spec_max": 75},
+        {"id": "schichtdicke_links", "display_name": "Schichtdicke links [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0.9, "spec_max": 1.1},
+        {"id": "schichtdicke_rechts", "display_name": "Schichtdicke rechts [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0.9, "spec_max": 1.1},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC2_Fertigschneiden",
+      "display_name": "IPC2 Fertigschneiden",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "rolle_hs", "display_name": "Rolle H&S", "type": "number", "role": "auto", "persistent": false},
+        {"id": "max_klebestellen", "display_name": "max. Klebestellen", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0, "spec_max": 10},
+        {"id": "klebestellen_iO", "display_name": "Klebestellen i.O.", "type": "choice", "role": "measurement", "persistent": false, "options": ["Ja", "Nein"]},
+        {"id": "laenge", "display_name": "Länge [m]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 60, "spec_max": 75},
+        {"id": "breite", "display_name": "Breite [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 183, "spec_max": 184},
+        {"id": "schichtdicke_links", "display_name": "Schichtdicke links [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0.9, "spec_max": 1.3},
+        {"id": "schichtdicke_rechts", "display_name": "Schichtdicke rechts [mm]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0.9, "spec_max": 1.3},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    },
+    {
+      "template_id": "IPC3_Packliste",
+      "display_name": "IPC3 Packliste",
+      "fields": [
+        {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+        {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+        {"id": "palett_nr", "display_name": "Palett Nr.", "type": "number", "role": "context", "persistent": true},
+        {"id": "roll_nr", "display_name": "Roll Nr.", "type": "number", "role": "auto", "persistent": false},
+        {"id": "roll_length", "display_name": "Roll length [m]", "type": "number", "role": "measurement", "persistent": false, "spec_min": 60, "spec_max": 80},
+        {"id": "splices", "display_name": "Splices", "type": "number", "role": "measurement", "persistent": false, "spec_min": 0, "spec_max": 10},
+        {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "persistent": false, "optional": true},
+        {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto", "persistent": false},
+        {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto", "persistent": false}
+      ]
+    }
+  ]
+}
