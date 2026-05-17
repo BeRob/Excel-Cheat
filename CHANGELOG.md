@@ -1,5 +1,14 @@
 # Versionshistorie – QAInput
 
+## v1.5.1 – 2026-05-17
+
+### Behoben
+- **openpyxl-Bündelung im Build** – Die `.spec`-Datei verwendet jetzt `collect_all('openpyxl')` statt nur `hiddenimports=['openpyxl']`. Damit werden alle Submodule, Data-Files und Binaries zuverlässig eingebunden. Unter neueren PyInstaller-/Python-Versionen fehlten sonst Submodule, sodass die EXE beim Start mit „openpyxl nicht gefunden" abbrach
+
+### Geändert
+- **Echte Umlaute in Produkt-Feldnamen** – Angezeigte Feldnamen in REF31962/31963/32102 nutzten ASCII-Umschreibung; korrigiert zu Flächengewicht, IPC2 Schälen, Länge, Prüfmuster. Diese drei Produkte sind auf Revision 2
+- **Revisionshistorie in Produkt-Configs** – Produkt-JSONs können eine `revision_history`-Liste tragen (Revision, Datum, Änderung). `ProductConfig` führt das Feld, Laden und Speichern (auch über den Config-Editor) erhalten es
+
 ## v1.5.0 – 2026-05-13
 
 ### Neu
