@@ -1,7 +1,7 @@
 {
   "product_id": "REF32102",
   "display_name": "REF 32102 - Sugi Eyedrain, 155 x 4 x 1 mm, non-sterile, 100 pcs.",
-  "revision": 1,
+  "revision": 2,
   "processes": [
     {
       "template_id": "IPC1_Schneiden",
@@ -392,5 +392,9 @@
         }
       ]
     }
+  ],
+  "revision_history": [
+    { "revision": 1, "date": "2026-04-27", "change": "Erstanlage" },
+    { "revision": 2, "date": "2026-05-17", "change": "Echte Umlaute in Feldnamen: Flächengewicht" }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "product_id": "REF31963",
   "display_name": "REF 31963 - Sugi Instrument Wipe Xtra, 80x80mm, none-sterile, 250 pcs.",
-  "revision": 1,
+  "revision": 2,
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -486,5 +486,9 @@
         }
       ]
     }
+  ],
+  "revision_history": [
+    { "revision": 1, "date": "2026-04-22", "change": "Erstanlage" },
+    { "revision": 2, "date": "2026-05-17", "change": "Echte Umlaute in Feldnamen: Flächengewicht" }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "product_id": "REF31962",
   "display_name": "REF 31962 - Sugi Instrument Wipe, 80x80mm, non-sterile, 250 pcs.",
-  "revision": 1,
+  "revision": 2,
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -464,5 +464,9 @@
         }
       ]
     }
+  ],
+  "revision_history": [
+    { "revision": 1, "date": "2026-04-09", "change": "Erstanlage" },
+    { "revision": 2, "date": "2026-05-17", "change": "Echte Umlaute in Feldnamen: Flächengewicht, IPC2 Schälen, Länge, Prüfmuster" }
   ]
 }

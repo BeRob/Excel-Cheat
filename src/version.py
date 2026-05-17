@@ -20,7 +20,7 @@ APP_VERSION_TUPLE: tuple[int, int, int, int] = (1, 5, 0, 0)
 APP_VERSION: str = ".".join(str(n) for n in APP_VERSION_TUPLE[:3])
 APP_VERSION_FULL: str = ".".join(str(n) for n in APP_VERSION_TUPLE)
 
-APP_VERSION_DATE: str = "2026-05-13"
+APP_VERSION_DATE: str = "2026-05-17"
 
 APP_NAME: str = "QAInput"
 APP_COMPANY: str = "Questalpha"
