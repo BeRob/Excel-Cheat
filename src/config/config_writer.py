@@ -59,6 +59,8 @@ def product_to_dict(product: ProductConfig) -> dict:
     }
     if product.output_dir is not None:
         d["output_dir"] = product.output_dir
+    if product.revision_history:
+        d["revision_history"] = product.revision_history
     return d
 
 

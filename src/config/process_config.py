@@ -40,6 +40,7 @@ class ProductConfig:
     processes: list[ProcessConfig]
     output_dir: str | None = None
     revision: int = 1
+    revision_history: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -92,12 +93,16 @@ def load_product_config(path: Path) -> ProductConfig:
         revision = int(data.get("revision", 1))
     except (TypeError, ValueError):
         revision = 1
+    history = data.get("revision_history", [])
+    if not isinstance(history, list):
+        history = []
     return ProductConfig(
         product_id=data["product_id"],
         display_name=data["display_name"],
         processes=[_parse_process(p) for p in data["processes"]],
         output_dir=data.get("output_dir"),
         revision=revision,
+        revision_history=history,
     )
 
 
