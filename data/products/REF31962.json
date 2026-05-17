@@ -103,7 +103,7 @@
     },
     {
       "template_id": "IPC2_Schaelen",
-      "display_name": "IPC2 Schaelen",
+      "display_name": "IPC2 Schälen",
       "row_group_size": 3,
       "fields": [
         {
@@ -170,7 +170,7 @@
         },
         {
           "id": "flaechengewicht",
-          "display_name": "Flaechengewicht",
+          "display_name": "Flächengewicht",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -334,7 +334,7 @@
         },
         {
           "id": "pruefmuster",
-          "display_name": "Pruefmuster",
+          "display_name": "Prüfmuster",
           "type": "number",
           "role": "auto",
           "persistent": false
@@ -351,7 +351,7 @@
         },
         {
           "id": "laenge",
-          "display_name": "Laenge",
+          "display_name": "Länge",
           "type": "number",
           "role": "measurement",
           "persistent": false,

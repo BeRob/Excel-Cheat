@@ -192,7 +192,7 @@
         },
         {
           "id": "flaechengewicht",
-          "display_name": "Flaechengewicht",
+          "display_name": "Flächengewicht",
           "type": "number",
           "role": "measurement",
           "persistent": false,
