@@ -24,21 +24,23 @@ Zusaetzliche Empfehlungen (nicht im Spec abbildbar):
 """
 
 import os
+from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 ROOT = os.path.abspath('.')
 
+_openpyxl_datas, _openpyxl_binaries, _openpyxl_hiddenimports = collect_all('openpyxl')
 
 a = Analysis(
     ['app.py'],
     pathex=[ROOT],
-    binaries=[],
+    binaries=_openpyxl_binaries,
     datas=[
         ('QUESTALPHA_StaticLogo_pos_rgb.png', '.'),
         ('Bedienungsanleitung.html', '.'),
         ('Kurzanleitung.html', '.'),
-    ],
-    hiddenimports=['openpyxl', 'PIL', 'PIL.Image', 'PIL.ImageTk'],
+    ] + _openpyxl_datas,
+    hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk'] + _openpyxl_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
