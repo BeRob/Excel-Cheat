@@ -1,7 +1,24 @@
 {
   "product_id": "REF32102",
   "display_name": "REF 32102 - Sugi Eyedrain, 155 x 4 x 1 mm, non-sterile, 100 pcs.",
-  "revision": 2,
+  "revision": 3,
+  "revision_history": [
+    {
+      "revision": 1,
+      "date": "2026-04-27",
+      "change": "Erstanlage"
+    },
+    {
+      "revision": 2,
+      "date": "2026-05-17",
+      "change": "Echte Umlaute in Feldnamen: Flächengewicht"
+    },
+    {
+      "revision": 3,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Schneiden",
@@ -40,6 +57,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -48,7 +72,7 @@
         },
         {
           "id": "ask",
-          "display_name": "ASK Soll >1200%",
+          "display_name": "ASK ≥ 1200%",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -58,8 +82,8 @@
           ]
         },
         {
-          "id": "kanten",
-          "display_name": "Kanten sauber und fusselfrei",
+          "id": "kanten_sauber",
+          "display_name": "Kanten sauber/fusselfrei",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -70,7 +94,7 @@
         },
         {
           "id": "bahn_1",
-          "display_name": "Bahn 1",
+          "display_name": "Bahn 1 [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -80,7 +104,7 @@
         },
         {
           "id": "bahn_2",
-          "display_name": "Bahn 2",
+          "display_name": "Bahn 2 [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -94,7 +118,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -150,6 +175,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -165,7 +197,7 @@
         },
         {
           "id": "schalspalt_oben",
-          "display_name": "Schalspalt oben",
+          "display_name": "Schälspalt oben [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -173,7 +205,7 @@
         },
         {
           "id": "schalspalt_unten",
-          "display_name": "Schalspalt unten",
+          "display_name": "Schälspalt unten [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -181,13 +213,14 @@
         },
         {
           "id": "flaechengewicht",
-          "display_name": "Flächengewicht",
-          "type": "number",
+          "display_name": "Flächengewicht 125–150 g/m²",
+          "type": "choice",
           "role": "measurement",
           "persistent": false,
-          "spec_target": 135,
-          "spec_min": 125,
-          "spec_max": 150
+          "options": [
+            "Ja",
+            "Nein"
+          ]
         },
         {
           "id": "bemerkungen",
@@ -195,7 +228,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -264,8 +298,8 @@
           "persistent": false
         },
         {
-          "id": "kanten",
-          "display_name": "Kanten sauber und fusselfrei",
+          "id": "kanten_sauber",
+          "display_name": "Kanten sauber/fusselfrei",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -276,7 +310,7 @@
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -286,7 +320,7 @@
         },
         {
           "id": "laenge",
-          "display_name": "Länge",
+          "display_name": "Länge [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -300,7 +334,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -356,7 +391,7 @@
         },
         {
           "id": "rolle_schicht_nr",
-          "display_name": "Rollen/Schicht Nr.",
+          "display_name": "Rolle/Schicht Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -365,7 +400,7 @@
           "id": "beutel_nr",
           "display_name": "Beutel Nr.",
           "type": "number",
-          "role": "auto",
+          "role": "measurement",
           "persistent": false
         },
         {
@@ -374,7 +409,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -392,9 +428,5 @@
         }
       ]
     }
-  ],
-  "revision_history": [
-    { "revision": 1, "date": "2026-04-27", "change": "Erstanlage" },
-    { "revision": 2, "date": "2026-05-17", "change": "Echte Umlaute in Feldnamen: Flächengewicht" }
   ]
 }

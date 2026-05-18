@@ -53,9 +53,9 @@ class ShiftDef:
 @dataclass
 class AppConfig:
     products: list[ProductConfig] = field(default_factory=list)
-    output_dir: str = "output"
     shifts: list[ShiftDef] = field(default_factory=list)
     qr_prefix: str = ""
+    sheet_protection_password: str = "hexhex"
 
 
 def _parse_field(data: dict) -> FieldDef:
@@ -129,9 +129,11 @@ def load_app_config(config_path: Path, products_dir: Path) -> AppConfig:
 
     return AppConfig(
         products=products,
-        output_dir=global_data.get("output_dir", "output"),
         shifts=shifts,
         qr_prefix=global_data.get("qr_prefix", ""),
+        sheet_protection_password=global_data.get(
+            "sheet_protection_password", "hexhex"
+        ),
     )
 
 

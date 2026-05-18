@@ -238,6 +238,9 @@ class ContextView(BaseView):
             filepath = create_measurement_file(
                 process, product.product_id, output_dir,
                 lot, fa_nr, shift, shift_date,
+                protection_password=getattr(
+                    self.app_state.app_config, "sheet_protection_password", "hexhex"
+                ),
             )
             file_event = Event.FILE_CREATED
 

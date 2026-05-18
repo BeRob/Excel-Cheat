@@ -25,9 +25,9 @@ INFO_TITLE_FONT = Font(bold=True, size=14)
 SHEET_PROTECTION_PASSWORD = "hexhex"
 
 
-def _apply_sheet_protection(ws) -> None:
+def _apply_sheet_protection(ws, password: str = SHEET_PROTECTION_PASSWORD) -> None:
     ws.protection.sheet = True
-    ws.protection.password = SHEET_PROTECTION_PASSWORD
+    ws.protection.password = password
 
 
 def _sanitize_for_filename(value: str) -> str:
@@ -85,6 +85,7 @@ def create_measurement_file(
     fa_nr: str,
     shift: str,
     dt: date,
+    protection_password: str = SHEET_PROTECTION_PASSWORD,
 ) -> Path:
     """Legt eine neue Excel-Datei mit Kopfzeile an und gibt den Pfad zurück."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -106,7 +107,7 @@ def create_measurement_file(
         width = max(len(header) + 4, 14)
         ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
 
-    _apply_sheet_protection(ws)
+    _apply_sheet_protection(ws, protection_password)
 
     wb.save(path)
     wb.close()

@@ -1,7 +1,14 @@
 {
   "product_id": "REF50808",
   "display_name": "REF 50808 - Sugi sponge strip 1200; 130,3 x 17,15 mm",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -47,8 +54,8 @@
           "persistent": false
         },
         {
-          "id": "rollen_bahn_nr",
-          "display_name": "Rollen Nr./Bahn Nr.",
+          "id": "rolle_bahn_nr",
+          "display_name": "Rolle/Bahn Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -86,7 +93,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -148,22 +156,11 @@
           "persistent": false
         },
         {
-          "id": "rollen_bahn_nr",
-          "display_name": "Rollen Nr./Bahn Nr.",
+          "id": "rolle_bahn_nr",
+          "display_name": "Rolle/Bahn Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
-        },
-        {
-          "id": "ask",
-          "display_name": "ASK ≥ 1200%",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
         },
         {
           "id": "schichtdicke_anfang_links",
@@ -211,7 +208,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -280,8 +278,8 @@
           "persistent": false
         },
         {
-          "id": "nutzen",
-          "display_name": "Nutzen [mm]",
+          "id": "breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -295,7 +293,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -357,8 +356,8 @@
           "persistent": false
         },
         {
-          "id": "rolle_nr",
-          "display_name": "Roll Nr.",
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -417,7 +416,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -471,8 +471,8 @@
           "persistent": false
         },
         {
-          "id": "rollen_bahn",
-          "display_name": "Rollen Nr./Bahn",
+          "id": "rolle_bahn_nr",
+          "display_name": "Rolle/Bahn Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -488,7 +488,7 @@
           "id": "karton_nr",
           "display_name": "Karton Nr.",
           "type": "number",
-          "role": "auto",
+          "role": "measurement",
           "persistent": false
         },
         {
@@ -497,7 +497,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",

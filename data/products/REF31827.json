@@ -1,7 +1,14 @@
 {
   "product_id": "REF31827",
   "display_name": "REF 31827 - Lifecell sponge, 200 x 400 mm sterile, 122PO290",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -40,6 +47,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -48,15 +62,18 @@
         },
         {
           "id": "ask",
-          "display_name": "ASK Soll >=1200%",
-          "type": "number",
+          "display_name": "ASK ≥ 1200%",
+          "type": "choice",
           "role": "measurement",
           "persistent": false,
-          "spec_min": 1200
+          "options": [
+            "Ja",
+            "Nein"
+          ]
         },
         {
-          "id": "breite_nutzbahn",
-          "display_name": "Breite Nutzbahnen",
+          "id": "breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -70,7 +87,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -126,6 +144,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -141,16 +166,19 @@
         },
         {
           "id": "ask",
-          "display_name": "ASK Soll >=1200%",
-          "type": "number",
+          "display_name": "ASK ≥ 1200%",
+          "type": "choice",
           "role": "measurement",
           "persistent": false,
-          "spec_min": 1200,
-          "group_shared": true
+          "group_shared": true,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -160,7 +188,7 @@
         },
         {
           "id": "laenge",
-          "display_name": "Länge",
+          "display_name": "Länge [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -182,7 +210,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -238,6 +267,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -253,7 +289,7 @@
         },
         {
           "id": "spalt2",
-          "display_name": "Spalt2",
+          "display_name": "Spalt2 [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -261,7 +297,7 @@
         },
         {
           "id": "schichtdicke_trocken_oben",
-          "display_name": "Schichtdicke trocken oben",
+          "display_name": "Schichtdicke trocken oben [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -271,7 +307,7 @@
         },
         {
           "id": "schichtdicke_trocken_unten",
-          "display_name": "Schichtdicke trocken unten",
+          "display_name": "Schichtdicke trocken unten [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -281,7 +317,7 @@
         },
         {
           "id": "schichtdicke_nass_oben",
-          "display_name": "Schichtdicke nass oben",
+          "display_name": "Schichtdicke nass oben [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -291,7 +327,7 @@
         },
         {
           "id": "schichtdicke_nass_unten",
-          "display_name": "Schichtdicke nass unten",
+          "display_name": "Schichtdicke nass unten [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -305,7 +341,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -387,7 +424,7 @@
         },
         {
           "id": "laenge",
-          "display_name": "Länge",
+          "display_name": "Länge [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -398,7 +435,7 @@
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -413,7 +450,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",

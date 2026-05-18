@@ -259,7 +259,7 @@ class TestLoadAppConfig(unittest.TestCase):
         products_dir.mkdir()
 
         config_path.write_text(json.dumps({
-            "output_dir": "out",
+            "sheet_protection_password": "geheim",
             "shifts": [
                 {"name": "1", "start_hour": 6, "end_hour": 14},
             ],
@@ -272,7 +272,7 @@ class TestLoadAppConfig(unittest.TestCase):
         }), encoding="utf-8")
 
         app_config = load_app_config(config_path, products_dir)
-        self.assertEqual(app_config.output_dir, "out")
+        self.assertEqual(app_config.sheet_protection_password, "geheim")
         self.assertEqual(len(app_config.shifts), 1)
         self.assertEqual(len(app_config.products), 1)
         self.assertEqual(app_config.products[0].product_id, "P1")
@@ -286,7 +286,7 @@ class TestLoadAppConfig(unittest.TestCase):
         products_dir.mkdir()
 
         app_config = load_app_config(tmp / "nonexistent.json", products_dir)
-        self.assertEqual(app_config.output_dir, "output")
+        self.assertEqual(app_config.sheet_protection_password, "hexhex")
         self.assertEqual(len(app_config.shifts), 0)
         self.assertEqual(len(app_config.products), 0)
 

@@ -1,7 +1,24 @@
 {
   "product_id": "REF31962",
   "display_name": "REF 31962 - Sugi Instrument Wipe, 80x80mm, non-sterile, 250 pcs.",
-  "revision": 2,
+  "revision": 3,
+  "revision_history": [
+    {
+      "revision": 1,
+      "date": "2026-04-09",
+      "change": "Erstanlage"
+    },
+    {
+      "revision": 2,
+      "date": "2026-05-17",
+      "change": "Echte Umlaute in Feldnamen: Flächengewicht, IPC2 Schälen, Länge, Prüfmuster"
+    },
+    {
+      "revision": 3,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -40,6 +57,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -48,7 +72,7 @@
         },
         {
           "id": "ask",
-          "display_name": "ASK Soll >=1000%",
+          "display_name": "ASK ≥ 1000%",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -59,7 +83,7 @@
         },
         {
           "id": "breite_1",
-          "display_name": "Breite 1",
+          "display_name": "Breite 1 [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -69,7 +93,7 @@
         },
         {
           "id": "breite_2",
-          "display_name": "Breite 2",
+          "display_name": "Breite 2 [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -83,7 +107,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -139,6 +164,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -154,7 +186,7 @@
         },
         {
           "id": "schalspalt_oben",
-          "display_name": "Schalspalt oben",
+          "display_name": "Schälspalt oben [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -162,7 +194,7 @@
         },
         {
           "id": "schalspalt_unten",
-          "display_name": "Schalspalt unten",
+          "display_name": "Schälspalt unten [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -170,13 +202,14 @@
         },
         {
           "id": "flaechengewicht",
-          "display_name": "Flächengewicht",
-          "type": "number",
+          "display_name": "Flächengewicht 130–170 g/m²",
+          "type": "choice",
           "role": "measurement",
           "persistent": false,
-          "spec_target": 150,
-          "spec_min": 130,
-          "spec_max": 170
+          "options": [
+            "Ja",
+            "Nein"
+          ]
         },
         {
           "id": "bemerkungen",
@@ -184,7 +217,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -247,7 +281,7 @@
         },
         {
           "id": "schichtdicke_links",
-          "display_name": "Schichtdicke Links",
+          "display_name": "Schichtdicke links [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -257,7 +291,7 @@
         },
         {
           "id": "schichtdicke_rechts",
-          "display_name": "Schichtdicke Rechts",
+          "display_name": "Schichtdicke rechts [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -271,7 +305,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -327,7 +362,7 @@
         },
         {
           "id": "rolle_bahn_nutzen",
-          "display_name": "Roll/Bahn/Nutzen Nr.",
+          "display_name": "Rolle/Bahn/Nutzen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -341,7 +376,7 @@
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -351,7 +386,7 @@
         },
         {
           "id": "laenge",
-          "display_name": "Länge",
+          "display_name": "Länge [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -365,7 +400,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -420,6 +456,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -436,7 +479,7 @@
         {
           "id": "beutel_nr",
           "display_name": "Beutel Nr.",
-          "type": "text",
+          "type": "number",
           "role": "measurement",
           "persistent": false
         },
@@ -446,7 +489,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -464,9 +508,5 @@
         }
       ]
     }
-  ],
-  "revision_history": [
-    { "revision": 1, "date": "2026-04-09", "change": "Erstanlage" },
-    { "revision": 2, "date": "2026-05-17", "change": "Echte Umlaute in Feldnamen: Flächengewicht, IPC2 Schälen, Länge, Prüfmuster" }
   ]
 }

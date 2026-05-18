@@ -18,7 +18,7 @@ from src.audit.logging_setup import init_logging, shutdown_logging
 from src.config.settings import (
     APP_TITLE, APP_VERSION, WINDOW_WIDTH, WINDOW_HEIGHT, AUDIT_LOG_PATH,
     APP_CONFIG_PATH, PRODUCTS_DIR,
-    DEBUG_LOG_PATH, ERROR_LOG_PATH, load_ui_prefs,
+    DEBUG_LOG_PATH, ERROR_LOG_PATH, load_ui_prefs, load_app_config_raw,
 )
 from src.config.process_config import load_app_config
 from src.domain.state import AppState
@@ -50,11 +50,29 @@ class MeasurementApp:
     ]
 
     def __init__(self) -> None:
+        # Rohwerte aus app_config.json — gebraucht, bevor der AppConfig-
+        # Dataclass existiert (Logging-Rotation, Audit-Lock-Timeout).
+        raw_cfg = load_app_config_raw()
+        log_cfg = raw_cfg.get("logging")
+        if not isinstance(log_cfg, dict):
+            log_cfg = {}
+
+        def _num(source: dict, key: str, default):
+            try:
+                return type(default)(source.get(key, default))
+            except (TypeError, ValueError):
+                return default
+
         # Logging muss vor allem anderen stehen, damit Fehler in der
         # Initialisierung selbst noch im error.log landen.
         init_logging(
             DEBUG_LOG_PATH, ERROR_LOG_PATH,
             on_exception=self._on_uncaught_exception,
+            debug_max_bytes=_num(log_cfg, "debug_max_mb", 5) * 1024 * 1024,
+            debug_backup_count=_num(log_cfg, "debug_backup_count", 5),
+            error_max_bytes=_num(log_cfg, "error_max_mb", 2) * 1024 * 1024,
+            error_backup_count=_num(log_cfg, "error_backup_count", 5),
+            buffer_capacity=_num(log_cfg, "buffer_capacity", 20),
         )
         _logger.info("app starting")
 
@@ -72,7 +90,10 @@ class MeasurementApp:
         apply_theme(self.root)
 
         self.state = AppState()
-        self.state.audit = AuditLogger(AUDIT_LOG_PATH)
+        self.state.audit = AuditLogger(
+            AUDIT_LOG_PATH,
+            lock_timeout=_num(raw_cfg, "audit_lock_timeout_seconds", 5.0),
+        )
         try:
             self.state.app_config = load_app_config(APP_CONFIG_PATH, PRODUCTS_DIR)
         except Exception:

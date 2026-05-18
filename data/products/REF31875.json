@@ -1,7 +1,14 @@
 {
   "product_id": "REF31875",
   "display_name": "REF 31875 - Sugi Cellulose Strip 138-144 mm x 16-17 mm x 1 mm, non-sterile",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -47,22 +54,11 @@
           "persistent": false
         },
         {
-          "id": "rolle_nr",
-          "display_name": "Roll Nr.",
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
-        },
-        {
-          "id": "nsd",
-          "display_name": "NSD ≥ 7 mm",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
         },
         {
           "id": "ask",
@@ -89,7 +85,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -151,33 +148,11 @@
           "persistent": false
         },
         {
-          "id": "rolle_nr",
-          "display_name": "Roll Nr.",
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
-        },
-        {
-          "id": "nsd",
-          "display_name": "NSD ≥ 7 mm",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
-        },
-        {
-          "id": "ask",
-          "display_name": "ASK ≥ 1200%",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
         },
         {
           "id": "schichtdicke_anfang",
@@ -205,7 +180,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -267,8 +243,8 @@
           "persistent": false
         },
         {
-          "id": "rolle_nr",
-          "display_name": "Roll Nr.",
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -289,7 +265,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -351,8 +328,8 @@
           "persistent": false
         },
         {
-          "id": "rolle_nr",
-          "display_name": "Roll Nr.",
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -360,15 +337,15 @@
         {
           "id": "karton_nr",
           "display_name": "Karton Nr.",
-          "type": "text",
-          "role": "context",
+          "type": "number",
+          "role": "measurement",
           "persistent": false
         },
         {
           "id": "pruefplatte",
           "display_name": "Prüfplatte / Nutzen-streifen",
           "type": "number",
-          "role": "auto",
+          "role": "measurement",
           "persistent": false
         },
         {
@@ -418,7 +395,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",

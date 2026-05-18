@@ -1,7 +1,14 @@
 {
   "product_id": "_REF31842.3",
   "display_name": "_REF 31842.3 - Excelsior Sponge Strip 8,5 x 5,1 x 0,8 mm, non-sterile, bag 5000 pcs.",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Probenfertigung",
@@ -82,7 +89,7 @@
         },
         {
           "id": "bearbeiter",
-          "display_name": "Unterschrift",
+          "display_name": "Bearbeiter",
           "type": "text",
           "role": "auto",
           "persistent": false
@@ -135,21 +142,21 @@
         },
         {
           "id": "rollen_nr",
-          "display_name": "Rolle Nr.",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
         },
         {
           "id": "nutzen",
-          "display_name": "Bahn",
+          "display_name": "Nutzen",
           "type": "number",
           "role": "auto",
           "persistent": false
         },
         {
           "id": "ask",
-          "display_name": "ASK Soll >=1200%",
+          "display_name": "ASK ≥ 1200%",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -161,7 +168,7 @@
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -185,7 +192,7 @@
         },
         {
           "id": "bearbeiter",
-          "display_name": "Unterschrift",
+          "display_name": "Bearbeiter",
           "type": "text",
           "role": "auto",
           "persistent": false
@@ -230,8 +237,15 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
-          "display_name": "Rolle Nr.",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -252,7 +266,7 @@
         },
         {
           "id": "schichtdicke_links",
-          "display_name": "Schichtdicke links",
+          "display_name": "Schichtdicke links [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -262,7 +276,7 @@
         },
         {
           "id": "schichtdicke_rechts",
-          "display_name": "Schichtdicke rechts",
+          "display_name": "Schichtdicke rechts [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -288,7 +302,7 @@
         },
         {
           "id": "bearbeiter",
-          "display_name": "Unterschrift",
+          "display_name": "Bearbeiter",
           "type": "text",
           "role": "auto",
           "persistent": false
@@ -333,6 +347,13 @@
           "info_header": true
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -362,7 +383,7 @@
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -388,7 +409,7 @@
         },
         {
           "id": "bearbeiter",
-          "display_name": "Unterschrift",
+          "display_name": "Bearbeiter",
           "type": "text",
           "role": "auto",
           "persistent": false
@@ -443,6 +464,13 @@
           ]
         },
         {
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
           "id": "rollen_nr",
           "display_name": "Rollen Nr.",
           "type": "text",
@@ -452,7 +480,7 @@
         },
         {
           "id": "pruefmuster",
-          "display_name": "Bag Nr.",
+          "display_name": "Prüfmuster",
           "type": "number",
           "role": "auto",
           "persistent": false
@@ -466,7 +494,7 @@
         },
         {
           "id": "laenge",
-          "display_name": "Länge",
+          "display_name": "Länge [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -476,7 +504,7 @@
         },
         {
           "id": "breite",
-          "display_name": "Breite",
+          "display_name": "Breite [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -486,7 +514,7 @@
         },
         {
           "id": "schichtdicke",
-          "display_name": "Schichtdicke",
+          "display_name": "Schichtdicke [mm]",
           "type": "number",
           "role": "measurement",
           "persistent": false,
@@ -512,7 +540,7 @@
         },
         {
           "id": "bearbeiter",
-          "display_name": "Unterschrift",
+          "display_name": "Bearbeiter",
           "type": "text",
           "role": "auto",
           "persistent": false

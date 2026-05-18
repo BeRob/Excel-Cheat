@@ -1,7 +1,14 @@
 {
   "product_id": "REF31863",
   "display_name": "REF 31863",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -48,18 +55,7 @@
         },
         {
           "id": "ask",
-          "display_name": "ASK [%]",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
-        },
-        {
-          "id": "nsd",
-          "display_name": "NSD",
+          "display_name": "ASK ≥ 1200%",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -71,9 +67,13 @@
         {
           "id": "flaechengewicht",
           "display_name": "Flächengewicht",
-          "type": "number",
+          "type": "choice",
           "role": "measurement",
-          "persistent": false
+          "persistent": false,
+          "options": [
+            "Ja",
+            "Nein"
+          ]
         },
         {
           "id": "laenge",
@@ -95,7 +95,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -169,30 +170,6 @@
           ]
         },
         {
-          "id": "ask",
-          "display_name": "ASK [%]",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ],
-          "group_shared": true
-        },
-        {
-          "id": "nsd",
-          "display_name": "NSD",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ],
-          "group_shared": true
-        },
-        {
           "id": "schichtdicke_links",
           "display_name": "Schichtdicke links [mm]",
           "type": "number",
@@ -212,7 +189,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -297,7 +275,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -352,15 +331,22 @@
           "info_header": true
         },
         {
-          "id": "rolle_nr",
-          "display_name": "Rolle Nr.",
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
         },
         {
           "id": "rolle_nutzen_schicht",
-          "display_name": "Rolle/Nutzen/Schicht",
+          "display_name": "Rolle/Nutzen/Schicht Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -410,7 +396,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -457,8 +444,8 @@
           "info_header": true
         },
         {
-          "id": "rollen_bahn_nr",
-          "display_name": "Rollen Nr./Bahn Nr.",
+          "id": "rolle_bahn_nr",
+          "display_name": "Rolle/Bahn Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
@@ -483,7 +470,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",

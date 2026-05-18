@@ -123,3 +123,19 @@ def save_ui_prefs(prefs: dict) -> None:
 HEADER_ROW = 9
 
 APP_CONFIG_PATH = CONFIG_DIR / "app_config.json"
+
+
+def load_app_config_raw() -> dict:
+    """Liest app_config.json als rohes Dict.
+
+    Für Werte, die schon beim Start gebraucht werden — bevor der
+    AppConfig-Dataclass existiert (Logging-Rotation, Audit-Lock-Timeout).
+    Fehlende/fehlerhafte Datei → leeres Dict, Aufrufer nutzen ihre Defaults.
+    """
+    try:
+        if APP_CONFIG_PATH.exists():
+            data = json.loads(APP_CONFIG_PATH.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        pass
+    return {}

@@ -1,7 +1,14 @@
 {
   "product_id": "REF50810_HS",
   "display_name": "Art. 50810.HS - Sugi sponge roll, 152,8 mm",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
@@ -97,7 +104,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -186,17 +194,6 @@
           ]
         },
         {
-          "id": "ask",
-          "display_name": "ASK ≥ 1200%",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
-        },
-        {
           "id": "schichtdicke_anfang_links",
           "display_name": "Schichtdicke Anfang links [mm]",
           "type": "number",
@@ -242,7 +239,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -304,17 +302,17 @@
           "persistent": false
         },
         {
-          "id": "rollen_bahn",
-          "display_name": "Rollen Nr./Bahn",
+          "id": "rolle_bahn_nr",
+          "display_name": "Rolle/Bahn Nr.",
           "type": "text",
           "role": "context",
           "persistent": false
         },
         {
-          "id": "rollennummer_hs",
-          "display_name": "Rollennummer Art. 50810.HS",
-          "type": "number",
-          "role": "auto",
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
           "persistent": false
         },
         {
@@ -339,7 +337,7 @@
         },
         {
           "id": "schnittkante",
-          "display_name": "Schnittkante i.O.",
+          "display_name": "Schnittkante sauber/fusselfrei",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -354,7 +352,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",

@@ -36,7 +36,7 @@ _ERROR_BACKUP_COUNT = 5
 
 def _make_rotating_handler(
     path: Path, level: int, max_bytes: int, backups: int,
-    buffered: bool = False,
+    buffered: bool = False, buffer_capacity: int = 20,
 ) -> logging.Handler:
     path.parent.mkdir(parents=True, exist_ok=True)
     handler = logging.handlers.RotatingFileHandler(
@@ -52,7 +52,7 @@ def _make_rotating_handler(
         # MemoryHandler puffert bis Buffer voll oder Level >= WARNING auftritt.
         # Reduziert Schreiblast auf SMB bei häufigen DEBUG/INFO-Events.
         buffered_handler = logging.handlers.MemoryHandler(
-            capacity=20,
+            capacity=buffer_capacity,
             flushLevel=logging.WARNING,
             target=handler,
             flushOnClose=True,
@@ -66,8 +66,18 @@ def init_logging(
     debug_log_path: Path,
     error_log_path: Path,
     on_exception: Callable[[BaseException], None] | None = None,
+    *,
+    debug_max_bytes: int = _DEBUG_MAX_BYTES,
+    debug_backup_count: int = _DEBUG_BACKUP_COUNT,
+    error_max_bytes: int = _ERROR_MAX_BYTES,
+    error_backup_count: int = _ERROR_BACKUP_COUNT,
+    buffer_capacity: int = 20,
 ) -> None:
-    """Initialisiert Root-Logger + Exception-Hooks. Idempotent."""
+    """Initialisiert Root-Logger + Exception-Hooks. Idempotent.
+
+    Rotations- und Puffergrößen sind über app_config.json konfigurierbar;
+    ohne Angabe gelten die Modul-Defaults (passend für SMB-Deployment).
+    """
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
@@ -77,14 +87,14 @@ def init_logging(
             root.removeHandler(h)
 
     debug_handler = _make_rotating_handler(
-        debug_log_path, logging.DEBUG, _DEBUG_MAX_BYTES, _DEBUG_BACKUP_COUNT,
-        buffered=True,
+        debug_log_path, logging.DEBUG, debug_max_bytes, debug_backup_count,
+        buffered=True, buffer_capacity=buffer_capacity,
     )
     debug_handler._qainput_managed = True  # type: ignore[attr-defined]
     root.addHandler(debug_handler)
 
     error_handler = _make_rotating_handler(
-        error_log_path, logging.ERROR, _ERROR_MAX_BYTES, _ERROR_BACKUP_COUNT,
+        error_log_path, logging.ERROR, error_max_bytes, error_backup_count,
         buffered=False,
     )
     error_handler._qainput_managed = True  # type: ignore[attr-defined]

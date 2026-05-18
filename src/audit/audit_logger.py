@@ -95,8 +95,12 @@ class AuditLogger:
     Grenzen hinweg zuordnen.
     """
 
-    def __init__(self, log_path: str | Path) -> None:
+    def __init__(
+        self, log_path: str | Path, *,
+        lock_timeout: float = _LOCK_TIMEOUT_SECONDS,
+    ) -> None:
         self.log_path = Path(log_path)
+        self._lock_timeout = lock_timeout
         self._lock_path = self.log_path.with_name(self.log_path.name + ".lock")
         self._session_id = uuid.uuid4().hex
         self._host = socket.gethostname()
@@ -255,7 +259,7 @@ class AuditLogger:
                 os.O_RDWR | os.O_CREAT,
                 0o644,
             )
-            if not _acquire_lock(lock_fd, _LOCK_TIMEOUT_SECONDS):
+            if not _acquire_lock(lock_fd, self._lock_timeout):
                 _logger.warning(
                     "Audit-Lock-Timeout — schreibe lokal in Fallback-Datei"
                 )

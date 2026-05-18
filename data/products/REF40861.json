@@ -1,7 +1,14 @@
 {
   "product_id": "REF40861",
   "display_name": "REF 40861 - Cellulose Sponge Roll, Breite 183,5 mm, Schichtdicke 0,95 mm, roll 60-80 m",
-  "revision": 1,
+  "revision": 2,
+  "revision_history": [
+    {
+      "revision": 2,
+      "date": "2026-05-19",
+      "change": "Konsistenz-Vereinheitlichung der Feld-Definitionen: Rollen-IDs kanonisiert, ASK und Flächengewicht als Ja/Nein-Auswahl, Einheiten in den Anzeigenamen vereinheitlicht, rollencharge ergänzt; NSD-Felder und ASK-Abfrage im Walzen entfernt; tote Auto-Felder auf Bediener-Eingabe umgestellt."
+    }
+  ],
   "processes": [
     {
       "template_id": "IPC1_Walzen",
@@ -61,8 +68,8 @@
           "persistent": false
         },
         {
-          "id": "fg",
-          "display_name": "FG ≥ 560",
+          "id": "flaechengewicht",
+          "display_name": "Flächengewicht ≥ 560 g/m²",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -73,7 +80,7 @@
         },
         {
           "id": "ask",
-          "display_name": "ASK > 1200%",
+          "display_name": "ASK ≥ 1200%",
           "type": "choice",
           "role": "measurement",
           "persistent": false,
@@ -159,7 +166,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -214,10 +222,17 @@
           "info_header": true
         },
         {
-          "id": "rolle_hs",
-          "display_name": "Rolle H&S",
-          "type": "number",
-          "role": "auto",
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
           "persistent": false
         },
         {
@@ -282,7 +297,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
@@ -336,10 +352,17 @@
           "persistent": true
         },
         {
-          "id": "roll_nr",
-          "display_name": "Roll Nr.",
-          "type": "number",
-          "role": "auto",
+          "id": "rollencharge",
+          "display_name": "Rollencharge",
+          "type": "text",
+          "role": "context",
+          "persistent": false
+        },
+        {
+          "id": "rollen_nr",
+          "display_name": "Rollen Nr.",
+          "type": "text",
+          "role": "context",
           "persistent": false
         },
         {
@@ -366,7 +389,8 @@
           "type": "text",
           "role": "measurement",
           "persistent": false,
-          "optional": true
+          "optional": true,
+          "default_value": "n/a"
         },
         {
           "id": "datum",
