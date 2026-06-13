@@ -22,490 +22,134 @@
   "processes": [
     {
       "template_id": "IPC1_Vorschneiden",
+      "template": "Vorschneiden",
       "display_name": "IPC1 Vorschneiden",
-      "fields": [
-        {
-          "id": "fa_nr",
-          "display_name": "FA-Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
+      "active_fields": [
+        "fa_nr",
+        "lot_nr",
+        "verwendbarkeitsdatum",
+        "messmittel",
+        "rollencharge",
+        "rollen_nr",
+        "ask",
+        "breite_1",
+        "breite_2",
+        "bemerkungen",
+        "datum",
+        "bearbeiter"
+      ],
+      "field_overrides": {
+        "ask": {
+          "display_name": "ASK ≥ 1000%"
         },
-        {
-          "id": "lot_nr",
-          "display_name": "LOT Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "verwendbarkeitsdatum",
-          "display_name": "Verwendbarkeitsdatum",
-          "type": "date",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "messmittel",
-          "display_name": "Messmittel",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "rollencharge",
-          "display_name": "Rollencharge",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "rollen_nr",
-          "display_name": "Rollen Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "ask",
-          "display_name": "ASK ≥ 1000%",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
-        },
-        {
-          "id": "breite_1",
-          "display_name": "Breite 1 [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "spec_target": 185,
+        "breite_1": {
           "spec_min": 180,
-          "spec_max": 190
+          "spec_max": 190,
+          "spec_target": 185
         },
-        {
-          "id": "breite_2",
-          "display_name": "Breite 2 [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "spec_target": 185,
+        "breite_2": {
           "spec_min": 180,
-          "spec_max": 190
-        },
-        {
-          "id": "bemerkungen",
-          "display_name": "Bemerkungen",
-          "type": "text",
-          "role": "measurement",
-          "persistent": false,
-          "optional": true,
-          "default_value": "n/a"
-        },
-        {
-          "id": "datum",
-          "display_name": "Datum",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "bearbeiter",
-          "display_name": "Bearbeiter",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
+          "spec_max": 190,
+          "spec_target": 185
         }
-      ]
+      }
     },
     {
       "template_id": "IPC2_Schaelen",
+      "template": "Schaelen",
       "display_name": "IPC2 Schälen",
       "row_group_size": 3,
-      "fields": [
-        {
-          "id": "fa_nr",
-          "display_name": "FA-Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "lot_nr",
-          "display_name": "LOT Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "verwendbarkeitsdatum",
-          "display_name": "Verwendbarkeitsdatum",
-          "type": "date",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "messmittel",
-          "display_name": "Messmittel",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "rollencharge",
-          "display_name": "Rollencharge",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "rollen_nr",
-          "display_name": "Rollen Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "nutzen",
-          "display_name": "Nutzen",
-          "type": "number",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "schalspalt_oben",
-          "display_name": "Schälspalt oben [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "group_shared": true
-        },
-        {
-          "id": "schalspalt_unten",
-          "display_name": "Schälspalt unten [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "group_shared": true
-        },
-        {
-          "id": "flaechengewicht",
-          "display_name": "Flächengewicht 130–170 g/m²",
-          "type": "choice",
-          "role": "measurement",
-          "persistent": false,
-          "options": [
-            "Ja",
-            "Nein"
-          ]
-        },
-        {
-          "id": "bemerkungen",
-          "display_name": "Bemerkungen",
-          "type": "text",
-          "role": "measurement",
-          "persistent": false,
-          "optional": true,
-          "default_value": "n/a"
-        },
-        {
-          "id": "datum",
-          "display_name": "Datum",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "bearbeiter",
-          "display_name": "Bearbeiter",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        }
+      "active_fields": [
+        "fa_nr",
+        "lot_nr",
+        "verwendbarkeitsdatum",
+        "messmittel",
+        "rollencharge",
+        "rollen_nr",
+        "nutzen",
+        "schalspalt_oben",
+        "schalspalt_unten",
+        "flaechengewicht",
+        "bemerkungen",
+        "datum",
+        "bearbeiter"
       ]
     },
     {
       "template_id": "IPC3_Walzen",
+      "template": "Walzen",
       "display_name": "IPC3 Walzen",
-      "fields": [
-        {
-          "id": "fa_nr",
-          "display_name": "FA-Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "lot_nr",
-          "display_name": "LOT Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "verwendbarkeitsdatum",
-          "display_name": "Verwendbarkeitsdatum",
-          "type": "date",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "messmittel",
-          "display_name": "Messmittel",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "rolle_bahn_nutzen",
-          "display_name": "Rolle/Bahn/Nutzen Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "schichtdicke_links",
-          "display_name": "Schichtdicke links [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "spec_target": 0.5,
+      "active_fields": [
+        "fa_nr",
+        "lot_nr",
+        "verwendbarkeitsdatum",
+        "messmittel",
+        "rolle_bahn_nutzen",
+        "schichtdicke_links",
+        "schichtdicke_rechts",
+        "bemerkungen",
+        "datum",
+        "bearbeiter"
+      ],
+      "field_overrides": {
+        "schichtdicke_links": {
           "spec_min": 0.3,
-          "spec_max": 0.6
+          "spec_max": 0.6,
+          "spec_target": 0.5
         },
-        {
-          "id": "schichtdicke_rechts",
-          "display_name": "Schichtdicke rechts [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "spec_target": 0.5,
+        "schichtdicke_rechts": {
           "spec_min": 0.3,
-          "spec_max": 0.6
-        },
-        {
-          "id": "bemerkungen",
-          "display_name": "Bemerkungen",
-          "type": "text",
-          "role": "measurement",
-          "persistent": false,
-          "optional": true,
-          "default_value": "n/a"
-        },
-        {
-          "id": "datum",
-          "display_name": "Datum",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "bearbeiter",
-          "display_name": "Bearbeiter",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
+          "spec_max": 0.6,
+          "spec_target": 0.5
         }
-      ]
+      }
     },
     {
       "template_id": "IPC4_Stanzen",
+      "template": "Stanzen",
       "display_name": "IPC4 Stanzen",
-      "fields": [
-        {
-          "id": "fa_nr",
-          "display_name": "FA-Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "lot_nr",
-          "display_name": "LOT Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "verwendbarkeitsdatum",
-          "display_name": "Verwendbarkeitsdatum",
-          "type": "date",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "messmittel",
-          "display_name": "Messmittel",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "rolle_bahn_nutzen",
-          "display_name": "Rolle/Bahn/Nutzen Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "pruefmuster",
-          "display_name": "Prüfmuster",
-          "type": "number",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "breite",
-          "display_name": "Breite [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "spec_target": 80,
+      "active_fields": [
+        "fa_nr",
+        "lot_nr",
+        "verwendbarkeitsdatum",
+        "messmittel",
+        "rolle_bahn_nutzen",
+        "pruefmuster",
+        "breite",
+        "laenge",
+        "bemerkungen",
+        "datum",
+        "bearbeiter"
+      ],
+      "field_overrides": {
+        "breite": {
           "spec_min": 78,
-          "spec_max": 82
+          "spec_max": 82,
+          "spec_target": 80
         },
-        {
-          "id": "laenge",
-          "display_name": "Länge [mm]",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false,
-          "spec_target": 80,
+        "laenge": {
           "spec_min": 78,
-          "spec_max": 82
-        },
-        {
-          "id": "bemerkungen",
-          "display_name": "Bemerkungen",
-          "type": "text",
-          "role": "measurement",
-          "persistent": false,
-          "optional": true,
-          "default_value": "n/a"
-        },
-        {
-          "id": "datum",
-          "display_name": "Datum",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "bearbeiter",
-          "display_name": "Bearbeiter",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
+          "spec_max": 82,
+          "spec_target": 80
         }
-      ]
+      }
     },
     {
       "template_id": "IPC5_Packliste",
+      "template": "Packliste",
       "display_name": "IPC5 Packliste",
-      "fields": [
-        {
-          "id": "fa_nr",
-          "display_name": "FA-Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "lot_nr",
-          "display_name": "LOT Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "verwendbarkeitsdatum",
-          "display_name": "Verwendbarkeitsdatum",
-          "type": "date",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "messmittel",
-          "display_name": "Messmittel",
-          "type": "text",
-          "role": "context",
-          "persistent": true,
-          "info_header": true
-        },
-        {
-          "id": "rollencharge",
-          "display_name": "Rollencharge",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "rollen_nr",
-          "display_name": "Rollen Nr.",
-          "type": "text",
-          "role": "context",
-          "persistent": false
-        },
-        {
-          "id": "karton_nr",
-          "display_name": "Karton Nr.",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false
-        },
-        {
-          "id": "beutel_nr",
-          "display_name": "Beutel Nr.",
-          "type": "number",
-          "role": "measurement",
-          "persistent": false
-        },
-        {
-          "id": "bemerkungen",
-          "display_name": "Bemerkungen",
-          "type": "text",
-          "role": "measurement",
-          "persistent": false,
-          "optional": true,
-          "default_value": "n/a"
-        },
-        {
-          "id": "datum",
-          "display_name": "Datum",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        },
-        {
-          "id": "bearbeiter",
-          "display_name": "Bearbeiter",
-          "type": "text",
-          "role": "auto",
-          "persistent": false
-        }
+      "active_fields": [
+        "fa_nr",
+        "lot_nr",
+        "verwendbarkeitsdatum",
+        "messmittel",
+        "rollencharge",
+        "rollen_nr",
+        "karton_nr",
+        "beutel_nr",
+        "bemerkungen",
+        "datum",
+        "bearbeiter"
       ]
     }
   ]

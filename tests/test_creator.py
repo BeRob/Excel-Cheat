@@ -170,8 +170,11 @@ class TestCountDataRows(unittest.TestCase):
         wb.close()
         self.assertEqual(count_data_rows(path), 2)
 
-    def test_nonexistent_file(self):
-        self.assertEqual(count_data_rows(Path("/nonexistent.xlsx")), 0)
+    def test_nonexistent_file_raises(self):
+        # Lesefehler dürfen nicht still als 0 gezählt werden — sonst startet
+        # die Prüfmuster-/Beutel-Nummerierung beim Resume doppelt (GMP).
+        with self.assertRaises(Exception):
+            count_data_rows(Path("/nonexistent.xlsx"))
 
 
 class TestWriteInfoHeader(unittest.TestCase):

@@ -1,0 +1,352 @@
+{
+  "template": "Walzen",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31875",
+        "REF40861",
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nutzen",
+      "display_name": "Rolle/Bahn/Nutzen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31863",
+        "REF31962",
+        "REF31963"
+      ]
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31875",
+        "REF40861",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "position",
+      "display_name": "Position",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Anfang",
+        "Ende"
+      ],
+      "_present_in": [
+        "REF31863"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nr",
+      "display_name": "Rolle/Bahn Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "bahn",
+      "display_name": "Bahn Nr.",
+      "type": "choice",
+      "role": "context",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "_present_in": [
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "schichtdicke_anfang",
+      "display_name": "Schichtdicke Anfang [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31875"
+      ]
+    },
+    {
+      "id": "rollen_nr_hs",
+      "display_name": "Rollen Nr. H&S",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "laenge",
+      "display_name": "Länge [m]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF50808_HS",
+        "REF50809_HS",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "flaechengewicht",
+      "display_name": "Flächengewicht ≥ 560 g/m²",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF31859",
+        "REF40861",
+        "REF50808_HS",
+        "REF50809_HS",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "schichtdicke_ende",
+      "display_name": "Schichtdicke Ende [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31875"
+      ]
+    },
+    {
+      "id": "schichtdicke_links",
+      "display_name": "Schichtdicke links [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31863",
+        "REF31962",
+        "REF31963",
+        "REF40861",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "schichtdicke_anfang_links",
+      "display_name": "Schichtdicke Anfang links [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861",
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "ask",
+      "display_name": "ASK ≥ 1200%",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "schichtdicke_rechts",
+      "display_name": "Schichtdicke rechts [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31863",
+        "REF31962",
+        "REF31963",
+        "REF40861",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "schichtdicke_anfang_rechts",
+      "display_name": "Schichtdicke Anfang rechts [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861",
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "schichtdicke_ende_links",
+      "display_name": "Schichtdicke Ende links [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "schichtdicke_ende_rechts",
+      "display_name": "Schichtdicke Ende rechts [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "position_klebestellen",
+      "display_name": "Position Klebestellen (Laufmeter)",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "anzahl_klebestellen",
+      "display_name": "Anzahl Klebestellen",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "laenge_teilstueck",
+      "display_name": "Länge Teilstück [m]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "laenge_rolle_ges",
+      "display_name": "Länge Rolle ges. [m]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    }
+  ],
+  "_unification_notes": {
+    "schichtdicke_links": "Specs produktspezifisch (kommen aus field_overrides).",
+    "schichtdicke_anfang_links": "Specs produktspezifisch (kommen aus field_overrides).",
+    "schichtdicke_rechts": "Specs produktspezifisch (kommen aus field_overrides).",
+    "schichtdicke_anfang_rechts": "Specs produktspezifisch (kommen aus field_overrides).",
+    "schichtdicke_ende_links": "Specs produktspezifisch (kommen aus field_overrides).",
+    "schichtdicke_ende_rechts": "Specs produktspezifisch (kommen aus field_overrides)."
+  }
+}

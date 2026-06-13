@@ -57,6 +57,8 @@ class FormView(BaseView):
         self._nutzen_sections_parent: tk.Widget | None = None
         self._is_multi_nutzen: bool = False
         self._validation_borders: dict[str, tk.Frame] = {}
+        # Einmal-pro-Episode-Warnung bei Audit-Totalausfall (Event verloren)
+        self._audit_fail_warned: bool = False
         # Machine-scoped (Variante 2): pro Maschine eine "aktive" Rolle merken,
         # automatisch in das machine_scoped Feld übernehmen sobald Maschine gewählt wird.
         self._machine_scoped_fields: list[FieldDef] = []
@@ -909,22 +911,68 @@ class FormView(BaseView):
             on_cancel=self._on_review_cancelled,
         )
 
-    def _on_review_cancelled(self, blocked_sections: list[str]) -> None:
+    def _on_review_cancelled(
+        self,
+        blocked_sections: list[str],
+        oos_details: dict[str, list[dict]] | None = None,
+    ) -> None:
         if not self.app_state.audit:
             return
         user_id = (
             self.app_state.current_user.user_id
             if self.app_state.current_user else None
         )
+        process = self.app_state.selected_process
+        tpl_details = self._template_details(process) if process else {}
         if blocked_sections:
+            # GMP: Werte + Grenzen mitloggen — ein OOS_BLOCKED ohne die
+            # betroffenen Messwerte wäre für einen Auditor nicht nachvollziehbar.
             self.app_state.audit.log_event(
                 Event.OOS_BLOCKED, level="warn", user=user_id,
-                details={"sections": blocked_sections},
+                file=str(self.app_state.current_file),
+                details={
+                    "sections": blocked_sections,
+                    "oos_fields": oos_details or {},
+                    **tpl_details,
+                },
             )
         self.app_state.audit.log_event(
             Event.REVIEW_CANCELLED, user=user_id,
-            details={"blocked_sections": blocked_sections},
+            details={"blocked_sections": blocked_sections, **tpl_details},
         )
+
+    def _template_details(self, process) -> dict:
+        """Template-Herkunft für den Audit-Trail (GMP: welche Template-Version
+        hat die Excel-Datei erzeugt). Leeres Dict für Legacy-Prozesse ohne Template."""
+        details: dict = {}
+        if getattr(process, "template", None):
+            details["template"] = process.template
+            details["template_revision"] = process.template_revision
+        return details
+
+    def _audit_health_suffix(self) -> str:
+        """Warntext für die Statuszeile, falls der Audit-Trail gerade ausweicht.
+
+        Ein stiller Audit-Ausfall würde Lücken in der GMP-Dokumentation
+        erzeugen, ohne dass es jemand merkt. Bei Totalausfall (auch der
+        lokale Puffer schlug fehl = Event verloren) zusätzlich einmalig
+        eine Warnbox."""
+        audit = self.app_state.audit
+        if not audit or not audit.degraded_reason:
+            self._audit_fail_warned = False
+            return ""
+        if audit.degraded_reason == "fallback_failed":
+            if not self._audit_fail_warned:
+                self._audit_fail_warned = True
+                messagebox.showwarning(
+                    "Audit-Log ausgefallen",
+                    "Das Audit-Ereignis konnte weder ins Audit-Log noch in "
+                    "den lokalen Puffer geschrieben werden — die "
+                    "GMP-Dokumentation ist unvollständig.\n\nBitte IT "
+                    "informieren.",
+                )
+            return "  ⚠ Audit-Log AUSGEFALLEN — IT informieren!"
+        return "  ⚠ Audit-Log nicht erreichbar — Ereignisse werden lokal gepuffert."
 
     def _do_write(self, normalized_values: dict[str, float | str | None]) -> None:
         process = self.app_state.selected_process
@@ -954,6 +1002,7 @@ class FormView(BaseView):
 
         auto_values: dict[str, str | float | None] = {}
         now = datetime.now()
+        seq_increments = 0
         for fd in get_auto_fields(process):
             if fd.id == "datum":
                 auto_values[fd.display_name] = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -965,6 +1014,7 @@ class FormView(BaseView):
                 auto_values[fd.display_name] = nutzen
             elif fd.id in ("pruefmuster", "beutel_nr"):
                 self.app_state.auto_sequence += 1
+                seq_increments += 1
                 auto_values[fd.display_name] = self.app_state.auto_sequence
             elif fd.id == "karton":
                 # 20 Beutel pro Karton — abgeleitet aus dem aktuellen auto_sequence
@@ -985,27 +1035,32 @@ class FormView(BaseView):
 
             self._add_to_history(normalized_values)
 
-            self.status_var.set(f"Zeile {result.row_number} erfolgreich geschrieben.")
-            self.status_label.config(style="Success.TLabel")
-            self._clear_fields()
-
             if self.app_state.audit:
                 self.app_state.audit.log_event(
                     Event.WRITE_SUCCESS,
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
-                    details={"row": result.row_number},
+                    details={"row": result.row_number, **self._template_details(process)},
                 )
+
+            suffix = self._audit_health_suffix()
+            self.status_var.set(
+                f"Zeile {result.row_number} erfolgreich geschrieben.{suffix}"
+            )
+            self.status_label.config(
+                style="Warning.TLabel" if suffix else "Success.TLabel"
+            )
+            self._clear_fields()
         else:
             messagebox.showerror("Fehler beim Schreiben", result.error)
             self.status_var.set(f"Fehler: {result.error}")
             self.status_label.config(style="Error.TLabel")
 
-            # Sequenz zurücknehmen, wenn das Schreiben fehlschlug
-            auto_ids = {f.id for f in get_auto_fields(process)}
-            if "pruefmuster" in auto_ids or "beutel_nr" in auto_ids:
-                self.app_state.auto_sequence -= 1
+            # Sequenz exakt um die Zahl der Inkremente zurücknehmen — pauschal
+            # -1 wäre falsch, falls ein Prozess mehrere Sequenz-Felder hätte.
+            if seq_increments:
+                self.app_state.auto_sequence -= seq_increments
 
             if self.app_state.audit:
                 self.app_state.audit.log_event(
@@ -1113,6 +1168,7 @@ class FormView(BaseView):
         result = write_measurement_rows(
             filepath=self.app_state.current_file,
             rows=rows,
+            process=process,
         )
 
         if result.success:
@@ -1124,20 +1180,25 @@ class FormView(BaseView):
                     meas_vals[fd.display_name] = row.get(fd.display_name)
                 self._add_to_history(meas_vals, label=f"Nutzen {i}")
 
-            self.status_var.set(
-                f"{nutzen_count} Nutzen gespeichert (bis Zeile {result.row_number})."
-            )
-            self.status_label.config(style="Success.TLabel")
-            self._clear_fields()
-
             if self.app_state.audit:
                 self.app_state.audit.log_event(
                     Event.WRITE_SUCCESS,
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
-                    details={"last_row": result.row_number, "nutzen_count": nutzen_count},
+                    details={"last_row": result.row_number, "nutzen_count": nutzen_count,
+                             **self._template_details(process)},
                 )
+
+            suffix = self._audit_health_suffix()
+            self.status_var.set(
+                f"{nutzen_count} Nutzen gespeichert (bis Zeile {result.row_number})."
+                f"{suffix}"
+            )
+            self.status_label.config(
+                style="Warning.TLabel" if suffix else "Success.TLabel"
+            )
+            self._clear_fields()
         else:
             messagebox.showerror("Fehler beim Schreiben", result.error)
             self.status_var.set(f"Fehler: {result.error}")

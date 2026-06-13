@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, date, timedelta
 from pathlib import Path
@@ -11,6 +12,10 @@ from openpyxl.styles import Font, Alignment, Border, Side
 
 from src.config.process_config import ProcessConfig, get_all_headers
 from src.config.settings import HEADER_ROW
+from src.excel.safe_save import save_workbook_atomic
+
+
+_logger = logging.getLogger("excel.creator")
 
 
 HEADER_FONT = Font(bold=True, size=11)
@@ -109,22 +114,24 @@ def create_measurement_file(
 
     _apply_sheet_protection(ws, protection_password)
 
-    wb.save(path)
+    save_workbook_atomic(wb, path)
     wb.close()
 
     return path
 
 
 def count_data_rows(filepath: Path) -> int:
-    """Zählt Datenzeilen (ohne Info-Block und ohne Headerzeile)."""
+    """Zählt Datenzeilen (ohne Info-Block und ohne Headerzeile).
+
+    Wirft bei Lesefehlern — der Aufrufer muss entscheiden (der Resume bricht
+    ab, statt mit Zählung 0 die Prüfmuster-/Beutel-Nummerierung neu zu starten
+    und doppelte Nummern in die Chargendokumentation zu schreiben)."""
+    wb = openpyxl.load_workbook(filepath, read_only=True)
     try:
-        wb = openpyxl.load_workbook(filepath, read_only=True)
         ws = wb.active
-        count = max(ws.max_row - HEADER_ROW, 0)
+        return max(ws.max_row - HEADER_ROW, 0)
+    finally:
         wb.close()
-        return count
-    except Exception:
-        return 0
 
 
 def write_info_header(
@@ -134,17 +141,24 @@ def write_info_header(
     shift: str,
     dt: date,
     extra_info: list[tuple[str, str]] | None = None,
-) -> None:
-    """Schreibt den Info-Block in die Zeilen 1-8.
+) -> bool:
+    """Schreibt den Info-Block in die Zeilen 1-8. True = erfolgreich geschrieben.
 
     Zeile 1 Spalte A: Produktname (fett, groß).
     Zeilen 2-4 Spalten A/B: Prozess, Schicht, Datum.
     Zeilen 2-8 Spalten C/D: zusätzliche Header-Felder (FA-Nr., LOT,
-    Verwendbarkeitsdatum, Messmittel)."""
+    Verwendbarkeitsdatum, Messmittel).
+
+    Fehler werden geloggt und als False gemeldet — der Aufrufer entscheidet,
+    ob der Prozessstart abgebrochen wird. Der Info-Block ist Teil des
+    GMP-Records; stilles Fehlen wäre eine unvollständige Chargendokumentation."""
     try:
         wb = openpyxl.load_workbook(filepath)
     except Exception:
-        return
+        _logger.exception(
+            "write_info_header: %s konnte nicht geöffnet werden", filepath
+        )
+        return False
 
     try:
         ws = wb.active
@@ -178,8 +192,12 @@ def write_info_header(
                 cell_label.font = INFO_LABEL_FONT
                 ws.cell(row_idx, 4, value)
 
-        wb.save(filepath)
+        save_workbook_atomic(wb, filepath)
+        return True
     except Exception:
-        pass
+        _logger.exception(
+            "write_info_header: Schreiben fehlgeschlagen (%s)", filepath
+        )
+        return False
     finally:
         wb.close()

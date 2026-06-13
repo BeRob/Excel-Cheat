@@ -490,27 +490,34 @@ Testet den Benutzerdatei-Parser:
 
 ---
 
-## Ein neues Produkt hinzufügen
+## Ein neues Produkt hinzufügen (mit Vier-Augen-Freigabe)
 
-### Variante 1: Im Admin-Editor (empfohlen)
+Die Produkt-Configs sind **dünn**: Sie referenzieren die Feldstruktur einer Operation aus `data/process_templates/<Operation>.json` (`template` + `active_fields`) und tragen nur Abweichungen (`field_overrides`, z.B. produktspezifische Spec-Grenzen, und `extra_fields`). Nur **freigegebene** Configs sind in der App wählbar.
 
-1. Als Admin anmelden
-2. Tab "Produktkonfiguration" öffnen
-3. "Neu" klicken (oder ein bestehendes Produkt mit "Kopieren" als Vorlage nehmen)
-4. Produkt-ID und Anzeigename eingeben
-5. Prozesse und Felder definieren
-6. "Speichern" klicken -- fertig
+### Schritt 1: Config anlegen oder ändern (Admin-Editor)
 
-### Variante 2: Manuell per JSON
+1. Als Admin anmelden, Tab "Produktkonfiguration" öffnen
+2. "Neu" klicken — oder besser: ein bestehendes Produkt mit "Kopieren" als Vorlage nehmen (Kopien behalten die Template-Verknüpfung)
+3. Produkt-ID, Anzeigename, Prozesse und Felder definieren
+4. "Speichern" — die App erhöht die Revision automatisch und fragt eine Änderungsbeschreibung für die Revisionshistorie ab
 
-1. Eine neue JSON-Datei in `data/products/` erstellen (z.B. `NEUES_PRODUKT.json`)
-2. Die Struktur von `REF31962.json` als Vorlage nehmen
-3. Prozesse und Felder anpassen
-4. App neu starten -- fertig
+### Schritt 2: Freigabedokument erzeugen und unterschreiben
+
+Im Admin-Editor **"Freigabedokument erzeugen…"** klicken (alternativ: `python scripts\make_freigabedokument.py REF12345`). Das Dokument landet in `data/freigabedokumente/` und enthält alle aufgelösten Felder und Spec-Grenzen, die Revisionshistorie und den **SHA-256-Hash** der Config-Datei.
+
+Liegt eine **Word-Vorlage** unter `data/vorlagen/freigabedokument.docx`, wird sie befüllt — damit sieht jedes Freigabedokument exakt gleich aus (Corporate Design, feste Abschnitte). Die Vorlage ist eine normale Word-Datei mit Platzhaltern wie `{{PRODUKT_ID}}`, `{{SHA256}}` oder `{{FELD_ID}}` (vollständige Liste: `CONFIG_REFERENZ.md`, Abschnitt 8). Ohne Vorlage entsteht ein HTML mit festem Standard-Layout.
+
+Ausdrucken, fachlich prüfen lassen und von **zwei verschiedenen Personen** unterschreiben (Geprüft / Freigegeben — Vier-Augen-Prinzip). Das unterschriebene Papier ist der Freigabe-Nachweis.
+
+### Schritt 3: Freigabe in der App erfassen
+
+Im Admin-Editor "Freigabe erfassen…" klicken, Dokument-Nr. und die Namen vom unterschriebenen Dokument eintragen. Die App berechnet den Datei-Hash selbst und trägt die Freigabe in `data/products/freigaben.json` ein (Audit-Event `config_released`). Erst danach erscheint das Produkt in der Produktauswahl.
+
+**Wichtig:** Jede spätere Änderung an der Config-Datei (auch außerhalb der App) ändert den Hash — das Produkt fällt automatisch aus dem Scope, bis eine neue Freigabe erteilt und erfasst ist. Der Schalter `"freigabe_pflicht"` in `data/app_config.json` steuert die Härte: `true` (Default) blendet nicht freigegebene Produkte aus, `false` (Übergangsbetrieb) zeigt sie mit ⚠-Warnung an.
 
 ### Verteilung auf andere Rechner
 
-Die JSON-Datei aus `data/products/` auf einen USB-Stick kopieren und auf dem Zielrechner in den gleichen Ordner legen. Beim nächsten Start der App wird das Produkt automatisch erkannt.
+Den kompletten Ordner `data/products/` (Configs **und** `freigaben.json`) sowie `data/process_templates/` auf den Zielrechner kopieren. Beim nächsten Start der App wird das Produkt automatisch erkannt — inklusive Freigabe-Status.
 
 ---
 

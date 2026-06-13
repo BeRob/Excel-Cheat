@@ -16,8 +16,10 @@ from src.config.config_writer import (
 from src.config.process_config import (
     FieldDef,
     ProcessConfig,
+    ProcessTemplate,
     ProductConfig,
     load_product_config,
+    parse_process_template,
 )
 
 
@@ -301,6 +303,115 @@ class TestSaveProductConfig(unittest.TestCase):
             self.assertTrue(path.exists())
         finally:
             shutil.rmtree(tmp)
+
+
+def _make_template() -> ProcessTemplate:
+    return parse_process_template({
+        "template": "Schneiden",
+        "template_revision": 3,
+        "fields": [
+            {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text",
+             "role": "context", "persistent": True, "info_header": True},
+            {"id": "breite", "display_name": "Breite (mm)", "type": "number",
+             "role": "measurement", "spec_min": 180.0, "spec_max": 190.0},
+            {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text",
+             "role": "measurement", "optional": True, "default_value": "n/a"},
+        ],
+    })
+
+
+_THIN_PRODUCT_JSON = {
+    "product_id": "REFTHIN",
+    "display_name": "Dünnes Testprodukt",
+    "revision": 4,
+    "revision_history": [
+        {"revision": 4, "date": "2026-05-01", "change": "Testhistorie"},
+    ],
+    "processes": [
+        {
+            "template_id": "IPC3_Fertigschneiden",
+            "display_name": "IPC 3 Schneiden",
+            "template": "Schneiden",
+            "active_fields": ["fa_nr", "breite", "extra_feld", "bemerkungen"],
+            "field_overrides": {
+                "breite": {"spec_min": 181.0, "spec_target": 185.0},
+            },
+            "extra_fields": [
+                {"id": "extra_feld", "display_name": "Extra", "type": "number",
+                 "role": "measurement", "spec_max": 5.0},
+            ],
+        },
+    ],
+}
+
+
+class TestThinConfigRoundtrip(unittest.TestCase):
+    """Dünne Configs bleiben beim Speichern dünn — Overrides werden gegen das
+    Template zurückgerechnet, Revision und Historie bleiben erhalten."""
+
+    def setUp(self):
+        self.tmp_dir = Path(tempfile.mkdtemp())
+        self.templates = {"Schneiden": _make_template()}
+        self.path = self.tmp_dir / "REFTHIN.json"
+        self.path.write_text(
+            json.dumps(_THIN_PRODUCT_JSON, ensure_ascii=False), encoding="utf-8"
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+    def test_thin_form_preserved_on_serialize(self):
+        product = load_product_config(self.path, self.templates)
+        d = product_to_dict(product, self.templates)
+
+        proc = d["processes"][0]
+        self.assertNotIn("fields", proc)
+        self.assertEqual(proc["template"], "Schneiden")
+        self.assertEqual(proc["template_revision"], 3)
+        self.assertEqual(
+            proc["active_fields"], ["fa_nr", "breite", "extra_feld", "bemerkungen"]
+        )
+        self.assertEqual(
+            proc["field_overrides"],
+            {"breite": {"spec_min": 181.0, "spec_target": 185.0}},
+        )
+        self.assertEqual(proc["extra_fields"][0]["id"], "extra_feld")
+        # template_id bleibt wörtlich erhalten (Excel-Dateiname + Resume-Schlüssel)
+        self.assertEqual(proc["template_id"], "IPC3_Fertigschneiden")
+
+    def test_acid_roundtrip_resolves_identically(self):
+        product = load_product_config(self.path, self.templates)
+        saved = save_product_config(product, self.tmp_dir / "out", self.templates)
+        reloaded = load_product_config(saved, self.templates)
+
+        self.assertEqual(reloaded.processes[0].fields, product.processes[0].fields)
+        self.assertEqual(reloaded.processes[0].template, "Schneiden")
+        self.assertEqual(reloaded.processes[0].template_revision, 3)
+        self.assertEqual(reloaded.revision, 4)
+        self.assertEqual(reloaded.revision_history, product.revision_history)
+
+    def test_editor_edit_becomes_override(self):
+        # Eine Editor-Änderung an einem Template-Feld landet als Override,
+        # statt die Config zur vollen Legacy-Form aufzublasen.
+        product = load_product_config(self.path, self.templates)
+        from dataclasses import replace
+        proc = product.processes[0]
+        proc.fields[1] = replace(proc.fields[1], spec_max=189.0)
+
+        d = process_to_dict(proc, self.templates)
+        self.assertEqual(d["field_overrides"]["breite"]["spec_max"], 189.0)
+        # Die unveränderten Override-Werte aus der Quelle bleiben erhalten
+        self.assertEqual(d["field_overrides"]["breite"]["spec_min"], 181.0)
+
+    def test_without_templates_falls_back_to_full_fields(self):
+        # Fehlt die Template-Datei beim Speichern, wird die volle fields-Liste
+        # geschrieben — die Template-Herkunft bleibt aber als Metadatum stehen.
+        product = load_product_config(self.path, self.templates)
+        d = process_to_dict(product.processes[0], templates=None)
+        self.assertIn("fields", d)
+        self.assertEqual(d["template"], "Schneiden")
+        self.assertEqual(d["template_revision"], 3)
+        self.assertNotIn("active_fields", d)
 
 
 if __name__ == "__main__":

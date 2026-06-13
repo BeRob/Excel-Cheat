@@ -21,61 +21,16 @@ import logging
 import os
 import socket
 import sys
-import time
 import uuid
 from datetime import datetime, date, timezone
 from pathlib import Path
 
+from src.audit.file_lock import acquire_lock, release_lock
 from src.version import APP_VERSION
 
 
 _LOCK_TIMEOUT_SECONDS = 5.0
 _logger = logging.getLogger("audit")
-
-
-if sys.platform == "win32":
-    import msvcrt
-
-    def _acquire_lock(fd: int, timeout: float) -> bool:
-        """Versucht das Lock bis zur Deadline zu bekommen. True = Erfolg."""
-        deadline = time.monotonic() + timeout
-        os.lseek(fd, 0, os.SEEK_SET)
-        while True:
-            try:
-                # LK_NBLCK = non-blocking — wir machen den Retry selbst.
-                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-                return True
-            except OSError:
-                if time.monotonic() >= deadline:
-                    return False
-                time.sleep(0.05)
-
-    def _release_lock(fd: int) -> None:
-        try:
-            os.lseek(fd, 0, os.SEEK_SET)
-            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-        except OSError:
-            pass
-
-else:
-    import fcntl
-
-    def _acquire_lock(fd: int, timeout: float) -> bool:
-        deadline = time.monotonic() + timeout
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return True
-            except OSError:
-                if time.monotonic() >= deadline:
-                    return False
-                time.sleep(0.05)
-
-    def _release_lock(fd: int) -> None:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        except OSError:
-            pass
 
 
 def _local_fallback_path() -> Path:
@@ -112,6 +67,11 @@ class AuditLogger:
         except Exception:
             self._os_user = "?"
         self._current_view: str | None = None
+        # None = Audit-Trail gesund. Sonst Grund des letzten Ausweichens:
+        # "lock_timeout" / "write_error" (Event liegt im lokalen Fallback),
+        # "fallback_failed" (Event ist VERLOREN — muss dem Operator angezeigt
+        # werden, sonst entstehen stille Lücken in der GMP-Dokumentation).
+        self.degraded_reason: str | None = None
 
     @property
     def host(self) -> str:
@@ -180,7 +140,11 @@ class AuditLogger:
 
         Race-Behandlung: existiert die Zieldatei bereits (andere Workstation
         war schneller), wird der Rename übersprungen — wir schreiben dann
-        einfach in die schon vorhandene neue Datei."""
+        einfach in die schon vorhandene neue Datei.
+
+        Annahme: alle Workstations eines Werks laufen in derselben Zeitzone
+        (mtime-Datum und date.today() sind beide lokal). Bei Standorten in
+        verschiedenen Zeitzonen würde die Rotationsgrenze auseinanderlaufen."""
         try:
             if not self.log_path.exists():
                 return
@@ -200,26 +164,36 @@ class AuditLogger:
             _logger.warning("Audit-Rotation fehlgeschlagen: %s", e, exc_info=True)
 
     def _try_replay_fallback(self) -> None:
-        """Hängt eventuell vorher offline-zwischengespeicherte Events an."""
+        """Hängt eventuell vorher offline-zwischengespeicherte Events an.
+
+        Crash-sicher über eine Replay-Datei: der aktive Fallback wird zuerst
+        per Rename beiseitegelegt. Schlägt das Anhängen fehl, bleibt die
+        Replay-Datei vollständig liegen und wird beim nächsten Versuch zuerst
+        nachgeholt — schlimmstenfalls entstehen Duplikate (erkennbar an
+        session+ts), nie Lücken. Das frühere Leeren per write_text("") konnte
+        bei einem Fehlschlag nach dem Anhängen Duplikate erzeugen und bei
+        teilweisem Verhalten Events verlieren."""
         fb = _local_fallback_path()
-        if not fb.exists() or fb.stat().st_size == 0:
-            return
+        replay = fb.with_name(fb.name + ".replaying")
         try:
-            with open(fb, "r", encoding="utf-8") as f:
-                pending = f.read()
-            if not pending.strip():
-                return
-            with open(self.log_path, "a", encoding="utf-8") as f:
-                f.write(pending)
-                if not pending.endswith("\n"):
-                    f.write("\n")
-                f.flush()
-                try:
-                    os.fsync(f.fileno())
-                except OSError:
-                    pass
-            fb.write_text("", encoding="utf-8")
-            _logger.info("Audit-Fallback nachgeholt (%d Bytes)", len(pending))
+            if not replay.exists():
+                if not fb.exists() or fb.stat().st_size == 0:
+                    return
+                fb.rename(replay)
+            pending = replay.read_text(encoding="utf-8")
+            if pending.strip():
+                with open(self.log_path, "a", encoding="utf-8") as f:
+                    f.write(pending)
+                    if not pending.endswith("\n"):
+                        f.write("\n")
+                    f.flush()
+                    try:
+                        os.fsync(f.fileno())
+                    except OSError:
+                        pass
+            replay.unlink()
+            if pending.strip():
+                _logger.info("Audit-Fallback nachgeholt (%d Bytes)", len(pending))
         except Exception as e:
             _logger.error("Audit-Fallback-Replay fehlgeschlagen: %s", e, exc_info=True)
 
@@ -231,6 +205,8 @@ class AuditLogger:
                 f.write(line + "\n")
                 f.flush()
         except Exception as e:
+            # Event ist verloren — Status setzen, damit die UI warnen kann.
+            self.degraded_reason = "fallback_failed"
             _logger.critical("Audit-Fallback nicht schreibbar: %s", e, exc_info=True)
 
     def _safe_write(self, line: str, event: str, level: str) -> None:
@@ -249,6 +225,7 @@ class AuditLogger:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             _logger.error("Audit-Verzeichnis nicht erstellbar: %s", e, exc_info=True)
+            self.degraded_reason = "write_error"
             self._write_to_fallback(line)
             return
 
@@ -259,10 +236,11 @@ class AuditLogger:
                 os.O_RDWR | os.O_CREAT,
                 0o644,
             )
-            if not _acquire_lock(lock_fd, self._lock_timeout):
+            if not acquire_lock(lock_fd, self._lock_timeout):
                 _logger.warning(
                     "Audit-Lock-Timeout — schreibe lokal in Fallback-Datei"
                 )
+                self.degraded_reason = "lock_timeout"
                 self._write_to_fallback(line)
                 return
 
@@ -276,12 +254,14 @@ class AuditLogger:
                     os.fsync(f.fileno())
                 except OSError:
                     pass
+            self.degraded_reason = None
         except Exception as e:
             _logger.error("Audit-Schreibfehler: %s", e, exc_info=True)
+            self.degraded_reason = "write_error"
             self._write_to_fallback(line)
         finally:
             if lock_fd is not None:
-                _release_lock(lock_fd)
+                release_lock(lock_fd)
                 try:
                     os.close(lock_fd)
                 except OSError:

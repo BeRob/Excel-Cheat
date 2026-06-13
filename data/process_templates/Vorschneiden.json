@@ -1,0 +1,250 @@
+{
+  "template": "Vorschneiden",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31827",
+        "REF31828",
+        "REF31854",
+        "REF31859",
+        "REF31875",
+        "REF31962",
+        "REF31963",
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nr",
+      "display_name": "Rolle/Bahn Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31863",
+        "REF50808"
+      ]
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31827",
+        "REF31828",
+        "REF31854",
+        "REF31859",
+        "REF31875",
+        "REF31962",
+        "REF31963",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "nutzen",
+      "display_name": "Nutzen",
+      "type": "number",
+      "role": "auto",
+      "_present_in": [
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "bahn",
+      "display_name": "Bahn Nr.",
+      "type": "choice",
+      "role": "context",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "_present_in": [
+        "REF31854"
+      ]
+    },
+    {
+      "id": "ask",
+      "display_name": "ASK ≥ 1200%",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": "ALL"
+    },
+    {
+      "id": "flaechengewicht",
+      "display_name": "Flächengewicht ≥ 560 g/m²",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF31859",
+        "REF31863",
+        "REF50808_HS",
+        "REF50809_HS",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "laenge",
+      "display_name": "Länge [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31863"
+      ]
+    },
+    {
+      "id": "breite_1",
+      "display_name": "Breite 1 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31962",
+        "REF31963"
+      ]
+    },
+    {
+      "id": "breite",
+      "display_name": "Breite [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31827",
+        "REF31828",
+        "REF31854",
+        "REF31859",
+        "REF31863",
+        "REF31875",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "bahn_1",
+      "display_name": "Bahn 1 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "breite_2",
+      "display_name": "Breite 2 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31962",
+        "REF31963"
+      ]
+    },
+    {
+      "id": "bahn_2",
+      "display_name": "Bahn 2 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    }
+  ],
+  "_unification_notes": {
+    "ask": "display_name/Attribute uneinheitlich: ['ASK ≥ 1000%', 'ASK ≥ 1200%', 'ASK ≥ 1500%'] — Kanonik gewählt, Abweichungen via field_overrides.",
+    "flaechengewicht": "display_name/Attribute uneinheitlich: ['Flächengewicht', 'Flächengewicht ≥ 560 g/m²'] — Kanonik gewählt, Abweichungen via field_overrides.",
+    "breite": "Specs produktspezifisch (kommen aus field_overrides).",
+    "bahn_1": "Specs produktspezifisch (kommen aus field_overrides).",
+    "bahn_2": "Specs produktspezifisch (kommen aus field_overrides)."
+  }
+}

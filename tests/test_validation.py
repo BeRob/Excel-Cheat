@@ -149,17 +149,55 @@ class TestValidateWithFieldDefs(unittest.TestCase):
         self.assertIsNone(result.normalized_values["Bemerkungen"])
         self.assertEqual(len(result.warnings), 0)
 
-    def test_required_empty_warning(self):
+    def test_required_empty_is_error(self):
+        # Leeres Pflichtfeld blockiert das Senden (ALCOA+ „complete") —
+        # seit v1.6.0 Fehler statt Warnung.
         fields = self._make_fields()
         result = validate_measurements({"Breite 1": ""}, field_defs=fields)
-        self.assertFalse(result.has_errors)
-        self.assertEqual(len(result.warnings), 1)
+        self.assertTrue(result.has_errors)
+        self.assertIn("Pflichtfeld ist leer", result.errors[0])
 
     def test_number_with_german_format(self):
         fields = self._make_fields()
         result = validate_measurements({"Breite 1": "185,5"}, field_defs=fields)
         self.assertFalse(result.has_errors)
         self.assertAlmostEqual(result.normalized_values["Breite 1"], 185.5)
+
+
+class TestAmbiguousDecimal(unittest.TestCase):
+    """Mehrdeutige Eingaben (Tausender- vs. Dezimaltrenner) werden abgelehnt."""
+
+    def _fields(self) -> list[FieldDef]:
+        return [
+            FieldDef(id="b", display_name="Breite", type="number",
+                     role="measurement"),
+        ]
+
+    def test_ambiguous_inputs_rejected(self):
+        from src.domain.validation import is_ambiguous_decimal
+        for value in ["1.250", "1,250", "12.500", "999,000"]:
+            self.assertTrue(is_ambiguous_decimal(value), value)
+            result = validate_measurements(
+                {"Breite": value}, field_defs=self._fields(),
+            )
+            self.assertTrue(result.has_errors, value)
+            self.assertIn("mehrdeutig", result.errors[0])
+
+    def test_unambiguous_inputs_accepted(self):
+        from src.domain.validation import is_ambiguous_decimal
+        # Führende 0, andere Nachkommastellen-Anzahl, zwei Trenner,
+        # vierstelliger Vorkommateil: alles eindeutig.
+        for value, expected in [
+            ("0,500", 0.5), ("1,25", 1.25), ("1,2500", 1.25),
+            ("1.250,5", 1250.5), ("1,250.5", 1250.5),
+            ("1250", 1250.0), ("1234.567", 1234.567),
+        ]:
+            self.assertFalse(is_ambiguous_decimal(value), value)
+            result = validate_measurements(
+                {"Breite": value}, field_defs=self._fields(),
+            )
+            self.assertFalse(result.has_errors, value)
+            self.assertAlmostEqual(result.normalized_values["Breite"], expected)
 
 
 class TestOosDetection(unittest.TestCase):

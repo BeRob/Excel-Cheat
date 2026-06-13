@@ -31,6 +31,23 @@ class ProcessConfig:
     display_name: str
     fields: list[FieldDef]
     row_group_size: int | None = None
+    # Quelle der Feldstruktur (Operation-Template-Name, z.B. "Schneiden").
+    # None = Legacy-Prozess mit vollständiger eigener fields-Liste.
+    template: str | None = None
+    # Revision des Templates, aus dem fields aufgelöst wurde (für Audit/GMP).
+    template_revision: int | None = None
+
+
+@dataclass
+class ProcessTemplate:
+    """Kanonische Feldstruktur einer Operation (Superset über alle Produkte)."""
+
+    template: str
+    template_revision: int
+    fields: list[FieldDef]
+
+    def field_map(self) -> dict[str, FieldDef]:
+        return {f.id: f for f in self.fields}
 
 
 @dataclass
@@ -41,6 +58,14 @@ class ProductConfig:
     output_dir: str | None = None
     revision: int = 1
     revision_history: list[dict] = field(default_factory=list)
+    # --- Laufzeit-Felder (werden NICHT serialisiert, setzt load_app_config) ---
+    # Vier-Augen-Freigabe-Status gegen data/products/freigaben.json
+    # (Werte: src/config/freigabe.py FREIGEGEBEN/GEAENDERT/NICHT_FREIGEGEBEN).
+    freigabe_status: str = "nicht freigegeben"
+    # Manifest-Eintrag der Freigabe (dokument/datum/geprueft_von/...), falls vorhanden.
+    freigabe: dict | None = None
+    # SHA-256 der geladenen Config-Datei (für Audit-Trail und Freigabedokument).
+    config_sha256: str = ""
 
 
 @dataclass
@@ -56,6 +81,10 @@ class AppConfig:
     shifts: list[ShiftDef] = field(default_factory=list)
     qr_prefix: str = ""
     sheet_protection_password: str = "hexhex"
+    # true (Default, streng): nur freigegebene Produkte sind wählbar.
+    # false (Übergangsbetrieb): nicht freigegebene Produkte erscheinen mit
+    # Warnmarkierung. Schalter in app_config.json: "freigabe_pflicht".
+    freigabe_pflicht: bool = True
 
 
 def _parse_field(data: dict) -> FieldDef:
@@ -77,18 +106,141 @@ def _parse_field(data: dict) -> FieldDef:
     )
 
 
+# Attribute, die eine dünne Config je Feld überschreiben darf — auch von
+# config_writer benutzt, um beim Speichern die Overrides zurückzurechnen.
+FIELD_OVERRIDE_KEYS = {
+    "display_name", "type", "role", "persistent", "spec_target", "spec_min",
+    "spec_max", "options", "optional", "default_value", "group_shared",
+    "info_header", "machine_scoped",
+}
+
+
+def _load_json(path: Path) -> dict:
+    """Liest eine JSON-Datei; im Fehlerfall wird die Datei beim Namen genannt,
+    damit ein Tippfehler in einer einzelnen Config beim App-Start auffindbar ist."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Ungültiges JSON in {path}: {e}") from e
+    except OSError as e:
+        raise ValueError(f"{path} konnte nicht gelesen werden: {e}") from e
+
+
+def parse_process_template(data: dict) -> ProcessTemplate:
+    """Parst eine Operation-Template-Datei (data/process_templates/<Operation>.json)."""
+    try:
+        revision = int(data.get("template_revision", 1))
+    except (TypeError, ValueError):
+        revision = 1
+    return ProcessTemplate(
+        template=data["template"],
+        template_revision=revision,
+        fields=[_parse_field(f) for f in data.get("fields", [])],
+    )
+
+
+def load_process_templates(templates_dir: Path) -> dict[str, ProcessTemplate]:
+    """Lädt alle Operation-Templates aus dem Verzeichnis (Schlüssel = template-Name)."""
+    templates: dict[str, ProcessTemplate] = {}
+    if templates_dir.exists():
+        for p in sorted(templates_dir.glob("*.json")):
+            if p.name.startswith("_"):
+                continue
+            try:
+                tpl = parse_process_template(_load_json(p))
+            except KeyError as e:
+                raise ValueError(
+                    f"Prozess-Template {p.name}: Pflichtschlüssel {e} fehlt."
+                ) from e
+            templates[tpl.template] = tpl
+    return templates
+
+
+def _apply_field_overrides(base: FieldDef, overrides: dict) -> FieldDef:
+    """Erzeugt eine Kopie der FieldDef mit angewandten Override-Werten."""
+    from dataclasses import replace
+
+    changes = {k: v for k, v in overrides.items() if k in FIELD_OVERRIDE_KEYS}
+    return replace(base, **changes)
+
+
+def _resolve_process(
+    data: dict, templates: dict[str, ProcessTemplate]
+) -> ProcessConfig:
+    """Löst einen dünnen Prozess (template + active_fields + Overrides) zur vollen
+    ProcessConfig auf. Fällt auf Legacy-Verhalten zurück, wenn kein template gesetzt ist."""
+    template_name = data.get("template")
+    if not template_name or "active_fields" not in data:
+        # Legacy: vollständige fields-Liste direkt in der Produkt-Config.
+        return _parse_process(data)
+
+    tpl = templates.get(template_name)
+    if tpl is None:
+        raise ValueError(
+            f"Prozess '{data.get('template_id')}' referenziert unbekanntes "
+            f"Template '{template_name}'."
+        )
+
+    tpl_fields = tpl.field_map()
+    extra_fields = {
+        f["id"]: _parse_field(f) for f in data.get("extra_fields", [])
+    }
+    field_overrides: dict[str, dict] = data.get("field_overrides", {})
+
+    resolved: list[FieldDef] = []
+    for fid in data["active_fields"]:
+        if fid in tpl_fields:
+            base = tpl_fields[fid]
+        elif fid in extra_fields:
+            base = extra_fields[fid]
+        else:
+            raise ValueError(
+                f"Prozess '{data.get('template_id')}': aktives Feld '{fid}' weder "
+                f"im Template '{template_name}' noch in extra_fields gefunden."
+            )
+        ov = field_overrides.get(fid)
+        resolved.append(_apply_field_overrides(base, ov) if ov else base)
+
+    return ProcessConfig(
+        template_id=data["template_id"],
+        display_name=data["display_name"],
+        fields=resolved,
+        row_group_size=data.get("row_group_size"),
+        template=template_name,
+        template_revision=tpl.template_revision,
+    )
+
+
 def _parse_process(data: dict) -> ProcessConfig:
+    # template/template_revision werden auch im Legacy-Fall durchgereicht,
+    # damit die Audit-Herkunft einen Editor-Roundtrip überlebt, selbst wenn
+    # die Template-Datei (vorübergehend) fehlt.
+    tpl_revision = data.get("template_revision")
+    if tpl_revision is not None:
+        try:
+            tpl_revision = int(tpl_revision)
+        except (TypeError, ValueError):
+            tpl_revision = None
     return ProcessConfig(
         template_id=data["template_id"],
         display_name=data["display_name"],
         fields=[_parse_field(f) for f in data["fields"]],
         row_group_size=data.get("row_group_size"),
+        template=data.get("template"),
+        template_revision=tpl_revision,
     )
 
 
-def load_product_config(path: Path) -> ProductConfig:
-    """Lädt eine Produkt-Konfiguration aus einer JSON-Datei."""
-    data = json.loads(path.read_text(encoding="utf-8"))
+def load_product_config(
+    path: Path, templates: dict[str, ProcessTemplate] | None = None
+) -> ProductConfig:
+    """Lädt eine Produkt-Konfiguration aus einer JSON-Datei.
+
+    Dünne Configs (Prozesse mit ``template`` + ``active_fields``) werden gegen die
+    übergebenen ``templates`` aufgelöst. Ohne ``templates`` bzw. für Legacy-Prozesse
+    mit vollständiger ``fields``-Liste bleibt das Verhalten unverändert.
+    """
+    data = _load_json(path)
     try:
         revision = int(data.get("revision", 1))
     except (TypeError, ValueError):
@@ -96,20 +248,32 @@ def load_product_config(path: Path) -> ProductConfig:
     history = data.get("revision_history", [])
     if not isinstance(history, list):
         history = []
-    return ProductConfig(
-        product_id=data["product_id"],
-        display_name=data["display_name"],
-        processes=[_parse_process(p) for p in data["processes"]],
-        output_dir=data.get("output_dir"),
-        revision=revision,
-        revision_history=history,
-    )
+    tpls = templates or {}
+    try:
+        return ProductConfig(
+            product_id=data["product_id"],
+            display_name=data["display_name"],
+            processes=[_resolve_process(p, tpls) for p in data["processes"]],
+            output_dir=data.get("output_dir"),
+            revision=revision,
+            revision_history=history,
+        )
+    except KeyError as e:
+        raise ValueError(
+            f"Produkt-Config {path.name}: Pflichtschlüssel {e} fehlt."
+        ) from e
+    except ValueError as e:
+        raise ValueError(f"Produkt-Config {path.name}: {e}") from e
 
 
-def load_app_config(config_path: Path, products_dir: Path) -> AppConfig:
-    """Lädt globale Settings und alle Produktdateien."""
+def load_app_config(
+    config_path: Path,
+    products_dir: Path,
+    templates_dir: Path | None = None,
+) -> AppConfig:
+    """Lädt globale Settings, Prozess-Templates und alle Produktdateien."""
     if config_path.exists():
-        global_data = json.loads(config_path.read_text(encoding="utf-8"))
+        global_data = _load_json(config_path)
     else:
         global_data = {}
 
@@ -122,10 +286,27 @@ def load_app_config(config_path: Path, products_dir: Path) -> AppConfig:
         for s in global_data.get("shifts", [])
     ]
 
+    templates = load_process_templates(templates_dir) if templates_dir else {}
+
+    from src.config.freigabe import (
+        compute_config_hash, determine_status, freigaben_path, load_freigaben,
+    )
+
     products: list[ProductConfig] = []
     if products_dir.exists():
+        freigaben = load_freigaben(products_dir)
+        manifest_name = freigaben_path(products_dir).name
         for p in sorted(products_dir.glob("*.json")):
-            products.append(load_product_config(p))
+            # Manifest und Arbeitsdateien (_-Präfix) sind keine Produkt-Configs.
+            if p.name == manifest_name or p.name.startswith("_"):
+                continue
+            product = load_product_config(p, templates)
+            product.config_sha256 = compute_config_hash(p)
+            product.freigabe = freigaben.get(product.product_id)
+            product.freigabe_status = determine_status(
+                product.freigabe, product.config_sha256, product.revision,
+            )
+            products.append(product)
 
     return AppConfig(
         products=products,
@@ -134,6 +315,7 @@ def load_app_config(config_path: Path, products_dir: Path) -> AppConfig:
         sheet_protection_password=global_data.get(
             "sheet_protection_password", "hexhex"
         ),
+        freigabe_pflicht=bool(global_data.get("freigabe_pflicht", True)),
     )
 
 
@@ -196,6 +378,9 @@ def determine_shift(hour: int, shifts: list[ShiftDef]) -> str:
     """Bestimmt die Schicht für die aktuelle Stunde.
 
     Berücksichtigt Schichten über Mitternacht (z.B. 22-06).
+    Fallback auf "1", wenn keine Schicht passt oder keine konfiguriert sind —
+    mit Warnung im Tech-Log, weil eine falsche Schicht im Dateinamen und im
+    Excel-Info-Block der Chargendokumentation landet.
     """
     for shift in shifts:
         if shift.start_hour < shift.end_hour:
@@ -205,4 +390,10 @@ def determine_shift(hour: int, shifts: list[ShiftDef]) -> str:
             if hour >= shift.start_hour or hour < shift.end_hour:
                 return shift.name
 
+    import logging
+
+    logging.getLogger("config").warning(
+        "Keine Schicht für Stunde %d konfiguriert (shifts=%d) — Fallback auf '1'",
+        hour, len(shifts),
+    )
     return "1"

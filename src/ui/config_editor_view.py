@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from datetime import date
+from tkinter import ttk, filedialog, messagebox, simpledialog
 
+from src.audit.events import Event
 from src.config.config_writer import (
     save_product_config,
     validate_product_config,
@@ -14,9 +16,12 @@ from src.config.process_config import (
     ProcessConfig,
     ProductConfig,
     load_app_config,
+    load_process_templates,
     load_product_config,
 )
-from src.config.settings import APP_CONFIG_PATH, PRODUCTS_DIR
+from src.config.settings import (
+    APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR,
+)
 from src.ui.theme import COLORS, FONTS
 
 
@@ -33,6 +38,10 @@ class ConfigEditorView(ttk.Frame):
 
         self._build_ui()
         self._load_product_list()
+
+    def _templates(self):
+        """Lädt die Prozess-Templates frisch (für das Auflösen dünner Configs)."""
+        return load_process_templates(PROCESS_TEMPLATES_DIR)
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -244,10 +253,20 @@ class ConfigEditorView(ttk.Frame):
         )
         ttk.Button(
             bottom_frame,
+            text="Freigabedokument erzeugen…",
+            command=self._on_create_freigabedokument,
+        ).grid(row=0, column=1, padx=(10, 0))
+        ttk.Button(
+            bottom_frame,
+            text="Freigabe erfassen…",
+            command=self._on_record_freigabe,
+        ).grid(row=0, column=2, padx=(10, 0))
+        ttk.Button(
+            bottom_frame,
             text="Speichern",
             style="Accent.TButton",
             command=self._on_save,
-        ).grid(row=0, column=1, padx=(10, 0))
+        ).grid(row=0, column=3, padx=(10, 0))
 
         self._show_right_panel(False)
 
@@ -270,7 +289,7 @@ class ConfigEditorView(ttk.Frame):
             self._status_var.set(f"Datei nicht gefunden: {path}")
             return
 
-        product = load_product_config(path)
+        product = load_product_config(path, self._templates())
         self._populate_ui_from_product(product)
         self._dirty = False
         self._status_var.set(f"Geladen: {name}")
@@ -298,7 +317,7 @@ class ConfigEditorView(ttk.Frame):
         if not path.exists():
             return
 
-        product = load_product_config(path)
+        product = load_product_config(path, self._templates())
         product.product_id = ""
         self._populate_ui_from_product(product)
         self._dirty = True
@@ -327,6 +346,12 @@ class ConfigEditorView(ttk.Frame):
             display_name=self._product_name_var.get().strip(),
             processes=list(self._product.processes) if self._product else [],
             output_dir=output_dir,
+            # Revision + Historie weitertragen — sonst setzt jedes Speichern
+            # die GMP-Änderungshistorie auf den Dataclass-Default zurück.
+            revision=self._product.revision if self._product else 1,
+            revision_history=(
+                list(self._product.revision_history) if self._product else []
+            ),
         )
 
     def _on_process_selected(self, event=None) -> None:
@@ -565,14 +590,255 @@ class ConfigEditorView(ttk.Frame):
             ):
                 return
 
-        path = save_product_config(product, PRODUCTS_DIR)
+        # GMP Change Control: bei inhaltlichen Änderungen Revision erhöhen und
+        # einen Historieneintrag mit Begründung verlangen. Abbruch des Dialogs
+        # bricht das Speichern ab.
+        change_text: str | None = None
+        if self._dirty or not target.exists():
+            change_text = simpledialog.askstring(
+                "Änderungsbeschreibung",
+                "Beschreibung der Änderung für die Revisionshistorie:",
+                parent=self,
+            )
+            if change_text is None:
+                self._status_var.set("Speichern abgebrochen.")
+                return
+            if target.exists():
+                product.revision += 1
+            user = self.app_state.current_user
+            product.revision_history.append({
+                "revision": product.revision,
+                "date": date.today().isoformat(),
+                "user": user.user_id if user else None,
+                "change": change_text.strip() or "Bearbeitet im Config-Editor",
+            })
+
+        path = save_product_config(product, PRODUCTS_DIR, self._templates())
         self._product = product
         self._dirty = False
 
-        self.app_state.app_config = load_app_config(APP_CONFIG_PATH, PRODUCTS_DIR)
+        if self.app_state.audit:
+            user = self.app_state.current_user
+            self.app_state.audit.log_event(
+                Event.CONFIG_EDITED,
+                user=user.user_id if user else None,
+                file=str(path),
+                details={
+                    "product": product.product_id,
+                    "revision": product.revision,
+                    "change": change_text,
+                },
+            )
+
+        self.app_state.app_config = load_app_config(
+            APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
+        )
 
         self._load_product_list()
-        self._status_var.set(f"Gespeichert: {path}")
+
+        # Jede inhaltliche Änderung bricht den Freigabe-Hash — das Produkt ist
+        # bis zur neuen Vier-Augen-Freigabe nicht mehr im Scope.
+        from src.config.freigabe import (
+            FREIGEGEBEN, compute_config_hash, determine_status, load_freigaben,
+        )
+        entry = load_freigaben(PRODUCTS_DIR).get(product.product_id)
+        status = determine_status(
+            entry, compute_config_hash(path), product.revision,
+        )
+        hint = (
+            "" if status == FREIGEGEBEN
+            else "  —  ⚠ nicht freigegeben: Freigabedokument unterschreiben "
+                 "lassen und Freigabe erfassen"
+        )
+        self._status_var.set(
+            f"Gespeichert: {path} (Revision {product.revision}){hint}"
+        )
+
+    def _on_create_freigabedokument(self) -> None:
+        """Erzeugt das Freigabedokument für das gewählte Produkt.
+
+        Mit Word-Vorlage (data/vorlagen/freigabedokument.docx) entsteht ein
+        .docx im immer gleichen Aufbau der Vorlage; ohne Vorlage ein HTML mit
+        festem Layout. Das Dokument bindet sich per SHA-256 an den
+        gespeicherten Dateistand — deshalb ist Speichern Voraussetzung."""
+        if not self._product or not self._product.product_id.strip():
+            messagebox.showinfo(
+                "Freigabedokument", "Bitte zuerst ein Produkt laden."
+            )
+            return
+        if self._dirty:
+            messagebox.showwarning(
+                "Freigabedokument",
+                "Es gibt ungespeicherte Änderungen. Bitte zuerst speichern — "
+                "das Dokument bindet sich an den gespeicherten Dateistand.",
+            )
+            return
+        path = PRODUCTS_DIR / f"{self._product.product_id}.json"
+        if not path.exists():
+            messagebox.showwarning(
+                "Freigabedokument",
+                f"Die Datei {path.name} existiert noch nicht. Bitte zuerst speichern.",
+            )
+            return
+
+        from src.config.freigabedokument import erzeuge_freigabedokument
+        from src.config.settings import (
+            FREIGABE_VORLAGE_PATH, FREIGABEDOKUMENTE_DIR,
+        )
+
+        try:
+            # Frisch von der Datei laden — das Dokument muss exakt den
+            # gespeicherten (= zu hashenden) Stand zeigen, nicht den UI-Stand.
+            product = load_product_config(path, self._templates())
+            vorlage = (
+                FREIGABE_VORLAGE_PATH if FREIGABE_VORLAGE_PATH.exists() else None
+            )
+            out, unresolved = erzeuge_freigabedokument(
+                product, path, FREIGABEDOKUMENTE_DIR, vorlage=vorlage,
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "Freigabedokument",
+                f"Dokument konnte nicht erzeugt werden:\n{e}",
+            )
+            return
+
+        if unresolved:
+            messagebox.showwarning(
+                "Unbekannte Platzhalter in der Vorlage",
+                "Folgende Platzhalter wurden nicht ersetzt und stehen noch "
+                "im Dokument:\n\n" + ", ".join(sorted(unresolved))
+                + "\n\nBitte Vorlage prüfen (Schreibweise siehe "
+                "CONFIG_REFERENZ.md).",
+            )
+        hinweis = "" if vorlage else " (HTML-Fallback — keine Word-Vorlage gefunden)"
+        self._status_var.set(f"Freigabedokument erzeugt: {out}{hinweis}")
+        messagebox.showinfo(
+            "Freigabedokument erzeugt",
+            f"{out}\n\nAusdrucken, von zwei Personen prüfen/freigeben lassen "
+            "(Vier-Augen-Prinzip) und danach hier „Freigabe erfassen…“ "
+            "ausführen.",
+        )
+
+    def _on_record_freigabe(self) -> None:
+        """Erfasst eine auf Papier erteilte Vier-Augen-Freigabe im Manifest.
+
+        Voraussetzung: Produkt ist gespeichert (Datei-Hash = Freigabe-Hash).
+        Die Prüfung/Unterschrift selbst passiert auf dem Freigabedokument —
+        hier wird nur dokumentiert, was dort steht."""
+        if not self._product or not self._product.product_id.strip():
+            messagebox.showinfo(
+                "Freigabe erfassen", "Bitte zuerst ein Produkt laden."
+            )
+            return
+        if self._dirty:
+            messagebox.showwarning(
+                "Freigabe erfassen",
+                "Es gibt ungespeicherte Änderungen. Bitte zuerst speichern — "
+                "die Freigabe bindet sich an den gespeicherten Dateistand.",
+            )
+            return
+        path = PRODUCTS_DIR / f"{self._product.product_id}.json"
+        if not path.exists():
+            messagebox.showwarning(
+                "Freigabe erfassen",
+                f"Die Datei {path.name} existiert noch nicht. Bitte zuerst speichern.",
+            )
+            return
+
+        from src.config.freigabe import compute_config_hash, record_freigabe
+
+        sha = compute_config_hash(path)
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Freigabe erfassen")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        frame = ttk.Frame(dialog, padding=15)
+        frame.pack(fill="both", expand=True)
+        frame.columnconfigure(1, weight=1)
+
+        ttk.Label(
+            frame,
+            text=(
+                f"Produkt: {self._product.product_id}   "
+                f"Revision: {self._product.revision}\n"
+                f"SHA-256: {sha}\n\n"
+                "Angaben vom unterschriebenen Freigabedokument übernehmen.\n"
+                "Der Hash auf dem Dokument muss mit dem obigen übereinstimmen."
+            ),
+            justify="left",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
+        vars_: dict[str, tk.StringVar] = {}
+        for i, (key, label) in enumerate([
+            ("dokument", "Freigabedokument-Nr.:"),
+            ("geprueft_von", "Geprüft von:"),
+            ("freigegeben_von", "Freigegeben von:"),
+        ], start=1):
+            ttk.Label(frame, text=label).grid(row=i, column=0, sticky="w", pady=3)
+            vars_[key] = tk.StringVar()
+            ttk.Entry(frame, textvariable=vars_[key], width=36).grid(
+                row=i, column=1, sticky="ew", pady=3, padx=(10, 0)
+            )
+
+        def on_ok() -> None:
+            dokument = vars_["dokument"].get().strip()
+            geprueft = vars_["geprueft_von"].get().strip()
+            freigegeben = vars_["freigegeben_von"].get().strip()
+            if not dokument or not geprueft or not freigegeben:
+                messagebox.showwarning(
+                    "Freigabe erfassen", "Alle Felder sind Pflicht.",
+                    parent=dialog,
+                )
+                return
+            if geprueft.lower() == freigegeben.lower():
+                messagebox.showwarning(
+                    "Vier-Augen-Prinzip",
+                    "Geprüft und Freigegeben müssen verschiedene Personen sein.",
+                    parent=dialog,
+                )
+                return
+
+            user = self.app_state.current_user
+            entry = record_freigabe(
+                PRODUCTS_DIR,
+                self._product.product_id,
+                path,
+                self._product.revision,
+                dokument=dokument,
+                geprueft_von=geprueft,
+                freigegeben_von=freigegeben,
+                erfasst_von=user.user_id if user else None,
+            )
+            if self.app_state.audit:
+                self.app_state.audit.log_event(
+                    Event.CONFIG_RELEASED,
+                    user=user.user_id if user else None,
+                    file=str(path),
+                    details={"product": self._product.product_id, **entry},
+                )
+            # Frisch laden, damit der Freigabe-Status überall greift.
+            self.app_state.app_config = load_app_config(
+                APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
+            )
+            self._status_var.set(
+                f"Freigabe erfasst: {self._product.product_id} "
+                f"Revision {self._product.revision} ({dokument})"
+            )
+            dialog.destroy()
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=(12, 0))
+        ttk.Button(btn_frame, text="Abbrechen", command=dialog.destroy).pack(
+            side="left", padx=8
+        )
+        ttk.Button(
+            btn_frame, text="Freigabe erfassen", style="Accent.TButton",
+            command=on_ok,
+        ).pack(side="left", padx=8)
 
     def _show_right_panel(self, show: bool) -> None:
         if show:

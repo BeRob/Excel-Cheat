@@ -32,6 +32,80 @@ def _remark_is_valid(value: str | None) -> bool:
     return value.strip().lower() not in _REMARK_PLACEHOLDERS
 
 
+def _remark_display_name(field_defs: list["FieldDef"] | None) -> str:
+    """Anzeigename des Bemerkungen-Felds, ermittelt über die Feld-id.
+
+    Fallback auf den Standard-Anzeigenamen, falls kein Feld mit der id
+    'bemerkungen' definiert ist — so funktioniert der OoS-Gate auch bei
+    Prozessen mit abweichendem Anzeigenamen (z.B. "Bemerkung")."""
+    for fd in field_defs or []:
+        if fd.id == _REMARK_FIELD_ID:
+            return fd.display_name
+    return _REMARK_DISPLAY_NAME
+
+
+def oos_blocked_sections_single(
+    raw_values: dict[str, str],
+    validation: ValidationResult,
+    field_defs: list["FieldDef"] | None = None,
+) -> list[str]:
+    """Single-Nutzen-Gate: ["Messwerte"] wenn OoS ohne valide Bemerkung, sonst []."""
+    remark_name = _remark_display_name(field_defs)
+    if validation.oos_fields and not _remark_is_valid(raw_values.get(remark_name)):
+        return ["Messwerte"]
+    return []
+
+
+def oos_blocked_sections_multi(
+    nutzen_values: list[dict[str, str]],
+    nutzen_validations: list[ValidationResult],
+    shared_validation: ValidationResult,
+    nutzen_field_defs: list["FieldDef"] | None = None,
+) -> list[str]:
+    """Multi-Nutzen-Gate: Liste der Sektionen mit OoS ohne valide Bemerkung.
+
+    "Gemeinsame Werte" wird nur dann gelistet, wenn ein OoS-Feld zu den
+    gemeinsamen Werten gehört — diese Sektion hat keine eigene Bemerkung,
+    also wird der Bemerkungen-Wert der Nutzen-Sektionen bewertet
+    (Approximation: wenn min. eine Nutzen-Bemerkung valide ist, gilt der
+    gemeinsame OoS als begründet)."""
+    remark_name = _remark_display_name(nutzen_field_defs)
+    bad: list[str] = []
+    for i, (raw, val) in enumerate(zip(nutzen_values, nutzen_validations), 1):
+        if not val.oos_fields:
+            continue
+        if not _remark_is_valid(raw.get(remark_name)):
+            bad.append(f"Nutzen {i}")
+    if shared_validation.oos_fields:
+        any_valid = any(
+            _remark_is_valid(nv.get(remark_name)) for nv in nutzen_values
+        )
+        if not any_valid:
+            bad.append("Gemeinsame Werte")
+    return bad
+
+
+def collect_oos_details(
+    validation: ValidationResult,
+    field_defs: list["FieldDef"] | None,
+) -> list[dict]:
+    """OoS-Felder mit Wert und Spec-Grenzen — für den Audit-Trail.
+
+    Ein OOS_BLOCKED-Event ohne die betroffenen Werte wäre für einen Auditor
+    nicht nachvollziehbar (welcher Wert verletzte welche Grenze?)."""
+    fd_map = {fd.display_name: fd for fd in field_defs or []}
+    details: list[dict] = []
+    for name in sorted(validation.oos_fields):
+        fd = fd_map.get(name)
+        details.append({
+            "field": name,
+            "value": validation.normalized_values.get(name),
+            "spec_min": fd.spec_min if fd else None,
+            "spec_max": fd.spec_max if fd else None,
+        })
+    return details
+
+
 class ReviewDialog(tk.Toplevel):
     """Modaler Dialog zur Kontrolle der Messwerte vor dem Speichern.
 
@@ -111,39 +185,36 @@ class ReviewDialog(tk.Toplevel):
 
     def _oos_without_remark(self) -> list[str]:
         """Liste betroffener Sektions-Labels, die OoS-Werte haben aber
-        keine valide Bemerkung tragen.
-
-        Im Single-Modus: ["Messwerte"] oder leer.
-        Im Multi-Modus: ["Nutzen 2", "Nutzen 3"]. "Gemeinsame Werte"
-        wird nur dann gelistet, wenn ein OoS-Feld zu den gemeinsamen
-        Werten gehört — diese Sektion hat keine eigene Bemerkungen,
-        also wird der Bemerkungen-Wert der jeweiligen Nutzen-Sektionen
-        bewertet (Approximation: wenn min. eine Nutzen-Bemerkung valide
-        ist, gilt der gemeinsame OoS als begründet)."""
-        bad: list[str] = []
+        keine valide Bemerkung tragen (Logik in den Modul-Funktionen
+        oos_blocked_sections_single/_multi — dort ohne Tk testbar)."""
         if self._is_multi:
-            for i, (raw, val) in enumerate(
-                zip(self.nutzen_values, self.nutzen_validations), 1,
-            ):
-                if not val.oos_fields:
-                    continue
-                if not _remark_is_valid(raw.get(_REMARK_DISPLAY_NAME)):
-                    bad.append(f"Nutzen {i}")
+            return oos_blocked_sections_multi(
+                self.nutzen_values, self.nutzen_validations,
+                self.shared_validation, self.nutzen_field_defs,
+            )
+        return oos_blocked_sections_single(
+            self.raw_values, self.validation, self.field_defs,
+        )
+
+    def _collect_oos_details(self) -> dict[str, list[dict]]:
+        """OoS-Felder je Sektion (Werte + Grenzen) für den Audit-Trail."""
+        details: dict[str, list[dict]] = {}
+        if self._is_multi:
+            for i, val in enumerate(self.nutzen_validations, 1):
+                if val.oos_fields:
+                    details[f"Nutzen {i}"] = collect_oos_details(
+                        val, self.nutzen_field_defs,
+                    )
             if self.shared_validation.oos_fields:
-                # Wenn nicht mindestens eine Nutzen-Bemerkung valide ist,
-                # ist auch der gemeinsame OoS unbegründet.
-                any_valid = any(
-                    _remark_is_valid(nv.get(_REMARK_DISPLAY_NAME))
-                    for nv in self.nutzen_values
+                details["Gemeinsame Werte"] = collect_oos_details(
+                    self.shared_validation, self.shared_field_defs,
                 )
-                if not any_valid:
-                    bad.append("Gemeinsame Werte")
         else:
-            if self.validation.oos_fields and not _remark_is_valid(
-                self.raw_values.get(_REMARK_DISPLAY_NAME)
-            ):
-                bad.append("Messwerte")
-        return bad
+            if self.validation.oos_fields:
+                details["Messwerte"] = collect_oos_details(
+                    self.validation, self.field_defs,
+                )
+        return details
 
     def _total_warnings(self) -> int:
         if self._is_multi:
@@ -377,7 +448,10 @@ class ReviewDialog(tk.Toplevel):
     def _cancel(self) -> None:
         if self.on_cancel is not None:
             try:
-                self.on_cancel(list(self._oos_blocked_sections))
+                self.on_cancel(
+                    list(self._oos_blocked_sections),
+                    self._collect_oos_details(),
+                )
             except Exception:
                 pass
         self.destroy()

@@ -2,11 +2,25 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.config.process_config import FieldDef
+
+
+# Einzelner Trenner mit genau drei Folgeziffern: "1.250" kann deutsche
+# Tausenderschreibweise (1250) oder englischer Dezimalwert (1,25) sein.
+# Solche Eingaben werden abgelehnt statt geraten — ein 1000-fach
+# fehlinterpretierter Messwert wäre ein Datenintegritätsfehler (ALCOA+).
+# Führende 0 ("0,500") bleibt erlaubt, da als Tausenderschreibweise sinnlos.
+_AMBIGUOUS_DECIMAL_RE = re.compile(r"^[1-9]\d{0,2}[.,]\d{3}$")
+
+
+def is_ambiguous_decimal(value_str: str) -> bool:
+    """True, wenn die Eingabe nicht eindeutig als Dezimalwert lesbar ist."""
+    return _AMBIGUOUS_DECIMAL_RE.match(value_str.strip()) is not None
 
 
 @dataclass
@@ -77,7 +91,14 @@ def validate_measurements(
         if not stripped:
             if fd and fd.optional:
                 result.normalized_values[header] = None
+            elif fd:
+                # Pflichtfeld leer = Fehler, nicht nur Warnung: eine leere
+                # Zelle ohne Begründung im Chargen-Record verletzt ALCOA+
+                # („complete"). Entwerten läuft über default_value "n/a".
+                result.errors.append(f"{header}: Pflichtfeld ist leer.")
+                result.normalized_values[header] = None
             else:
+                # Legacy-Pfad ohne FieldDefs: Verhalten unverändert (Warnung).
                 result.warnings.append(f"{header} ist leer.")
                 result.normalized_values[header] = None
             continue
@@ -94,6 +115,15 @@ def _validate_typed(
     header: str, value: str, fd: FieldDef, result: ValidationResult
 ) -> None:
     if fd.type == "number":
+        if is_ambiguous_decimal(value):
+            result.errors.append(
+                f"{header}: '{value}' ist mehrdeutig (Tausender- oder "
+                f"Dezimaltrenner?). Bitte ohne Tausendertrenner eingeben "
+                f"(z. B. 1250) oder den Dezimalwert eindeutig schreiben "
+                f"(z. B. 1,25)."
+            )
+            result.normalized_values[header] = None
+            return
         try:
             parsed = parse_numeric(value)
             result.normalized_values[header] = parsed
@@ -126,6 +156,15 @@ def _validate_typed(
 
 
 def _validate_numeric(header: str, value: str, result: ValidationResult) -> None:
+    if is_ambiguous_decimal(value):
+        result.errors.append(
+            f"{header}: '{value}' ist mehrdeutig (Tausender- oder "
+            f"Dezimaltrenner?). Bitte ohne Tausendertrenner eingeben "
+            f"(z. B. 1250) oder den Dezimalwert eindeutig schreiben "
+            f"(z. B. 1,25)."
+        )
+        result.normalized_values[header] = None
+        return
     try:
         parsed = parse_numeric(value)
         result.normalized_values[header] = parsed

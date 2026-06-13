@@ -1,0 +1,202 @@
+{
+  "template": "Schaelen",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "nutzen",
+      "display_name": "Nutzen",
+      "type": "number",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "ask",
+      "display_name": "ASK ≥ 1200%",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "group_shared": true,
+      "_present_in": [
+        "REF31828"
+      ]
+    },
+    {
+      "id": "schalspalt_oben",
+      "display_name": "Schälspalt oben [mm]",
+      "type": "number",
+      "role": "measurement",
+      "group_shared": true,
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "spalt2",
+      "display_name": "Spalt2 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "group_shared": true,
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "schalspalt_unten",
+      "display_name": "Schälspalt unten [mm]",
+      "type": "number",
+      "role": "measurement",
+      "group_shared": true,
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "schichtdicke_trocken_oben",
+      "display_name": "Schichtdicke trocken oben [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "schichtdicke_nass",
+      "display_name": "Schichtdicke Nass [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31963"
+      ]
+    },
+    {
+      "id": "flaechengewicht",
+      "display_name": "Flächengewicht 130–170 g/m²",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "schichtdicke_trocken_unten",
+      "display_name": "Schichtdicke trocken unten [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "schichtdicke_nass_oben",
+      "display_name": "Schichtdicke nass oben [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "schichtdicke_nass_unten",
+      "display_name": "Schichtdicke nass unten [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    }
+  ],
+  "_unification_notes": {
+    "flaechengewicht": "display_name/Attribute uneinheitlich: ['Flächengewicht 125–150 g/m²', 'Flächengewicht 130–170 g/m²', 'Flächengewicht 270–330 g/m²'] — Kanonik gewählt, Abweichungen via field_overrides."
+  }
+}

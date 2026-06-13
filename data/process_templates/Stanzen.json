@@ -1,0 +1,316 @@
+{
+  "template": "Stanzen",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "maschine",
+      "display_name": "Maschine",
+      "type": "choice",
+      "role": "context",
+      "options": [
+        "1",
+        "2"
+      ],
+      "_present_in": [
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nutzen",
+      "display_name": "Rolle/Bahn/Nutzen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31962",
+        "REF31963"
+      ]
+    },
+    {
+      "id": "rolle_schicht_nr",
+      "display_name": "Rolle/Schicht Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF32102"
+      ]
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31827",
+        "REF31828",
+        "REF31854",
+        "REF31859",
+        "REF31863",
+        "REF31875",
+        "REF50808",
+        "REF50809",
+        "REF50810",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nr",
+      "display_name": "Rolle/Bahn Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF50809",
+        "REF50810"
+      ]
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31827",
+        "REF31828",
+        "REF31854",
+        "REF31859",
+        "REF31863",
+        "REF31875",
+        "REF50808",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "pruefmuster",
+      "display_name": "Prüfmuster",
+      "type": "number",
+      "role": "auto",
+      "_present_in": [
+        "REF31863",
+        "REF31962",
+        "REF31963",
+        "REF32102",
+        "REF50808",
+        "REF50809",
+        "REF50810",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "nutzen",
+      "display_name": "Nutzen",
+      "type": "number",
+      "role": "auto",
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "rolle_nutzen_schicht",
+      "display_name": "Rolle/Nutzen/Schicht Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31863"
+      ]
+    },
+    {
+      "id": "karton_nr",
+      "display_name": "Karton Nr.",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31875"
+      ]
+    },
+    {
+      "id": "pruefplatte",
+      "display_name": "Prüfplatte",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31875"
+      ]
+    },
+    {
+      "id": "ask",
+      "display_name": "ASK ≥ 1200%",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "group_shared": true,
+      "_present_in": [
+        "REF31827",
+        "REF31875"
+      ]
+    },
+    {
+      "id": "breite",
+      "display_name": "Breite [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "karton",
+      "display_name": "Karton",
+      "type": "number",
+      "role": "auto",
+      "_present_in": [
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "laenge",
+      "display_name": "Länge [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "kanten_sauber",
+      "display_name": "Kanten sauber/fusselfrei",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF31863",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "schichtdicke_links",
+      "display_name": "Schichtdicke links [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31854",
+        "REF31859"
+      ]
+    },
+    {
+      "id": "stanzkante",
+      "display_name": "Stanzkante sauber/fusselfrei",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF50808",
+        "REF50809",
+        "REF50810"
+      ]
+    },
+    {
+      "id": "rohausbeute",
+      "display_name": "Rohausbeute Platten",
+      "type": "number",
+      "role": "measurement",
+      "group_shared": true,
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "schichtdicke_rechts",
+      "display_name": "Schichtdicke rechts [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31854",
+        "REF31859"
+      ]
+    },
+    {
+      "id": "schichtdicke",
+      "display_name": "Schichtdicke [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31863",
+        "REF31875",
+        "REF50808",
+        "REF50809",
+        "REF50810",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    }
+  ],
+  "_unification_notes": {
+    "rollen_nr": "display_name/Attribute uneinheitlich: ['Rollen Nr.'] — Kanonik gewählt, Abweichungen via field_overrides.",
+    "pruefplatte": "display_name/Attribute uneinheitlich: ['Prüfplatte', 'Prüfplatte / Nutzen-streifen'] — Kanonik gewählt, Abweichungen via field_overrides.",
+    "ask": "display_name/Attribute uneinheitlich: ['ASK ≥ 1200%'] — Kanonik gewählt, Abweichungen via field_overrides.",
+    "breite": "Specs produktspezifisch (kommen aus field_overrides).",
+    "laenge": "Specs produktspezifisch (kommen aus field_overrides).",
+    "schichtdicke": "Specs produktspezifisch (kommen aus field_overrides)."
+  }
+}

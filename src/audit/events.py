@@ -25,6 +25,9 @@ class Event:
     CONTEXT_SET = "context_set"
     FILE_CREATED = "file_created"
     FILE_RESUMED = "file_resumed"
+    FILE_CREATE_FAIL = "file_create_fail"
+    FILE_RESUME_FAIL = "file_resume_fail"
+    INFO_HEADER_FAIL = "info_header_fail"
 
     REVIEW_OPENED = "review_opened"
     REVIEW_CANCELLED = "review_cancelled"
@@ -43,6 +46,8 @@ class Event:
     HISTORY_TOGGLED = "history_toggled"
 
     CONFIG_EDITED = "config_edited"
+    CONFIG_LOADED = "config_loaded"
+    CONFIG_RELEASED = "config_released"
     CONTEXT_EDIT_REQUESTED = "context_edit_requested"
 
     EXCEPTION = "exception"

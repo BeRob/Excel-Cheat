@@ -1,4 +1,6 @@
 {
+  "_kommentar_freigabe_pflicht": "false = Übergangsbetrieb bis zur Erfassung der Erst-Freigaben (nicht freigegebene Produkte erscheinen mit Warnung). Nach Unterschrift der Freigabedokumente auf true setzen oder Schlüssel entfernen (Default: true = streng).",
+  "freigabe_pflicht": false,
   "qr_prefix": "WF2 ",
   "shifts": [
     {"name": "1", "start_hour": 6, "end_hour": 14},

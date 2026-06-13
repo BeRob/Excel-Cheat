@@ -1,0 +1,295 @@
+{
+  "template": "Schneiden",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31875",
+        "REF32102",
+        "REF40861",
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nutzen",
+      "display_name": "Rolle/Bahn/Nutzen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31863"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nr",
+      "display_name": "Rolle/Bahn Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31875",
+        "REF32102",
+        "REF40861",
+        "REF50808_HS",
+        "REF50809_HS",
+        "REF50810_HS",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "bahn",
+      "display_name": "Bahn Nr.",
+      "type": "choice",
+      "role": "context",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "_present_in": [
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "ask",
+      "display_name": "ASK ≥ 1200%",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF32102"
+      ]
+    },
+    {
+      "id": "max_klebestellen",
+      "display_name": "max. Klebestellen",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "kanten_sauber",
+      "display_name": "Kanten sauber/fusselfrei",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF31863",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "breite",
+      "display_name": "Breite [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31854",
+        "REF31859",
+        "REF31863",
+        "REF31875",
+        "REF40861",
+        "REF50808",
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS",
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "nutzen",
+      "display_name": "Nutzen",
+      "type": "number",
+      "role": "auto",
+      "_present_in": [
+        "_REF31842.3"
+      ]
+    },
+    {
+      "id": "klebestellen_iO",
+      "display_name": "Klebestellen i.O.",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "bahn_1",
+      "display_name": "Bahn 1 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF32102"
+      ]
+    },
+    {
+      "id": "laenge",
+      "display_name": "Länge [m]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "rollenlaenge",
+      "display_name": "Rollenlänge [m]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF50808_HS",
+        "REF50809_HS",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "schnittkante",
+      "display_name": "Schnittkante sauber/fusselfrei",
+      "type": "choice",
+      "role": "measurement",
+      "options": [
+        "Ja",
+        "Nein"
+      ],
+      "_present_in": [
+        "REF50808_HS",
+        "REF50809",
+        "REF50809_HS",
+        "REF50810",
+        "REF50810_HS"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "bahn_2",
+      "display_name": "Bahn 2 [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF32102"
+      ]
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "schichtdicke_links",
+      "display_name": "Schichtdicke links [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "schichtdicke_rechts",
+      "display_name": "Schichtdicke rechts [mm]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    }
+  ],
+  "_unification_notes": {
+    "breite": "Specs produktspezifisch (kommen aus field_overrides)."
+  }
+}

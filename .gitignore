@@ -3,11 +3,16 @@ __pycache__/
 *.pyo
 .claude/
 output/
-data/audit_log.jsonl
-data/audit_log.jsonl.lock
+# Laufzeit-Artefakte (GMP-Rohdaten und Logs gehören nicht ins Repo):
+# deckt auch Tagesrotation (.jsonl.YYYY-MM-DD) und .lock ab
+data/audit_log.jsonl*
+data/logs/
+data/ui_prefs.json
 data/users.kv
 data/configs/
-data/products/_pending/
+data/products/_thin/
+# generierte Freigabedokumente — das unterschriebene Papier ist der Record
+data/freigabedokumente/
 *.egg-info/
 dist/
 build/

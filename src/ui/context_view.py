@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from datetime import datetime
 
 from src.audit.events import Event
@@ -201,9 +201,12 @@ class ContextView(BaseView):
             lot, fa_nr, product.product_id, process.template_id, output_dir
         )
         if existing:
-            count = count_data_rows(existing)
+            try:
+                count_text = str(count_data_rows(existing))
+            except Exception:
+                count_text = "?"
             self.file_status_label.config(
-                text=f"↺  Fortsetzen  –  {count} Messungen vorhanden",
+                text=f"↺  Fortsetzen  –  {count_text} Messungen vorhanden",
                 style="Warning.TLabel",
             )
             self._pending_file = existing
@@ -231,23 +234,59 @@ class ContextView(BaseView):
         lot = self.app_state.persistent_values.get("LOT Nr.", "")
         fa_nr = self.app_state.persistent_values.get("FA-Nr.", "")
 
+        user_id = (
+            self.app_state.current_user.user_id
+            if self.app_state.current_user else None
+        )
+
         if self._pending_file and self._pending_file.exists():
             filepath = self._pending_file
             file_event = Event.FILE_RESUMED
         else:
-            filepath = create_measurement_file(
-                process, product.product_id, output_dir,
-                lot, fa_nr, shift, shift_date,
-                protection_password=getattr(
-                    self.app_state.app_config, "sheet_protection_password", "hexhex"
-                ),
-            )
+            try:
+                filepath = create_measurement_file(
+                    process, product.product_id, output_dir,
+                    lot, fa_nr, shift, shift_date,
+                    protection_password=getattr(
+                        self.app_state.app_config, "sheet_protection_password", "hexhex"
+                    ),
+                )
+            except Exception as e:
+                if self.app_state.audit:
+                    self.app_state.audit.log_event(
+                        Event.FILE_CREATE_FAIL, level="error", user=user_id,
+                        details={"error": str(e), "output_dir": str(output_dir)},
+                    )
+                messagebox.showerror(
+                    "Datei konnte nicht erstellt werden",
+                    f"Die Excel-Datei konnte nicht angelegt werden:\n{e}\n\n"
+                    "Bitte Netzlaufwerk/Berechtigungen prüfen und erneut versuchen.",
+                )
+                return
             file_event = Event.FILE_CREATED
+
+        # Zeilenzahl VOR der Übernahme in den App-Zustand ermitteln: schlägt
+        # das Lesen fehl, darf die Prüfmuster-/Beutel-Nummerierung nicht bei 0
+        # neu starten (doppelte Nummern in der Chargendokumentation).
+        try:
+            row_count = count_data_rows(filepath)
+        except Exception as e:
+            if self.app_state.audit:
+                self.app_state.audit.log_event(
+                    Event.FILE_RESUME_FAIL, level="error", user=user_id,
+                    file=str(filepath), details={"error": str(e)},
+                )
+            messagebox.showerror(
+                "Datei nicht lesbar",
+                f"Die bestehende Datei konnte nicht gelesen werden:\n{e}\n\n"
+                "Falls die Datei in Excel geöffnet ist, bitte schließen und "
+                "erneut versuchen.",
+            )
+            return
 
         self.app_state.current_file = filepath
         self.app_state.is_resume = self._is_resume
 
-        row_count = count_data_rows(filepath)
         self.app_state.auto_sequence = row_count
         if process.row_group_size:
             self.app_state.row_group_counter = row_count % process.row_group_size
@@ -271,7 +310,7 @@ class ContextView(BaseView):
             else:
                 extra_info.append((f"{fd.display_name}:", value))
 
-        write_info_header(
+        header_ok = write_info_header(
             filepath=filepath,
             product_name=product.display_name if product else "",
             process_name=process.display_name if process else "",
@@ -279,12 +318,24 @@ class ContextView(BaseView):
             dt=shift_date,
             extra_info=extra_info,
         )
+        if not header_ok:
+            # Der Info-Block (FA-Nr., LOT, Messmittel) ist Teil des GMP-Records —
+            # ohne ihn wäre die Chargendokumentation unvollständig.
+            if self.app_state.audit:
+                self.app_state.audit.log_event(
+                    Event.INFO_HEADER_FAIL, level="error", user=user_id,
+                    file=str(filepath),
+                    context=dict(self.app_state.persistent_values),
+                )
+            messagebox.showerror(
+                "Kopfdaten nicht geschrieben",
+                "Die Kopfdaten (FA-Nr., LOT, Messmittel) konnten nicht in die "
+                "Excel-Datei geschrieben werden.\n\nFalls die Datei in Excel "
+                "geöffnet ist, bitte schließen und erneut versuchen.",
+            )
+            return
 
         if self.app_state.audit:
-            user_id = (
-                self.app_state.current_user.user_id
-                if self.app_state.current_user else None
-            )
             self.app_state.audit.log_event(
                 Event.CONTEXT_SET,
                 user=user_id,
@@ -309,5 +360,13 @@ class ContextView(BaseView):
         self.on_navigate("product_process")
 
     def _logout(self) -> None:
+        # Audit-Lücke geschlossen: dieser Logout-Pfad loggte als einziger
+        # kein LOGOUT-Event (form_view und product_process_view tun es).
+        if self.app_state.audit:
+            user = self.app_state.current_user
+            self.app_state.audit.log_event(
+                Event.LOGOUT,
+                user=user.user_id if user else None,
+            )
         self.app_state.reset_user()
         self.on_navigate("login")

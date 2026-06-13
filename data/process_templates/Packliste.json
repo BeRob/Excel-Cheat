@@ -1,0 +1,180 @@
+{
+  "template": "Packliste",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "palett_nr",
+      "display_name": "Palett Nr.",
+      "type": "number",
+      "role": "context",
+      "persistent": true,
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF40861",
+        "REF50808",
+        "REF50809",
+        "REF50810"
+      ]
+    },
+    {
+      "id": "rolle_bahn_nr",
+      "display_name": "Rolle/Bahn Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31863",
+        "REF50808",
+        "REF50809",
+        "REF50810"
+      ]
+    },
+    {
+      "id": "rolle_schicht_nr",
+      "display_name": "Rolle/Schicht Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF32102"
+      ]
+    },
+    {
+      "id": "anzahl_beutel",
+      "display_name": "Anzahl Beutel",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31863",
+        "REF50808",
+        "REF50809",
+        "REF50810"
+      ]
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF40861"
+      ]
+    },
+    {
+      "id": "karton_nr",
+      "display_name": "Karton Nr.",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31863",
+        "REF31962",
+        "REF31963",
+        "REF50808",
+        "REF50809",
+        "REF50810"
+      ]
+    },
+    {
+      "id": "roll_length",
+      "display_name": "Roll length [m]",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "beutel_nr",
+      "display_name": "Beutel Nr.",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31962",
+        "REF31963",
+        "REF32102"
+      ]
+    },
+    {
+      "id": "splices",
+      "display_name": "Splices",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF40861"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    }
+  ]
+}

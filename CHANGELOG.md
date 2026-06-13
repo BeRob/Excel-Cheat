@@ -1,5 +1,60 @@
 # Versionshistorie – QAInput
 
+## v1.7.0 – 2026-06-12
+
+### Neu
+- **Vier-Augen-Freigabe für Produkt-Configs (ohne E-Signatur)** – Nur freigegebene Configs sind im Scope. Die Freigabe passiert auf Papier (Freigabedokument mit zwei Unterschriften, Prüfer ≠ Freigeber) und ist technisch über den SHA-256-Hash der Config-Datei verankert: `data/products/freigaben.json` hält je Produkt Revision, Hash und die Dokumentangaben (`src/config/freigabe.py`). Jede nachträgliche Änderung der Datei bricht den Hash — das Produkt fällt automatisch aus dem Scope, bis eine neue Freigabe erfasst ist
+- **Freigabe erfassen im Config-Editor** – Dialog mit Dokument-Nr., Geprüft-von und Freigegeben-von (verschiedene Personen erzwungen); die App berechnet den Hash selbst und schreibt ein `config_released`-Audit-Event. Nach dem Speichern einer Änderung weist der Editor darauf hin, dass die Freigabe erloschen ist
+- **Freigabedokument-Generator mit Word-Vorlage** – Editor-Button „Freigabedokument erzeugen…" (und `scripts/make_freigabedokument.py <REF>`) erzeugt je Produkt+Revision ein Freigabedokument mit allen aufgelösten Feldern und Spec-Grenzen, Revisionshistorie, SHA-256 und Unterschriftsblock (`data/freigabedokumente/`, gitignored — das unterschriebene Papier ist der Nachweis). Liegt eine Word-Vorlage unter `data/vorlagen/freigabedokument.docx`, wird sie befüllt (immer gleicher Aufbau; `{{…}}`-Platzhalter inkl. wiederholbarer Tabellenzeilen, ohne Zusatzabhängigkeit — docx wird als ZIP/XML direkt befüllt, auch von Word zerteilte Platzhalter werden erkannt, unbekannte gemeldet); ohne Vorlage HTML-Fallback mit festem Layout
+- **CONFIG_REFERENZ.md** – Cheat-Sheet aller wirksamen Schlüssel: Produkt-Config (dünn + Legacy), Prozess-Templates, Feld-Attribute, Feld-ids mit Sonderverhalten (datum/bearbeiter/nutzen/pruefmuster/beutel_nr/karton/messmittel/bemerkungen/maschine), `freigaben.json`, `app_config.json`, `users.kv`, Word-Platzhalter — als Grundlage für den Bau von Muster-Configs (unbekannte JSON-Schlüssel werden beim Laden ignoriert)
+- **Freigabepflicht-Schalter** – `app_config.json` `"freigabe_pflicht"`: true (Default, streng) blendet nicht freigegebene Produkte aus und blockt den Prozessstart hart; false (Übergangsbetrieb bis zur Erst-Freigabe) zeigt sie mit ⚠-Markierung
+- **`config_loaded`-Audit-Event beim App-Start** – protokolliert alle geladenen Produkt-Configs mit Revision, SHA-256 und Freigabe-Status: beweisbar, welcher exakte Config-Stand welche Chargen-Records erzeugt hat
+- **12 neue Tests** für Hash-Manifest, Status-Logik (freigegeben/geändert/nicht freigegeben), Freigabe-Erfassung und Loader-Annotation (190 gesamt)
+
+### Geändert
+- **Alle 17 Produkt-Configs auf dünne Form migriert** – `data/products/*.json` referenziert jetzt die Prozess-Templates (`template` + `active_fields` + `field_overrides`/`extra_fields`) statt voller Feldlisten. Vor der Umstellung verifiziert: Auflösung jeder dünnen Config ist feldgenau identisch zur bisherigen vollen Config (ids, Reihenfolge, Anzeigenamen, Specs, Flags) — Resume und Spaltenmapping bleiben unberührt
+- **`/excel2config` entfernt** – der Excel-Vorlagen-Import ist seit dem Template-Design überflüssig; neue Produkte entstehen im Admin-Editor (Template-basiert oder als Kopie). Das `_pending`-Staging entfällt
+
+## v1.6.0 – 2026-06-12
+
+### Neu
+- **Prozess-Templates (dünne Produkt-Configs)** – Die Feldstruktur eines Prozesses ist einmal je Operation in `data/process_templates/<Operation>.json` definiert (8 Operationen). Produkt-Configs referenzieren `template` + `active_fields` und tragen nur noch Abweichungen (`field_overrides`, `extra_fields`). Der Loader löst beides zur vollen Feldliste auf – Formular, Excel, Resume und Spec-Prüfung bleiben unverändert; alte volle Configs laden abwärtskompatibel. `template_id` bleibt wörtlich erhalten (Excel-Dateiname + Resume-Schlüssel). Audit-Events (`write_success`, `oos_blocked`, `review_cancelled`) tragen `template` + `template_revision` (GMP: welche Template-Version erzeugte die Datei). Einmal-Skripte: `scripts/make_templates.py`, `scripts/migrate_to_thin.py` (Acid-Test: 17 Produkte, 0 Abweichungen)
+- **GxP-Review-Skill** – `.claude/skills/gxp-review/SKILL.md`: Checklisten-basierte Compliance-Prüfung (21 CFR Part 11, QMSR/ISO 13485, FDA CSA 2025, GAMP 5, ALCOA+) mit Code-Ankern für Änderungen an Schreibpfad, Audit, Auth, Validierung und Configs
+- **Audit-Ausfall sichtbar** – Weicht der Audit-Logger auf den lokalen Puffer aus, zeigt die Statuszeile nach dem Speichern eine Warnung; bei Totalausfall (Event verloren) zusätzlich einmalige Warnbox („IT informieren"). Neuer Status `AuditLogger.degraded_reason`
+- **Neue Audit-Events** – `file_create_fail`, `file_resume_fail`, `info_header_fail` (Fehler beim Anlegen/Fortsetzen/Kopfdaten-Schreiben); `oos_blocked` enthält jetzt die betroffenen Felder mit Wert und Spec-Grenzen; `config_edited` wird beim Speichern im Config-Editor geschrieben (Benutzer, Produkt, Revision, Änderungsbeschreibung)
+- **43 neue Tests** – Audit-Logger (Lock-Timeout, Fallback-Replay, Rotation), OoS-Gate (Single/Multi-Nutzen), AuthService (Passwort/QR/Admin), Excel-Resume mit umgeordneten Headern, Header-Validierung, Thin-Config-Roundtrip, Dezimal-Mehrdeutigkeit, JSON-Fehlerkontext (178 gesamt)
+
+### Geändert – Verhaltensänderungen für Bediener
+- **Leere Pflicht-Messfelder blockieren das Senden** – bisher nur Warnung; eine leere Zelle ohne Begründung im Chargen-Record verletzt ALCOA+ („complete"). Bewusst leer lassen weiterhin über `n/a` (z. B. Bemerkungen-Default) bzw. `optional: true` in der Config
+- **Mehrdeutige Dezimaleingaben werden abgelehnt** – „1.250" kann 1250 (deutsche Tausender) oder 1,25 (englisches Dezimal) bedeuten und wurde bisher still als 1,25 gelesen. Jetzt Fehlermeldung mit Hinweis: ohne Tausendertrenner (1250) oder eindeutig (1,25) eingeben. Eindeutige Formate („0,500", „1.250,5", „1,2500") bleiben unverändert akzeptiert
+- **Config-Editor verlangt eine Änderungsbeschreibung** – beim Speichern mit Änderungen wird die Produkt-`revision` automatisch erhöht und ein `revision_history`-Eintrag (Datum, Benutzer, Beschreibung) angelegt
+
+### Geändert – Robustheit (GMP-Datenintegrität)
+- **Atomares Excel-Schreiben** – alle Workbook-Saves laufen über Temp-Datei + Rename (`src/excel/safe_save.py`); ein Absturz oder Netzabriss mitten im Speichern kann die Chargendatei nicht mehr korrumpieren. Gilt für Messzeilen, Dateierstellung und Info-Block
+- **Inter-Prozess-Lock um Excel-Schreiben** – Lock-Datei neben der Excel-Datei serialisiert load→save über Workstations (gleiches Muster wie beim Audit-Log, gemeinsame Helfer in `src/audit/file_lock.py`); bei belegtem Lock klare Fehlermeldung statt verlorener Zeile
+- **Header-Validierung beim Schreiben** – fehlt eine erwartete Spalte in Zeile 9 oder hat ein Wert keinen Spaltentreffer, bricht das Schreiben mit Fehlermeldung ab statt Werte still zu verwerfen (info_header-Felder sind weiterhin bewusst ausgenommen)
+- **`count_data_rows` wirft bei Lesefehlern** – der Resume bricht mit Meldung ab, statt die Prüfmuster-/Beutel-Nummerierung still bei 0 neu zu starten (doppelte Nummern in der Chargendokumentation)
+- **`write_info_header` meldet Fehler** – Rückgabewert + Logging + Audit-Event; der Prozessstart bricht ab, wenn die Kopfdaten (FA-Nr., LOT, Messmittel) nicht geschrieben werden konnten
+- **Audit-Fallback-Replay crash-sicher** – der lokale Puffer wird vor dem Nachholen per Rename beiseitegelegt; ein Fehlschlag mitten im Replay kann keine Events mehr verlieren (schlimmstenfalls erkennbare Duplikate)
+- **Kaputte Config-/Template-JSONs nennen die Datei beim Namen** – `Ungültiges JSON in …REF31963.json: …` statt nackter Traceback beim App-Start
+- **Config-Speichern atomar + dünn** – `save_product_config` schreibt über Temp-Datei + Rename; dünne Configs bleiben beim Editor-Speichern dünn (Overrides werden gegen das Template zurückgerechnet) statt zur vollen Feldliste aufgeblasen zu werden
+- **Stille Fehlerpfade geloggt** – übersprungene `users.kv`-Zeilen, `ui_prefs.json`-Fehler und der Schicht-Fallback auf „1" landen jetzt im Tech-Log
+
+### Behoben
+- **Config-Editor: Produktliste leer beim Start** – `_load_product_list()` war beim Einbau der Template-Unterstützung aus `__init__` herausgerutscht (toter Code hinter einem `return`)
+- **Config-Editor: Speichern setzte `revision` auf 1 zurück** – `_build_product_from_ui()` übergab `revision`/`revision_history` nicht; jedes Admin-Save löschte damit die GMP-Änderungshistorie
+- **Logout aus der Kontext-Ansicht ohne Audit-Event** – `context_view._logout` loggt jetzt `logout` wie die übrigen Views
+- **Auto-Sequenz-Rollback** – bei Schreibfehlern wird `auto_sequence` exakt um die Zahl der Inkremente zurückgenommen (vorher pauschal −1)
+
+## v1.5.2 – 2026-05-19
+
+### Neu
+- **Konfigurierbare Betriebsparameter in `app_config.json`** – Audit-Lock-Timeout, Log-Rotationsgrößen und -Anzahl, MemoryHandler-Puffergröße sowie das Excel-Blattschutz-Passwort lassen sich jetzt über `app_config.json` einstellen, statt im Code hartkodiert zu sein. Damit am Standort ohne Neu-Build der EXE anpassbar – sinnvoll für das Netzlaufwerk-Deployment. Fehlende Schlüssel fallen auf die bisherigen Werte zurück, das Verhalten bleibt ohne Änderung der Datei identisch
+
+### Geändert
+- **Produkt-Configs vereinheitlicht** – Konsistenz-Durchgang über alle 17 Produkt-JSONs: Rollen-IDs kanonisiert, Einheiten in die Anzeigenamen aufgenommen, Feld-Definitionen vereinheitlicht; Revision-Bumps mit Revisionshistorie
+- **Toter Schlüssel `output_dir` aus `app_config.json` entfernt** – wurde nirgends gelesen; der Ausgabepfad kommt weiterhin aus der Produkt-Config bzw. dem Ordner-Dialog
+
 ## v1.5.1 – 2026-05-17
 
 ### Behoben

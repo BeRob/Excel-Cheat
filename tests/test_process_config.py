@@ -127,6 +127,172 @@ class TestDetermineShift(unittest.TestCase):
         self.assertEqual(determine_shift(10, []), "1")
 
 
+class TestTemplateResolution(unittest.TestCase):
+    """Dünne Produkt-Configs werden gegen Operation-Templates aufgelöst."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.tpl_dir = self.tmp / "process_templates"
+        self.prod_dir = self.tmp / "products"
+        self.tpl_dir.mkdir()
+        self.prod_dir.mkdir()
+
+        template = {
+            "template": "Schneiden",
+            "template_revision": 3,
+            "fields": [
+                {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text",
+                 "role": "context", "persistent": True, "info_header": True},
+                {"id": "breite", "display_name": "Breite [mm]", "type": "number",
+                 "role": "measurement"},
+                {"id": "schnittkante", "display_name": "Schnittkante", "type": "choice",
+                 "role": "measurement", "options": ["Ja", "Nein"], "optional": True},
+                {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text",
+                 "role": "measurement", "optional": True, "default_value": "n/a",
+                 "_present_in": "ALL"},
+                {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
+            ],
+            "_unification_notes": {"breite": "..."},
+        }
+        (self.tpl_dir / "Schneiden.json").write_text(
+            json.dumps(template), encoding="utf-8"
+        )
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_product(self, data: dict) -> Path:
+        path = self.prod_dir / f"{data['product_id']}.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return path
+
+    def test_resolve_active_fields_order_and_specs(self):
+        from src.config.process_config import load_process_templates
+        templates = load_process_templates(self.tpl_dir)
+        path = self._write_product({
+            "product_id": "REFTEST",
+            "display_name": "Test",
+            "revision": 1,
+            "processes": [{
+                "template_id": "IPC3_Fertigschneiden",
+                "template": "Schneiden",
+                "display_name": "IPC3 Fertigschneiden",
+                "active_fields": ["fa_nr", "breite", "bemerkungen", "datum"],
+                "field_overrides": {
+                    "breite": {"spec_min": 18.0, "spec_max": 22.0, "spec_target": 20.0},
+                },
+            }],
+        })
+        product = load_product_config(path, templates)
+        proc = product.processes[0]
+        # Prozess-Identität bleibt erhalten (Excel-Dateiname/Resume!)
+        self.assertEqual(proc.template_id, "IPC3_Fertigschneiden")
+        self.assertEqual(proc.template, "Schneiden")
+        self.assertEqual(proc.template_revision, 3)
+        # active_fields bestimmt Reihenfolge + Auswahl (schnittkante ausgelassen)
+        self.assertEqual([f.id for f in proc.fields],
+                         ["fa_nr", "breite", "bemerkungen", "datum"])
+        breite = next(f for f in proc.fields if f.id == "breite")
+        self.assertEqual((breite.spec_min, breite.spec_target, breite.spec_max),
+                         (18.0, 20.0, 22.0))
+        # default_value/options stammen aus dem Template
+        bem = next(f for f in proc.fields if f.id == "bemerkungen")
+        self.assertEqual(bem.default_value, "n/a")
+
+    def test_field_override_changes_display_name(self):
+        from src.config.process_config import load_process_templates
+        templates = load_process_templates(self.tpl_dir)
+        path = self._write_product({
+            "product_id": "REFTEST2",
+            "display_name": "Test2",
+            "revision": 1,
+            "processes": [{
+                "template_id": "IPC2_Fertigschneiden",
+                "template": "Schneiden",
+                "display_name": "IPC2",
+                "active_fields": ["fa_nr", "schnittkante"],
+                "field_overrides": {
+                    "schnittkante": {"display_name": "Schnittkante sauber?",
+                                     "group_shared": True},
+                },
+            }],
+        })
+        proc = load_product_config(path, templates).processes[0]
+        sk = next(f for f in proc.fields if f.id == "schnittkante")
+        self.assertEqual(sk.display_name, "Schnittkante sauber?")
+        self.assertTrue(sk.group_shared)
+        self.assertEqual(sk.options, ["Ja", "Nein"])  # aus Template übernommen
+
+    def test_extra_field_product_unique(self):
+        from src.config.process_config import load_process_templates
+        templates = load_process_templates(self.tpl_dir)
+        path = self._write_product({
+            "product_id": "REFTEST3",
+            "display_name": "Test3",
+            "revision": 1,
+            "processes": [{
+                "template_id": "IPC3_Fertigschneiden",
+                "template": "Schneiden",
+                "display_name": "IPC3",
+                "active_fields": ["fa_nr", "sonderfeld"],
+                "extra_fields": [
+                    {"id": "sonderfeld", "display_name": "Sonderfeld",
+                     "type": "number", "role": "measurement"},
+                ],
+            }],
+        })
+        proc = load_product_config(path, templates).processes[0]
+        self.assertEqual([f.id for f in proc.fields], ["fa_nr", "sonderfeld"])
+
+    def test_unknown_template_raises(self):
+        from src.config.process_config import load_process_templates
+        templates = load_process_templates(self.tpl_dir)
+        path = self._write_product({
+            "product_id": "REFBAD",
+            "display_name": "Bad",
+            "revision": 1,
+            "processes": [{
+                "template_id": "IPC1_X",
+                "template": "GibtsNicht",
+                "display_name": "X",
+                "active_fields": ["fa_nr"],
+            }],
+        })
+        with self.assertRaises(ValueError):
+            load_product_config(path, templates)
+
+    def test_legacy_full_fields_still_load(self):
+        # Ohne template/active_fields → klassische volle fields-Liste
+        path = self._write_product({
+            "product_id": "REFLEGACY",
+            "display_name": "Legacy",
+            "revision": 1,
+            "processes": [{
+                "template_id": "IPC1_Alt",
+                "display_name": "Alt",
+                "fields": [
+                    {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text",
+                     "role": "context"},
+                    {"id": "breite", "display_name": "Breite", "type": "number",
+                     "role": "measurement"},
+                ],
+            }],
+        })
+        proc = load_product_config(path, {}).processes[0]
+        self.assertIsNone(proc.template)
+        self.assertEqual([f.id for f in proc.fields], ["fa_nr", "breite"])
+
+    def test_templates_dir_skips_underscore_files(self):
+        from src.config.process_config import load_process_templates
+        (self.tpl_dir / "_draft.json").write_text(
+            json.dumps({"template": "Draft", "fields": []}), encoding="utf-8"
+        )
+        templates = load_process_templates(self.tpl_dir)
+        self.assertIn("Schneiden", templates)
+        self.assertNotIn("Draft", templates)
+
+
 class TestLoadProductConfig(unittest.TestCase):
 
     def test_load_from_file(self):
@@ -312,8 +478,10 @@ class TestLoadRealConfig(unittest.TestCase):
         data_dir = Path(__file__).resolve().parent.parent / "data"
         config_path = data_dir / "app_config.json"
         products_dir = data_dir / "products"
+        templates_dir = data_dir / "process_templates"
 
-        app_config = load_app_config(config_path, products_dir)
+        # Produktivkonfiguration ist dünn — ohne Templates nicht auflösbar.
+        app_config = load_app_config(config_path, products_dir, templates_dir)
         self.assertGreaterEqual(len(app_config.products), 1)
 
         ref = next(
@@ -349,6 +517,54 @@ class TestLoadRealConfig(unittest.TestCase):
         self.assertIsNotNone(breite)
         self.assertEqual(breite.spec_min, 180)
         self.assertEqual(breite.spec_max, 190)
+
+
+class TestJsonErrorContext(unittest.TestCase):
+    """Kaputte Config-Dateien müssen beim Laden die Datei beim Namen nennen —
+    sonst ist ein Tippfehler in einer von vielen Produkt-JSONs unauffindbar."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp_dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+    def test_malformed_product_json_names_file(self):
+        bad = self.tmp_dir / "REFKAPUTT.json"
+        bad.write_text('{"product_id": "X", kaputt', encoding="utf-8")
+        with self.assertRaises(ValueError) as ctx:
+            load_product_config(bad)
+        self.assertIn("REFKAPUTT.json", str(ctx.exception))
+
+    def test_missing_required_key_names_file(self):
+        bad = self.tmp_dir / "REFOHNEID.json"
+        bad.write_text(json.dumps({"display_name": "X", "processes": []}),
+                       encoding="utf-8")
+        with self.assertRaises(ValueError) as ctx:
+            load_product_config(bad)
+        self.assertIn("REFOHNEID.json", str(ctx.exception))
+
+    def test_malformed_template_json_names_file(self):
+        from src.config.process_config import load_process_templates
+        tpl_dir = self.tmp_dir / "templates"
+        tpl_dir.mkdir()
+        (tpl_dir / "Kaputt.json").write_text("{nicht json", encoding="utf-8")
+        with self.assertRaises(ValueError) as ctx:
+            load_process_templates(tpl_dir)
+        self.assertIn("Kaputt.json", str(ctx.exception))
+
+    def test_template_without_name_key_names_file(self):
+        from src.config.process_config import load_process_templates
+        tpl_dir = self.tmp_dir / "templates"
+        tpl_dir.mkdir()
+        (tpl_dir / "OhneName.json").write_text(
+            json.dumps({"fields": []}), encoding="utf-8"
+        )
+        with self.assertRaises(ValueError) as ctx:
+            load_process_templates(tpl_dir)
+        self.assertIn("OhneName.json", str(ctx.exception))
 
 
 if __name__ == "__main__":

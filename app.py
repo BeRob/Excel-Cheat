@@ -17,7 +17,7 @@ from src.audit.events import Event
 from src.audit.logging_setup import init_logging, shutdown_logging
 from src.config.settings import (
     APP_TITLE, APP_VERSION, WINDOW_WIDTH, WINDOW_HEIGHT, AUDIT_LOG_PATH,
-    APP_CONFIG_PATH, PRODUCTS_DIR,
+    APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR,
     DEBUG_LOG_PATH, ERROR_LOG_PATH, load_ui_prefs, load_app_config_raw,
 )
 from src.config.process_config import load_app_config
@@ -95,7 +95,9 @@ class MeasurementApp:
             lock_timeout=_num(raw_cfg, "audit_lock_timeout_seconds", 5.0),
         )
         try:
-            self.state.app_config = load_app_config(APP_CONFIG_PATH, PRODUCTS_DIR)
+            self.state.app_config = load_app_config(
+                APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
+            )
         except Exception:
             _logger.exception("load_app_config fehlgeschlagen")
             self.state.audit.log_event(
@@ -103,6 +105,23 @@ class MeasurementApp:
                 details={"phase": "load_app_config"},
             )
             raise
+        # GMP: beim Start beweisbar festhalten, welche exakten Config-Stände
+        # (SHA-256) mit welchem Freigabe-Status geladen wurden.
+        cfg = self.state.app_config
+        self.state.audit.log_event(
+            Event.CONFIG_LOADED,
+            details={
+                "freigabe_pflicht": cfg.freigabe_pflicht,
+                "products": {
+                    p.product_id: {
+                        "revision": p.revision,
+                        "sha256": p.config_sha256,
+                        "freigabe": p.freigabe_status,
+                    }
+                    for p in cfg.products
+                },
+            },
+        )
         self.state.ui_prefs = load_ui_prefs()
 
         main_frame = tk.Frame(self.root, bg=COLORS["background"])

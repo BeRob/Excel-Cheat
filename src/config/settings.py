@@ -71,6 +71,12 @@ CONFIG_DIR = _resolve_dir(
 PRODUCTS_DIR = _resolve_dir(
     "QAINPUT_PRODUCTS_DIR", _BOOTSTRAP.get("products_dir"), DATA_DIR / "products",
 )
+# Prozess-Templates (kanonische Feldstruktur je Operation). Default: <DATA_DIR>/process_templates
+PROCESS_TEMPLATES_DIR = _resolve_dir(
+    "QAINPUT_PROCESS_TEMPLATES_DIR",
+    _BOOTSTRAP.get("process_templates_dir"),
+    DATA_DIR / "process_templates",
+)
 AUDIT_DIR = _resolve_dir(
     "QAINPUT_AUDIT_DIR", _BOOTSTRAP.get("audit_dir"), DATA_DIR,
 )
@@ -93,28 +99,42 @@ ERROR_LOG_PATH = LOG_DIR / "error.log"
 
 UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"
 
+# Word-Vorlage für Freigabedokumente (vom QM gepflegt, mit {{...}}-Platzhaltern).
+# Fehlt sie, fällt die Erzeugung auf ein festes HTML-Layout zurück.
+FREIGABE_VORLAGE_PATH = DATA_DIR / "vorlagen" / "freigabedokument.docx"
+# Ablage der erzeugten Freigabedokumente (gitignored — das unterschriebene
+# Papier ist der Nachweis).
+FREIGABEDOKUMENTE_DIR = DATA_DIR / "freigabedokumente"
+
 
 def load_ui_prefs() -> dict:
     """Lädt UI-Einstellungen (Spaltenauswahl Historie, etc.). Fehler → leeres Dict."""
+    import logging
+
     try:
         if UI_PREFS_PATH.exists():
             data = json.loads(UI_PREFS_PATH.read_text(encoding="utf-8"))
             return data if isinstance(data, dict) else {}
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger("config").warning(
+            "ui_prefs.json nicht lesbar (%s) — verwende Defaults", e
+        )
     return {}
 
 
 def save_ui_prefs(prefs: dict) -> None:
-    """Speichert UI-Einstellungen. Fehler werden geschluckt (best-effort)."""
+    """Speichert UI-Einstellungen. Fehler kosten nur die Präferenzen (best-effort),
+    landen aber im debug.log statt unterzugehen."""
+    import logging
+
     try:
         UI_PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
         UI_PREFS_PATH.write_text(
             json.dumps(prefs, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger("config").warning("ui_prefs.json nicht speicherbar: %s", e)
 
 # Zeile 1: nur Produktname (groß, fett)
 # Zeilen 2-5 (Spalten A-B): Prozess, Schicht, Datum

@@ -26,7 +26,36 @@ from src.ui.theme import COLORS, FONTS
 class ProductProcessView(BaseView):
     def __init__(self, parent, app_state, on_navigate):
         super().__init__(parent, app_state, on_navigate)
+        # Combobox-Label -> ProductConfig (Labels tragen ggf. Freigabe-Warnung)
+        self._product_by_label: dict[str, object] = {}
         self._build_ui()
+
+    def _freigabe_label(self, product) -> str:
+        """Anzeige-Label eines Produkts; ohne gültige Freigabe mit Warnung."""
+        from src.config.freigabe import FREIGEGEBEN
+        if product.freigabe_status == FREIGEGEBEN:
+            return product.display_name
+        return f"{product.display_name}   ⚠ {product.freigabe_status}"
+
+    def _selectable_products(self) -> list:
+        """Im Scope sind nur freigegebene Configs (Vier-Augen-Prinzip).
+
+        Bei aktiver Freigabepflicht (app_config.json "freigabe_pflicht",
+        Default true) werden nicht freigegebene Produkte ausgeblendet; im
+        Übergangsbetrieb (false) erscheinen sie mit Warnmarkierung."""
+        config = self.app_state.app_config
+        if not config:
+            return []
+        from src.config.freigabe import FREIGEGEBEN
+        if config.freigabe_pflicht:
+            return [
+                p for p in config.products
+                if p.freigabe_status == FREIGEGEBEN
+            ]
+        return list(config.products)
+
+    def _selected_product(self):
+        return self._product_by_label.get(self.product_var.get())
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -141,15 +170,29 @@ class ProductProcessView(BaseView):
         self.user_label.config(text=f"Angemeldet als: {user.display_name}")
 
         config = self.app_state.app_config
-        if config and config.products:
-            product_names = [p.display_name for p in config.products]
-            self.product_combo["values"] = product_names
+        selectable = self._selectable_products()
+        self._product_by_label = {self._freigabe_label(p): p for p in selectable}
+        if config and selectable:
+            labels = list(self._product_by_label.keys())
+            self.product_combo["values"] = labels
+
+            hidden = len(config.products) - len(selectable)
+            if hidden:
+                self.status_var.set(
+                    f"{hidden} Produkt(e) ohne gültige Freigabe ausgeblendet "
+                    "(Freigabepflicht aktiv)."
+                )
 
             if self.app_state.selected_product:
-                prev = self.app_state.selected_product.display_name
-                if prev in product_names:
+                prev = self._freigabe_label(self.app_state.selected_product)
+                if prev in self._product_by_label:
                     self.product_var.set(prev)
                     self._on_product_selected()
+        elif config and config.products:
+            self.status_var.set(
+                "Keine freigegebenen Produkte vorhanden — Freigabe im "
+                "Config-Editor erfassen."
+            )
         else:
             self.status_var.set("Keine Produkte konfiguriert.")
 
@@ -169,10 +212,7 @@ class ProductProcessView(BaseView):
         if not config:
             return
 
-        product_name = self.product_var.get()
-        product = next(
-            (p for p in config.products if p.display_name == product_name), None
-        )
+        product = self._selected_product()
         if not product:
             return
 
@@ -182,7 +222,9 @@ class ProductProcessView(BaseView):
                 user=(self.app_state.current_user.user_id
                       if self.app_state.current_user else None),
                 details={"product": product.product_id,
-                         "display_name": product.display_name},
+                         "display_name": product.display_name,
+                         "revision": product.revision,
+                         "freigabe": product.freigabe_status},
             )
 
         process_names = [p.display_name for p in product.processes]
@@ -204,10 +246,7 @@ class ProductProcessView(BaseView):
         if not config:
             return
 
-        product_name = self.product_var.get()
-        product = next(
-            (p for p in config.products if p.display_name == product_name), None
-        )
+        product = self._selected_product()
         if not product:
             return
 
@@ -279,11 +318,18 @@ class ProductProcessView(BaseView):
         if not config:
             return
 
-        product_name = self.product_var.get()
-        product = next(
-            (p for p in config.products if p.display_name == product_name), None
-        )
+        product = self._selected_product()
         if not product:
+            return
+
+        # Harte Sperre unabhängig von der Anzeige: bei Freigabepflicht darf
+        # kein nicht freigegebenes Produkt in die Messung gelangen.
+        from src.config.freigabe import FREIGEGEBEN
+        if config.freigabe_pflicht and product.freigabe_status != FREIGEGEBEN:
+            self.status_var.set(
+                f"Produkt {product.product_id} ist nicht freigegeben "
+                f"({product.freigabe_status}) — Messung nicht möglich."
+            )
             return
 
         process_name = self.process_var.get()

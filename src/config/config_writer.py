@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
-from src.config.process_config import FieldDef, ProcessConfig, ProductConfig
+from src.config.process_config import (
+    FIELD_OVERRIDE_KEYS,
+    FieldDef,
+    ProcessConfig,
+    ProcessTemplate,
+    ProductConfig,
+)
 
 
 def field_to_dict(field: FieldDef) -> dict:
@@ -39,7 +46,64 @@ def field_to_dict(field: FieldDef) -> dict:
     return d
 
 
-def process_to_dict(process: ProcessConfig) -> dict:
+def _field_override_diff(base: FieldDef, actual: FieldDef) -> dict:
+    """Attribut-Abweichungen der aufgelösten FieldDef gegenüber dem Template-Feld.
+
+    Liefert genau die Werte, die als ``field_overrides``-Eintrag nötig sind,
+    damit die Auflösung wieder ``actual`` ergibt."""
+    diff: dict = {}
+    for key in sorted(FIELD_OVERRIDE_KEYS):
+        if getattr(actual, key) != getattr(base, key):
+            diff[key] = getattr(actual, key)
+    return diff
+
+
+def _thin_process_to_dict(process: ProcessConfig, tpl: ProcessTemplate) -> dict:
+    """Serialisiert einen aufgelösten Prozess zurück in die dünne Form
+    (template + active_fields + field_overrides + extra_fields).
+
+    Die Overrides werden gegen das Template zurückgerechnet — Editor-Änderungen
+    an einzelnen Feldern bleiben so als Override erhalten, statt die Config zur
+    vollen Legacy-fields-Liste aufzublasen."""
+    tpl_fields = tpl.field_map()
+    active: list[str] = []
+    overrides: dict[str, dict] = {}
+    extras: list[dict] = []
+
+    for f in process.fields:
+        active.append(f.id)
+        base = tpl_fields.get(f.id)
+        if base is None:
+            extras.append(field_to_dict(f))
+        else:
+            diff = _field_override_diff(base, f)
+            if diff:
+                overrides[f.id] = diff
+
+    d: dict = {
+        "template_id": process.template_id,
+        "display_name": process.display_name,
+        "template": tpl.template,
+        "template_revision": tpl.template_revision,
+        "active_fields": active,
+    }
+    if overrides:
+        d["field_overrides"] = overrides
+    if extras:
+        d["extra_fields"] = extras
+    if process.row_group_size is not None:
+        d["row_group_size"] = process.row_group_size
+    return d
+
+
+def process_to_dict(
+    process: ProcessConfig,
+    templates: dict[str, ProcessTemplate] | None = None,
+) -> dict:
+    tpl = (templates or {}).get(process.template) if process.template else None
+    if tpl is not None:
+        return _thin_process_to_dict(process, tpl)
+
     d: dict = {
         "template_id": process.template_id,
         "display_name": process.display_name,
@@ -47,15 +111,24 @@ def process_to_dict(process: ProcessConfig) -> dict:
     }
     if process.row_group_size is not None:
         d["row_group_size"] = process.row_group_size
+    # Herkunft erhalten, auch wenn die Template-Datei gerade nicht auflösbar ist —
+    # der Loader reicht beide Schlüssel im Legacy-Fall durch.
+    if process.template:
+        d["template"] = process.template
+        if process.template_revision is not None:
+            d["template_revision"] = process.template_revision
     return d
 
 
-def product_to_dict(product: ProductConfig) -> dict:
+def product_to_dict(
+    product: ProductConfig,
+    templates: dict[str, ProcessTemplate] | None = None,
+) -> dict:
     d: dict = {
         "product_id": product.product_id,
         "display_name": product.display_name,
         "revision": product.revision,
-        "processes": [process_to_dict(p) for p in product.processes],
+        "processes": [process_to_dict(p, templates) for p in product.processes],
     }
     if product.output_dir is not None:
         d["output_dir"] = product.output_dir
@@ -123,12 +196,35 @@ def validate_product_config(product: ProductConfig) -> list[str]:
     return errors
 
 
-def save_product_config(product: ProductConfig, products_dir: Path) -> Path:
-    """Speichert eine ProductConfig als JSON und liefert den Dateipfad."""
+def save_product_config(
+    product: ProductConfig,
+    products_dir: Path,
+    templates: dict[str, ProcessTemplate] | None = None,
+) -> Path:
+    """Speichert eine ProductConfig als JSON und liefert den Dateipfad.
+
+    Mit ``templates`` bleiben dünne Configs dünn (Overrides werden gegen das
+    Template zurückgerechnet). Geschrieben wird atomar (Temp-Datei + Rename),
+    damit ein Abbruch mitten im Schreiben keine halbe Config hinterlässt."""
     products_dir.mkdir(parents=True, exist_ok=True)
     path = products_dir / f"{product.product_id}.json"
-    data = product_to_dict(product)
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    data = product_to_dict(product, templates)
+    payload = json.dumps(data, indent=2, ensure_ascii=False)
+
+    tmp = path.with_name(path.name + ".tmp~")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                pass
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     return path

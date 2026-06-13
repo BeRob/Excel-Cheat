@@ -1,0 +1,204 @@
+{
+  "template": "Ausschussplatten",
+  "template_revision": 1,
+  "fields": [
+    {
+      "id": "fa_nr",
+      "display_name": "FA-Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "lot_nr",
+      "display_name": "LOT Nr.",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "verwendbarkeitsdatum",
+      "display_name": "Verwendbarkeitsdatum",
+      "type": "date",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": "ALL"
+    },
+    {
+      "id": "messmittel",
+      "display_name": "Messmittel",
+      "type": "text",
+      "role": "context",
+      "persistent": true,
+      "info_header": true,
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "rollencharge",
+      "display_name": "Rollencharge",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31828",
+        "REF31859"
+      ]
+    },
+    {
+      "id": "format",
+      "display_name": "Format",
+      "type": "choice",
+      "role": "context",
+      "options": [
+        "Länge",
+        "Breite"
+      ],
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "rollen_nr",
+      "display_name": "Rollen Nr.",
+      "type": "text",
+      "role": "context",
+      "_present_in": [
+        "REF31828",
+        "REF31859"
+      ]
+    },
+    {
+      "id": "platten_nr",
+      "display_name": "Platten Nr.",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "menge_gutplatten",
+      "display_name": "Menge Gutplatten",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31859"
+      ]
+    },
+    {
+      "id": "aus_qfa",
+      "display_name": "Aus QFA",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "_present_in": [
+        "REF31827"
+      ]
+    },
+    {
+      "id": "aus_fa",
+      "display_name": "Ausschussplatten aus FA",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "_present_in": [
+        "REF31828"
+      ]
+    },
+    {
+      "id": "menge_schaelen",
+      "display_name": "Menge Ausschuß Schälen",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31828"
+      ]
+    },
+    {
+      "id": "menge_ausschussplatten",
+      "display_name": "Menge Ausschußplatten",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31859"
+      ]
+    },
+    {
+      "id": "laenge",
+      "display_name": "Länge [mm]",
+      "type": "number",
+      "role": "measurement",
+      "optional": true,
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "menge_verpacken",
+      "display_name": "Menge Ausschuß Verpacken",
+      "type": "number",
+      "role": "measurement",
+      "_present_in": [
+        "REF31828"
+      ]
+    },
+    {
+      "id": "breite",
+      "display_name": "Breite [mm]",
+      "type": "number",
+      "role": "measurement",
+      "optional": true,
+      "_present_in": [
+        "REF31827",
+        "REF31828"
+      ]
+    },
+    {
+      "id": "ausschuss_m2",
+      "display_name": "Ausschuß [m²]",
+      "type": "number",
+      "role": "measurement",
+      "optional": true,
+      "_present_in": [
+        "REF31828"
+      ]
+    },
+    {
+      "id": "bemerkungen",
+      "display_name": "Bemerkungen",
+      "type": "text",
+      "role": "measurement",
+      "optional": true,
+      "default_value": "n/a",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "datum",
+      "display_name": "Datum",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    },
+    {
+      "id": "bearbeiter",
+      "display_name": "Bearbeiter",
+      "type": "text",
+      "role": "auto",
+      "_present_in": "ALL"
+    }
+  ],
+  "_unification_notes": {
+    "laenge": "Specs produktspezifisch (kommen aus field_overrides).",
+    "breite": "Specs produktspezifisch (kommen aus field_overrides)."
+  }
+}
