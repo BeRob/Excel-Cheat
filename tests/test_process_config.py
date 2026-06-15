@@ -474,49 +474,61 @@ class TestLoadAppConfig(unittest.TestCase):
 class TestLoadRealConfig(unittest.TestCase):
     """Test mit der echten REF31962-Konfiguration."""
 
-    def test_load_ref31962(self):
+    def test_live_templates_parse_and_empty_product_set_loads(self):
+        # Ausgeliefert wird mit kanonischen Templates und (noch) ohne Produkte —
+        # der Admin baut die Produkt-Configs später. Der Loader muss das ohne
+        # Fehler verkraften und alle Live-Templates müssen parsen.
+        from src.config.process_config import load_process_templates
         data_dir = Path(__file__).resolve().parent.parent / "data"
         config_path = data_dir / "app_config.json"
         products_dir = data_dir / "products"
         templates_dir = data_dir / "process_templates"
 
-        # Produktivkonfiguration ist dünn — ohne Templates nicht auflösbar.
+        templates = load_process_templates(templates_dir)
+        self.assertIn("Vorschneiden", templates)
+        for tpl in templates.values():
+            self.assertTrue(tpl.fields, f"Template {tpl.template} hat keine Felder")
+
         app_config = load_app_config(config_path, products_dir, templates_dir)
-        self.assertGreaterEqual(len(app_config.products), 1)
+        # Kein Crash; Produktanzahl ist datenstandsabhängig (>= 0).
+        self.assertGreaterEqual(len(app_config.products), 0)
 
-        ref = next(
-            (p for p in app_config.products if p.product_id == "REF31962"),
-            None,
+
+class TestIsMultiNutzen(unittest.TestCase):
+    """Multi-Nutzen aktiviert, sobald row_group_size + etwas Wiederholbares."""
+
+    def _proc(self, row_group_size, fields):
+        from src.config.process_config import ProcessConfig
+        return ProcessConfig(
+            template_id="P", display_name="P",
+            fields=fields, row_group_size=row_group_size,
         )
-        self.assertIsNotNone(ref, "REF31962 nicht in geladenen Produkten gefunden")
-        self.assertEqual(ref.product_id, "REF31962")
-        self.assertEqual(len(ref.processes), 5)
 
-        # IPC1
-        ipc1 = ref.processes[0]
-        self.assertEqual(ipc1.template_id, "IPC1_Vorschneiden")
-        self.assertIsNone(ipc1.row_group_size)
+    def _f(self, fid, role="measurement", group_shared=False):
+        return FieldDef(id=fid, display_name=fid, type="number",
+                        role=role, group_shared=group_shared)
 
-        # IPC2 hat row_group_size
-        ipc2 = ref.processes[1]
-        self.assertEqual(ipc2.row_group_size, 3)
+    def test_no_row_group_size_never_multi(self):
+        from src.config.process_config import is_multi_nutzen
+        p = self._proc(None, [self._f("breite")])
+        self.assertFalse(is_multi_nutzen(p))
 
-        # FA-Nr. prüfen
-        fa = get_field_by_id(ipc1, "fa_nr")
-        self.assertIsNotNone(fa)
-        self.assertTrue(fa.persistent)
-        self.assertEqual(fa.role, "context")
+    def test_per_nutzen_measurement_activates(self):
+        # Vorschneiden-Fall: einziges Messfeld 'breite' je Bahn, kein group_shared
+        from src.config.process_config import is_multi_nutzen
+        p = self._proc(3, [self._f("breite"), self._f("bemerkungen", "measurement")])
+        self.assertTrue(is_multi_nutzen(p))
 
-        # Feld-Rollen prüfen
-        lot = get_field_by_id(ipc1, "lot_nr")
-        self.assertIsNotNone(lot)
-        self.assertTrue(lot.persistent)
-        self.assertEqual(lot.role, "context")
+    def test_group_shared_still_activates(self):
+        from src.config.process_config import is_multi_nutzen
+        p = self._proc(3, [self._f("spalt", group_shared=True)])
+        self.assertTrue(is_multi_nutzen(p))
 
-        breite = get_field_by_id(ipc1, "breite_1")
-        self.assertIsNotNone(breite)
-        self.assertEqual(breite.spec_min, 180)
-        self.assertEqual(breite.spec_max, 190)
+    def test_row_group_size_without_measurement_not_multi(self):
+        # row_group_size, aber nur Kontext/Auto -> nichts zu wiederholen
+        from src.config.process_config import is_multi_nutzen
+        p = self._proc(3, [self._f("fa_nr", "context"), self._f("datum", "auto")])
+        self.assertFalse(is_multi_nutzen(p))
 
 
 class TestJsonErrorContext(unittest.TestCase):

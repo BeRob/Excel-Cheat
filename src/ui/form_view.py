@@ -17,6 +17,7 @@ from src.config.process_config import (
     get_group_shared_fields,
     get_per_nutzen_fields,
     get_auto_fields,
+    is_multi_nutzen,
     FieldDef,
 )
 from src.config.settings import HEADER_ROW, save_ui_prefs
@@ -429,9 +430,7 @@ class FormView(BaseView):
             self._is_multi_nutzen = False
             return
 
-        self._is_multi_nutzen = bool(
-            process.row_group_size and get_group_shared_fields(process)
-        )
+        self._is_multi_nutzen = is_multi_nutzen(process)
 
         # Machine-scoped Setup (Variante 2): wenn Felder mit machine_scoped=true
         # existieren UND ein Maschine-Choice-Feld vorhanden ist, oben einen Slot

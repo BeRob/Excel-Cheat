@@ -1,202 +1,34 @@
 {
   "template": "Schaelen",
-  "template_revision": 1,
-  "fields": [
-    {
-      "id": "fa_nr",
-      "display_name": "FA-Nr.",
-      "type": "text",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "lot_nr",
-      "display_name": "LOT Nr.",
-      "type": "text",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "verwendbarkeitsdatum",
-      "display_name": "Verwendbarkeitsdatum",
-      "type": "date",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "messmittel",
-      "display_name": "Messmittel",
-      "type": "text",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "rollencharge",
-      "display_name": "Rollencharge",
-      "type": "text",
-      "role": "context",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "rollen_nr",
-      "display_name": "Rollen Nr.",
-      "type": "text",
-      "role": "context",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "nutzen",
-      "display_name": "Nutzen",
-      "type": "number",
-      "role": "auto",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "ask",
-      "display_name": "ASK ≥ 1200%",
-      "type": "choice",
-      "role": "measurement",
-      "options": [
-        "Ja",
-        "Nein"
-      ],
-      "group_shared": true,
-      "_present_in": [
-        "REF31828"
-      ]
-    },
-    {
-      "id": "schalspalt_oben",
-      "display_name": "Schälspalt oben [mm]",
-      "type": "number",
-      "role": "measurement",
-      "group_shared": true,
-      "_present_in": [
-        "REF31962",
-        "REF31963",
-        "REF32102"
-      ]
-    },
-    {
-      "id": "spalt2",
-      "display_name": "Spalt2 [mm]",
-      "type": "number",
-      "role": "measurement",
-      "group_shared": true,
-      "_present_in": [
-        "REF31827",
-        "REF31828"
-      ]
-    },
-    {
-      "id": "schalspalt_unten",
-      "display_name": "Schälspalt unten [mm]",
-      "type": "number",
-      "role": "measurement",
-      "group_shared": true,
-      "_present_in": [
-        "REF31962",
-        "REF31963",
-        "REF32102"
-      ]
-    },
-    {
-      "id": "schichtdicke_trocken_oben",
-      "display_name": "Schichtdicke trocken oben [mm]",
-      "type": "number",
-      "role": "measurement",
-      "_present_in": [
-        "REF31827",
-        "REF31828"
-      ]
-    },
-    {
-      "id": "schichtdicke_nass",
-      "display_name": "Schichtdicke Nass [mm]",
-      "type": "number",
-      "role": "measurement",
-      "_present_in": [
-        "REF31963"
-      ]
-    },
-    {
-      "id": "flaechengewicht",
-      "display_name": "Flächengewicht 130–170 g/m²",
-      "type": "choice",
-      "role": "measurement",
-      "options": [
-        "Ja",
-        "Nein"
-      ],
-      "_present_in": [
-        "REF31962",
-        "REF31963",
-        "REF32102"
-      ]
-    },
-    {
-      "id": "schichtdicke_trocken_unten",
-      "display_name": "Schichtdicke trocken unten [mm]",
-      "type": "number",
-      "role": "measurement",
-      "_present_in": [
-        "REF31827",
-        "REF31828"
-      ]
-    },
-    {
-      "id": "schichtdicke_nass_oben",
-      "display_name": "Schichtdicke nass oben [mm]",
-      "type": "number",
-      "role": "measurement",
-      "_present_in": [
-        "REF31827",
-        "REF31828"
-      ]
-    },
-    {
-      "id": "bemerkungen",
-      "display_name": "Bemerkungen",
-      "type": "text",
-      "role": "measurement",
-      "optional": true,
-      "default_value": "n/a",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "schichtdicke_nass_unten",
-      "display_name": "Schichtdicke nass unten [mm]",
-      "type": "number",
-      "role": "measurement",
-      "_present_in": [
-        "REF31827",
-        "REF31828"
-      ]
-    },
-    {
-      "id": "datum",
-      "display_name": "Datum",
-      "type": "text",
-      "role": "auto",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "bearbeiter",
-      "display_name": "Bearbeiter",
-      "type": "text",
-      "role": "auto",
-      "_present_in": "ALL"
-    }
-  ],
+  "template_revision": 2,
   "_unification_notes": {
-    "flaechengewicht": "display_name/Attribute uneinheitlich: ['Flächengewicht 125–150 g/m²', 'Flächengewicht 130–170 g/m²', 'Flächengewicht 270–330 g/m²'] — Kanonik gewählt, Abweichungen via field_overrides."
-  }
+    "schichtdicke": "Ein Messwert je Nutzen. nass/trocken nie gleichzeitig — ein Produkt schält entweder nass ODER trocken; das ist eine Produkt-Eigenschaft, kein eigenes Feld. Bei Bedarf display_name je Produkt per field_override auf 'Schichtdicke nass'/'Schichtdicke trocken' setzen.",
+    "schichtdicke_anfang_links": "Positions-Variante (Anfang/Ende x links/rechts), je Nutzen — nur für Produkte, die an mehreren Positionen messen. Einfache Produkte nehmen stattdessen 'schichtdicke' in active_fields.",
+    "schalspalt_oben": "Pro Rolle einmal (group_shared), gilt für alle Nutzen.",
+    "rolle_bahn_nutzen": "Ab Schälen ersetzt dieser Identifier die einfache 'Rollen Nr.' (Rolle -> Bahn -> Nutzen).",
+    "lfd_nr": "Manuelles Eingabefeld (kein Auto-Zähler). Pro Rolle einmal, läuft parallel zur Rollennummer hoch. Nur für Produkte, die es in active_fields aufnehmen."
+  },
+  "fields": [
+    {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+    {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+    {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+    {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+    {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
+    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "context"},
+    {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "context"},
+    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
+    {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
+    {"id": "schalspalt_oben", "display_name": "Schälspalt oben", "type": "number", "role": "measurement", "group_shared": true},
+    {"id": "schalspalt_unten", "display_name": "Schälspalt unten", "type": "number", "role": "measurement", "group_shared": true},
+    {"id": "nutzen", "display_name": "Nutzen", "type": "number", "role": "auto"},
+    {"id": "schichtdicke", "display_name": "Schichtdicke", "type": "number", "role": "measurement"},
+    {"id": "schichtdicke_anfang_links", "display_name": "Schichtdicke Anfang links", "type": "number", "role": "measurement"},
+    {"id": "schichtdicke_anfang_rechts", "display_name": "Schichtdicke Anfang rechts", "type": "number", "role": "measurement"},
+    {"id": "schichtdicke_ende_links", "display_name": "Schichtdicke Ende links", "type": "number", "role": "measurement"},
+    {"id": "schichtdicke_ende_rechts", "display_name": "Schichtdicke Ende rechts", "type": "number", "role": "measurement"},
+    {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement"},
+    {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
+    {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
+    {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto"}
+  ]
 }

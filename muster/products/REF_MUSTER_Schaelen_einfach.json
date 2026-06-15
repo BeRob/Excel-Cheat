@@ -1,0 +1,24 @@
+{
+  "product_id": "REF_MUSTER_Schaelen_einfach",
+  "display_name": "Muster – Schälen, nass, 1 Schichtdicke je Nutzen",
+  "revision": 1,
+  "processes": [
+    {
+      "template_id": "IPC2_Schaelen",
+      "display_name": "IPC2 Schälen",
+      "template": "Schaelen",
+      "row_group_size": 3,
+      "active_fields": [
+        "fa_nr", "lot_nr", "verwendbarkeitsdatum", "messmittel",
+        "rollencharge", "rolle_bahn_nutzen", "ask",
+        "schalspalt_oben", "schalspalt_unten",
+        "nutzen", "schichtdicke", "bemerkungen", "datum", "bearbeiter"
+      ],
+      "field_overrides": {
+        "schichtdicke": {"display_name": "Schichtdicke nass", "spec_min": 0.18, "spec_max": 0.24, "spec_target": 0.21},
+        "schalspalt_oben": {"spec_min": 0.30, "spec_max": 0.40},
+        "schalspalt_unten": {"spec_min": 0.30, "spec_max": 0.40}
+      }
+    }
+  ]
+}

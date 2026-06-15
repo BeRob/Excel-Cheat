@@ -1,16 +1,27 @@
 {
-  "template": "Vorschneiden",
-  "template_revision": 2,
+  "template": "Schneiden",
+  "template_revision": 1,
+  "_unification_notes": {
+    "breite": "Hauptmesswert je Bahn — wie Vorschneiden. Anzahl Bahnen je Produkt über row_group_size; eine id 'breite' für alle.",
+    "rollenlaenge": "Pro Rolle (group_shared), nur bei manchen Produkten — via active_fields aufnehmen.",
+    "klebestellen": "Anzahl Klebestellen je Rolle; Spec max 10 als Default (per field_override produktweise anpassbar).",
+    "lfd_nr": "Manuelles Eingabefeld pro Rolle (kein Auto-Zähler), optional je Produkt.",
+    "schnittkante": "Schnittkante sauber Ja/Nein, je Bahn."
+  },
   "fields": [
     {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
     {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
+    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "context"},
+    {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "context"},
     {"id": "ask", "display_name": "ASK", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
-    {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
+    {"id": "rollenlaenge", "display_name": "Rollenlänge", "type": "number", "role": "measurement", "group_shared": true},
+    {"id": "klebestellen", "display_name": "Klebestellen", "type": "number", "role": "measurement", "group_shared": true, "spec_max": 10},
     {"id": "nutzen", "display_name": "Bahn", "type": "number", "role": "auto"},
     {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement"},
+    {"id": "schnittkante", "display_name": "Schnittkante sauber", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
     {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
     {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
     {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto"}

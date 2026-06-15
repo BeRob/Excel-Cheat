@@ -1,0 +1,23 @@
+{
+  "product_id": "REF_MUSTER_1Bahn",
+  "display_name": "Muster – Vorschneiden, 1 Bahn (Trimmen)",
+  "revision": 1,
+  "revision_history": [
+    {"revision": 1, "date": "2026-06-12", "user": "muster", "change": "Beispiel: Rolle wird links/rechts auf eine Breite getrimmt"}
+  ],
+  "processes": [
+    {
+      "template_id": "IPC1_Vorschneiden",
+      "display_name": "IPC1 Vorschneiden",
+      "template": "Vorschneiden",
+      "active_fields": [
+        "fa_nr", "lot_nr", "verwendbarkeitsdatum", "messmittel",
+        "rollencharge", "ask",
+        "breite", "bemerkungen", "datum", "bearbeiter"
+      ],
+      "field_overrides": {
+        "breite": {"spec_min": 180.0, "spec_max": 190.0, "spec_target": 185.0}
+      }
+    }
+  ]
+}

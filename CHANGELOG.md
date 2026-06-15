@@ -1,5 +1,17 @@
 # Versionshistorie – QAInput
 
+## v1.8.0 – 2026-06-15
+
+### Neu
+- **Kanonische Prozess-Templates (5 von 8 neu entworfen)** – Vorschneiden, Probenfertigung, Schälen, Schneiden, Walzen sind harmonisiert: **eine id je Messkonzept** (z. B. `breite` statt `breite_1`/`breite_2`/`bahn_1`/`bahn_2`). Mehrere gleichzeitige Messungen (Bahnen/Nutzen) werden als **Zeilen** geführt, Anzahl je Produkt über `row_group_size`. Identifier-Konvention ab Schälen: aus „Rollen Nr." wird **„Rollen Nr. / Bahn / Nutzen"** (`rolle_bahn_nutzen`). Schichtdicke ist ein Messwert je Nutzen mit optionalen Positionsvarianten (Anfang/Ende × links/rechts); optionales manuelles Feld „Lfd. Nr.". Stanzen, Ausschussplatten und Packliste bleiben vorerst Auto-Generat-Entwürfe (Redesign folgt)
+- **Multi-Nutzen aktiviert an `row_group_size`** – neue Hilfsfunktion `is_multi_nutzen()`: der Mehrzeilen-Modus startet jetzt, sobald `row_group_size` gesetzt ist UND es ein wiederholbares Messfeld gibt (auch ein einzelnes pro-Nutzen-Feld wie `breite` je Bahn). Vorher war zwingend ein `group_shared`-Messfeld nötig. 4 neue Unit-Tests
+- **Admin-Guide** – `ADMIN_GUIDE.md`: Verzeichnisstruktur-Empfehlung (Netzlaufwerk), NTFS-Berechtigungen, Deploy- und Freigabe-Workflow, kurz und knapp
+
+### Geändert
+- **`build.bat` kopiert jetzt `data/process_templates/`** (und optional `data/vorlagen/`) ins Build — vorher fehlten die Templates im Deployment, sodass dünne Produkt-Configs zur Laufzeit nicht auflösbar gewesen wären. Außerdem kopiert der Build nur noch gezielt `app_config.json`, `process_templates/`, `products/*.json` (inkl. `freigaben.json`) — Laufzeit-/Sensibeldaten (`users.kv`, Logs, Audit, `_thin/`) bleiben draußen
+- **Auslieferung mit leerem Produktset** – die 17 Alt-Configs (alte, uneinheitliche Feldstruktur) liegen gesichert unter `data/products_legacy_v1.7/`; ausgeliefert wird mit kanonischen Templates und ohne Produkte. Die Produkt-Configs werden gegen die neuen Templates neu angelegt und im Vier-Augen-Prinzip freigegeben (`freigaben.json` zurückgesetzt). Die zugehörigen v1.7-Configs bleiben über die git-Historie nachvollziehbar (Stand `e20b4f2`)
+- **`template_revision` der 5 neu entworfenen Templates auf 2 erhöht** – die Feldstruktur hat sich gegenüber v1.7 geändert (andere ids, andere Feldzahl), darum bekommt sie eine neue Revision. Der Audit-Trail (`WRITE_SUCCESS` trägt `template`+`template_revision`) kann so Records der alten von Records der neuen Struktur unterscheiden. Stanzen, Ausschussplatten und Packliste bleiben unverändert bei Revision 1
+
 ## v1.7.0 – 2026-06-12
 
 ### Neu

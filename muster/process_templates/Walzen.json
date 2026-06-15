@@ -1,6 +1,6 @@
 {
   "template": "Walzen",
-  "template_revision": 2,
+  "template_revision": 1,
   "_unification_notes": {
     "_nutzen": "Walzen hat immer genau einen Nutzen je Messung -> kein row_group_size, kein Nutzen-Zähler. Eine Zeile je Messung, identifiziert über rolle_bahn_nutzen.",
     "schichtdicke": "Ein Messwert je Messung. Produkte mit Positionsmessung nehmen stattdessen die Anfang/Ende-links/rechts-Varianten in active_fields auf.",

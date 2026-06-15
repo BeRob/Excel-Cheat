@@ -362,6 +362,20 @@ def get_auto_fields(process: ProcessConfig) -> list[FieldDef]:
     return [f for f in process.fields if f.role == "auto"]
 
 
+def is_multi_nutzen(process: ProcessConfig) -> bool:
+    """True, wenn der Prozess mehrere Zeilen je Messung erzeugt (Multi-Nutzen).
+
+    Aktiviert, sobald ``row_group_size`` gesetzt ist UND es etwas zu Wiederholen
+    gibt — entweder ein gemeinsames Messfeld (``group_shared``) oder ein
+    pro-Nutzen-Messfeld. Letzteres deckt Prozesse ab, bei denen das einzige
+    Messfeld je Nutzen variiert (z.B. Vorschneiden: nur ``breite`` je Bahn,
+    keine gemeinsamen Messwerte)."""
+    return bool(
+        process.row_group_size
+        and (get_group_shared_fields(process) or get_per_nutzen_fields(process))
+    )
+
+
 def get_all_headers(process: ProcessConfig) -> list[str]:
     """Spaltenkopf-Namen für Zeile 6 (Info-Header-Felder ausgeschlossen)."""
     return [f.display_name for f in process.fields if not f.info_header]

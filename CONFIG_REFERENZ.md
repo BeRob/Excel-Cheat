@@ -47,7 +47,7 @@ Schaelen, Stanzen, Schneiden, Packliste, Ausschussplatten, Probenfertigung.
 | `active_fields` | Liste von Feld-ids | ✔ (dünn) | **Auswahl UND Reihenfolge** der Felder = Excel-Spaltenreihenfolge. Jede id muss im Template oder in `extra_fields` existieren, sonst Ladefehler |
 | `field_overrides` | object | – | Je Feld-id ein Objekt mit abweichenden Attributen (nur die Keys aus Abschnitt 3, typisch `spec_min`/`spec_max`/`spec_target`). Overrides für ids außerhalb `active_fields` sind wirkungslos |
 | `extra_fields` | Liste von Feld-Objekten | – | Produktunike Felder mit **voller** Definition (Abschnitt 3) |
-| `row_group_size` | int | – | Nutzen je Messung; Multi-Nutzen-Modus braucht zusätzlich ≥1 Messfeld mit `group_shared: true` |
+| `row_group_size` | int | – | Bahnen/Nutzen je Messung (mehrere Zeilen). Multi-Nutzen-Modus aktiviert, sobald `row_group_size` gesetzt ist UND es ein wiederholbares Messfeld gibt — ein `group_shared`-Messfeld **oder** ein pro-Nutzen-Messfeld (z. B. nur `breite` je Bahn). Fest pro Produkt; weglassen = einzeilig |
 | `template_revision` | int | – | Rein informativ in der Datei — beim Laden gilt immer die Revision der Template-Datei |
 
 ### Prozess (Legacy — nur noch für Alt-/Sonderfälle)
@@ -86,12 +86,15 @@ durchgereicht. Neue Configs bitte immer dünn anlegen.
 |---|---|
 | id `datum` (role auto) | App schreibt Zeitstempel `YYYY-MM-DD HH:MM:SS` beim Speichern |
 | id `bearbeiter` (role auto) | App schreibt den Anzeigenamen des angemeldeten Benutzers |
-| id `nutzen` (role auto) | Laufende Nutzen-Nr. innerhalb der Zeilengruppe (braucht `row_group_size`) |
+| id `nutzen` (role auto) | Laufende Bahn-/Nutzen-Nr. innerhalb der Zeilengruppe (braucht `row_group_size`). `display_name` frei wählbar (z. B. „Bahn" bei Vorschneiden/Schneiden, „Nutzen" bei Schälen) — die Auto-Zählung hängt an der id `nutzen` |
 | id `pruefmuster`, `beutel_nr` (role auto) | Fortlaufende Nummer **je Datei** (läuft beim Fortsetzen weiter; Rollback bei Schreibfehler) |
 | id `karton` (role auto) | `(beutel_nr − 1) // 20 + 1` — das Sequenz-Feld muss in der Feldreihenfolge **vor** `karton` stehen |
 | id `messmittel` (context, info_header) | Komma-getrennte Eingabe wird im Excel-Info-Block auf mehrere Zeilen verteilt |
 | id `bemerkungen` | Ziel des Out-of-Spec-Gates (Platzhalter `n/a`, `-`, `—` … zählen als leer). Empfehlung: `optional: true`, `default_value: "n/a"` — **jeder Prozess braucht dieses Feld** |
 | id `maschine` (choice) | Anker für `machine_scoped`-Felder („Aktive Rolle pro Maschine") |
+| id `rolle_bahn_nutzen` (context) | Konvention ab Schälen: ersetzt die einfache „Rollen Nr." durch den Identifier „Rollen Nr. / Bahn / Nutzen" (display_name) |
+| id `lfd_nr` (context) | Manuelles Eingabefeld (kein Auto-Zähler), pro Rolle; nur Produkte, die es in `active_fields` aufnehmen |
+| ids `schichtdicke` / `schichtdicke_anfang_links` … | Ein Messwert je Nutzen; Produkte mit Positionsmessung nehmen stattdessen die Anfang/Ende-links/rechts-Varianten. nass/trocken = Produkt-Eigenschaft (display_name-Override), kein eigenes Feld |
 | display_name `FA-Nr.`, `LOT Nr.`, `Verwendbarkeitsdatum` | Werden beim Prozesswechsel als „carried values" vorgetragen — exakt diese Schreibweise verwenden |
 | `FA-Nr.` + `LOT Nr.` | Bestandteil des Excel-Dateinamens und des Resume-Schlüssels |
 | type `choice` (alle) | Behält den Wert über Messungen hinweg (wird beim Felder-Leeren nicht geleert) |

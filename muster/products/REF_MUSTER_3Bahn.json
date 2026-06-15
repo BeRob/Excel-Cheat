@@ -1,0 +1,24 @@
+{
+  "product_id": "REF_MUSTER_3Bahn",
+  "display_name": "Muster – Vorschneiden, 3 Bahnen (gleichzeitig gemessen)",
+  "revision": 1,
+  "revision_history": [
+    {"revision": 1, "date": "2026-06-12", "user": "muster", "change": "Beispiel: Rolle wird in 3 Bahnen vorgeschnitten, je Bahn eine Breite"}
+  ],
+  "processes": [
+    {
+      "template_id": "IPC1_Vorschneiden",
+      "display_name": "IPC1 Vorschneiden",
+      "template": "Vorschneiden",
+      "row_group_size": 3,
+      "active_fields": [
+        "fa_nr", "lot_nr", "verwendbarkeitsdatum", "messmittel",
+        "rollencharge", "ask", "flaechengewicht",
+        "nutzen", "breite", "bemerkungen", "datum", "bearbeiter"
+      ],
+      "field_overrides": {
+        "breite": {"spec_min": 78.0, "spec_max": 82.0, "spec_target": 80.0}
+      }
+    }
+  ]
+}

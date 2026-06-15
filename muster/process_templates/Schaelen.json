@@ -1,11 +1,12 @@
 {
-  "template": "Walzen",
-  "template_revision": 2,
+  "template": "Schaelen",
+  "template_revision": 1,
   "_unification_notes": {
-    "_nutzen": "Walzen hat immer genau einen Nutzen je Messung -> kein row_group_size, kein Nutzen-Zähler. Eine Zeile je Messung, identifiziert über rolle_bahn_nutzen.",
-    "schichtdicke": "Ein Messwert je Messung. Produkte mit Positionsmessung nehmen stattdessen die Anfang/Ende-links/rechts-Varianten in active_fields auf.",
-    "lfd_nr": "Manuelles Eingabefeld (kein Auto-Zähler), optional je Produkt.",
-    "klebestellen": "anzahl_klebestellen (Zahl) + position_klebestellen (Text), nur bei manchen Produkten."
+    "schichtdicke": "Ein Messwert je Nutzen. nass/trocken nie gleichzeitig — ein Produkt schält entweder nass ODER trocken; das ist eine Produkt-Eigenschaft, kein eigenes Feld. Bei Bedarf display_name je Produkt per field_override auf 'Schichtdicke nass'/'Schichtdicke trocken' setzen.",
+    "schichtdicke_anfang_links": "Positions-Variante (Anfang/Ende x links/rechts), je Nutzen — nur für Produkte, die an mehreren Positionen messen. Einfache Produkte nehmen stattdessen 'schichtdicke' in active_fields.",
+    "schalspalt_oben": "Pro Rolle einmal (group_shared), gilt für alle Nutzen.",
+    "rolle_bahn_nutzen": "Ab Schälen ersetzt dieser Identifier die einfache 'Rollen Nr.' (Rolle -> Bahn -> Nutzen).",
+    "lfd_nr": "Manuelles Eingabefeld (kein Auto-Zähler). Pro Rolle einmal, läuft parallel zur Rollennummer hoch. Nur für Produkte, die es in active_fields aufnehmen."
   },
   "fields": [
     {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
@@ -17,14 +18,15 @@
     {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "context"},
     {"id": "ask", "display_name": "ASK", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
     {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
+    {"id": "schalspalt_oben", "display_name": "Schälspalt oben", "type": "number", "role": "measurement", "group_shared": true},
+    {"id": "schalspalt_unten", "display_name": "Schälspalt unten", "type": "number", "role": "measurement", "group_shared": true},
+    {"id": "nutzen", "display_name": "Nutzen", "type": "number", "role": "auto"},
     {"id": "schichtdicke", "display_name": "Schichtdicke", "type": "number", "role": "measurement"},
     {"id": "schichtdicke_anfang_links", "display_name": "Schichtdicke Anfang links", "type": "number", "role": "measurement"},
     {"id": "schichtdicke_anfang_rechts", "display_name": "Schichtdicke Anfang rechts", "type": "number", "role": "measurement"},
     {"id": "schichtdicke_ende_links", "display_name": "Schichtdicke Ende links", "type": "number", "role": "measurement"},
     {"id": "schichtdicke_ende_rechts", "display_name": "Schichtdicke Ende rechts", "type": "number", "role": "measurement"},
     {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement"},
-    {"id": "anzahl_klebestellen", "display_name": "Anzahl Klebestellen", "type": "number", "role": "measurement"},
-    {"id": "position_klebestellen", "display_name": "Position Klebestellen", "type": "text", "role": "measurement"},
     {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
     {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
     {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto"}

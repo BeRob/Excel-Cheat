@@ -1,6 +1,6 @@
 {
   "template": "Vorschneiden",
-  "template_revision": 2,
+  "template_revision": 1,
   "fields": [
     {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},

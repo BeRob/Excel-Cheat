@@ -1,90 +1,16 @@
 {
   "template": "Probenfertigung",
-  "template_revision": 1,
+  "template_revision": 2,
   "fields": [
-    {
-      "id": "fa_nr",
-      "display_name": "FA-Nr.",
-      "type": "text",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "lot_nr",
-      "display_name": "LOT Nr.",
-      "type": "text",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "verwendbarkeitsdatum",
-      "display_name": "Verwendbarkeitsdatum",
-      "type": "date",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "messmittel",
-      "display_name": "Messmittel",
-      "type": "text",
-      "role": "context",
-      "persistent": true,
-      "info_header": true,
-      "_present_in": "ALL"
-    },
-    {
-      "id": "rollencharge",
-      "display_name": "Rollencharge",
-      "type": "text",
-      "role": "context",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "rollen_nr",
-      "display_name": "Rollen Nr.",
-      "type": "text",
-      "role": "context",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "muster_gefertigt",
-      "display_name": "Muster gefertigt",
-      "type": "choice",
-      "role": "measurement",
-      "options": [
-        "Ja",
-        "Nein"
-      ],
-      "_present_in": "ALL"
-    },
-    {
-      "id": "bemerkungen",
-      "display_name": "Bemerkungen",
-      "type": "text",
-      "role": "measurement",
-      "optional": true,
-      "default_value": "n/a",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "datum",
-      "display_name": "Datum",
-      "type": "text",
-      "role": "auto",
-      "_present_in": "ALL"
-    },
-    {
-      "id": "bearbeiter",
-      "display_name": "Bearbeiter",
-      "type": "text",
-      "role": "auto",
-      "_present_in": "ALL"
-    }
+    {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+    {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
+    {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
+    {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
+    {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
+    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "context"},
+    {"id": "muster_gefertigt", "display_name": "Muster gefertigt", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
+    {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
+    {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
+    {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto"}
   ]
 }

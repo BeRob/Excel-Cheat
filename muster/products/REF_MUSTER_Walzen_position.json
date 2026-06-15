@@ -1,0 +1,26 @@
+{
+  "product_id": "REF_MUSTER_Walzen_position",
+  "display_name": "Muster – Walzen, 1 Nutzen, Schichtdicke an 4 Positionen",
+  "revision": 1,
+  "processes": [
+    {
+      "template_id": "IPC3_Walzen",
+      "display_name": "IPC3 Walzen",
+      "template": "Walzen",
+      "active_fields": [
+        "fa_nr", "lot_nr", "verwendbarkeitsdatum", "messmittel",
+        "rollencharge", "rolle_bahn_nutzen", "ask",
+        "schichtdicke_anfang_links", "schichtdicke_anfang_rechts",
+        "schichtdicke_ende_links", "schichtdicke_ende_rechts",
+        "anzahl_klebestellen", "position_klebestellen",
+        "bemerkungen", "datum", "bearbeiter"
+      ],
+      "field_overrides": {
+        "schichtdicke_anfang_links": {"spec_min": 0.95, "spec_max": 1.05},
+        "schichtdicke_anfang_rechts": {"spec_min": 0.95, "spec_max": 1.05},
+        "schichtdicke_ende_links": {"spec_min": 0.95, "spec_max": 1.05},
+        "schichtdicke_ende_rechts": {"spec_min": 0.95, "spec_max": 1.05}
+      }
+    }
+  ]
+}
