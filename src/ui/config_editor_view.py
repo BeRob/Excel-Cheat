@@ -1,106 +1,1071 @@
-"""Admin-Editor für Produktkonfigurationen."""
+"""Admin-Editor für Produktkonfigurationen (template-basiert).
+
+Der Editor arbeitet um das dünne Template-Modell herum: pro Prozess wird ein
+Operation-Template gewählt, die Felder kommen als Checkliste aus dem Template
+(kein Freitext für IDs), Spec-Werte werden inline gesetzt, seltenere Overrides
+über einen Dialog. Eigene (produktunike) Felder sind als extra_fields möglich.
+Legacy-Voll-Configs werden hart geblockt.
+
+Die nicht-triviale Logik liegt Tk-frei in src/config/config_editing.py; dieser
+View ist nur die Hülle und reicht beim Speichern immer die volle fields-Liste an
+config_writer, der gegen das Template zurückrechnet.
+"""
 
 from __future__ import annotations
 
+import json
+import logging
 import tkinter as tk
+from dataclasses import replace
 from datetime import date
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
 from src.audit.events import Event
-from src.config.config_writer import (
-    save_product_config,
-    validate_product_config,
+from src.config.config_editing import (
+    apply_template_change,
+    is_legacy_product,
+    seed_process_from_template,
+    validate_editor_product,
 )
+from src.config.config_writer import save_product_config, validate_product_config
 from src.config.process_config import (
     FieldDef,
     ProcessConfig,
+    ProcessTemplate,
     ProductConfig,
     load_app_config,
     load_process_templates,
     load_product_config,
 )
-from src.config.settings import (
-    APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR,
-)
+from src.config.settings import APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
 from src.ui.theme import COLORS, FONTS
 
+logger = logging.getLogger(__name__)
 
+
+# --------------------------------------------------------------------------- #
+# Modul-Helfer
+# --------------------------------------------------------------------------- #
+def _copy_field(f: FieldDef) -> FieldDef:
+    return replace(f, options=list(f.options) if f.options is not None else None)
+
+
+def _fmt_num(v) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def _parse_float(s: str):
+    """(<ok>, <wert oder None>). Leer = (True, None); ungültig = (False, None)."""
+    s = (s or "").strip().replace(",", ".")
+    if not s:
+        return True, None
+    try:
+        return True, float(s)
+    except ValueError:
+        return False, None
+
+
+def choose_template(parent, templates: dict[str, ProcessTemplate]) -> str | None:
+    """Modaler Mini-Dialog: Operation-Template auswählen. Liefert Name oder None."""
+    dlg = tk.Toplevel(parent)
+    dlg.title("Operation wählen")
+    dlg.transient(parent)
+    dlg.grab_set()
+    dlg.resizable(False, False)
+    result: dict[str, str | None] = {"name": None}
+
+    frame = ttk.Frame(dlg, padding=15)
+    frame.pack(fill="both", expand=True)
+    ttk.Label(frame, text="Operation-Template:").grid(row=0, column=0, sticky="w", pady=(0, 6))
+    var = tk.StringVar()
+    combo = ttk.Combobox(
+        frame, textvariable=var, state="readonly",
+        values=sorted(templates), width=28,
+    )
+    combo.grid(row=1, column=0, sticky="ew")
+    if templates:
+        combo.current(0)
+
+    def ok():
+        result["name"] = var.get() or None
+        dlg.destroy()
+
+    bf = ttk.Frame(frame)
+    bf.grid(row=2, column=0, pady=(12, 0))
+    ttk.Button(bf, text="Abbrechen", command=dlg.destroy).pack(side="left", padx=6)
+    ttk.Button(bf, text="OK", style="Accent.TButton", command=ok).pack(side="left", padx=6)
+
+    dlg.wait_window()
+    return result["name"]
+
+
+# --------------------------------------------------------------------------- #
+# Feld-Checkliste (eine Zeile)
+# --------------------------------------------------------------------------- #
+class _FieldRow:
+    """Wahrheit einer Checklisten-Zeile; die Widgets werden je Render neu gebaut
+    und über _harvest() zurückgelesen."""
+
+    __slots__ = ("field", "is_extra", "active")
+
+    def __init__(self, field: FieldDef, is_extra: bool, active: bool):
+        self.field = field
+        self.is_extra = is_extra
+        self.active = active
+
+
+class ProcessEditorPanel(ttk.Frame):
+    """Bearbeitet genau einen Prozess template-basiert. Wird vom Haupt-Editor
+    UND vom Wizard genutzt, damit Checklisten-/Override-Logik nur einmal
+    existiert."""
+
+    def __init__(self, parent, templates, dirty_callback=None, stage_hint=1):
+        super().__init__(parent)
+        self._templates: dict[str, ProcessTemplate] = templates
+        self._dirty_cb = dirty_callback or (lambda: None)
+        self._stage_hint = stage_hint
+        self._process: ProcessConfig | None = None
+        self._rows: list[_FieldRow] = []
+        self._render_refs: list[dict] = []
+        self._template_id_manual = False
+        self._inline_errors: list[str] = []
+        self._build_ui()
+
+    # -- öffentliche API --------------------------------------------------- #
+    def set_templates(self, templates) -> None:
+        self._templates = templates
+        self._template_combo["values"] = sorted(templates)
+
+    def has_process(self) -> bool:
+        return self._process is not None
+
+    def load(self, process: ProcessConfig, stage_hint: int | None = None) -> None:
+        self._process = process
+        if stage_hint is not None:
+            self._stage_hint = stage_hint
+        self._template_id_manual = bool(process.template_id)
+        self._template_var.set(process.template or "")
+        self._template_id_var.set(process.template_id)
+        self._name_var.set(process.display_name)
+        self._rg_var.set(str(process.row_group_size) if process.row_group_size else "")
+        self._rebuild_rows()
+
+    def flush(self) -> None:
+        if self._process is None:
+            return
+        self._harvest()
+        p = self._process
+        p.template = self._template_var.get() or None
+        p.template_id = self._template_id_var.get().strip()
+        p.display_name = self._name_var.get().strip()
+        rg = self._rg_var.get().strip()
+        if rg:
+            try:
+                p.row_group_size = int(rg)
+            except ValueError:
+                p.row_group_size = None
+        else:
+            p.row_group_size = None
+        tpl = self._current_template()
+        if tpl is not None:
+            p.template_revision = tpl.template_revision
+        p.fields = [r.field for r in self._rows if r.active]
+
+    def inline_errors(self) -> list[str]:
+        """Nicht-numerische Inline-Spec-Eingaben (für die Save-Sperre)."""
+        self._harvest()
+        return list(self._inline_errors)
+
+    # -- UI-Aufbau --------------------------------------------------------- #
+    def _build_ui(self) -> None:
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
+
+        head = ttk.Frame(self)
+        head.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        head.columnconfigure(1, weight=1)
+
+        ttk.Label(head, text="Operation (Template):").grid(row=0, column=0, sticky="w", pady=2)
+        self._template_var = tk.StringVar()
+        self._template_combo = ttk.Combobox(
+            head, textvariable=self._template_var, state="readonly",
+            values=sorted(self._templates), width=28,
+        )
+        self._template_combo.grid(row=0, column=1, sticky="w", pady=2)
+        self._template_combo.bind("<<ComboboxSelected>>", lambda e: self._on_template_changed())
+
+        ttk.Label(head, text="Template-ID:").grid(row=1, column=0, sticky="w", pady=2)
+        self._template_id_var = tk.StringVar()
+        tid_entry = ttk.Entry(head, textvariable=self._template_id_var, width=30)
+        tid_entry.grid(row=1, column=1, sticky="w", pady=2)
+        tid_entry.bind("<KeyRelease>", lambda e: self._on_template_id_typed())
+        ttk.Label(
+            head,
+            text="⚠ Excel-Dateiname + Resume-Schlüssel — nach den ersten Excel-Dateien NICHT mehr ändern.",
+            style="Warning.TLabel",
+        ).grid(row=2, column=1, sticky="w")
+
+        ttk.Label(head, text="Anzeigename:").grid(row=3, column=0, sticky="w", pady=2)
+        self._name_var = tk.StringVar()
+        name_entry = ttk.Entry(head, textvariable=self._name_var, width=40)
+        name_entry.grid(row=3, column=1, sticky="ew", pady=2)
+        name_entry.bind("<KeyRelease>", lambda e: self._dirty_cb())
+
+        ttk.Label(head, text="Zeilengruppe (Nutzen):").grid(row=4, column=0, sticky="w", pady=2)
+        self._rg_var = tk.StringVar()
+        rg_entry = ttk.Entry(head, textvariable=self._rg_var, width=8)
+        rg_entry.grid(row=4, column=1, sticky="w", pady=2)
+        rg_entry.bind("<KeyRelease>", lambda e: self._dirty_cb())
+
+        toolbar = ttk.Frame(self)
+        toolbar.grid(row=1, column=0, sticky="ew", pady=(4, 2))
+        ttk.Label(
+            toolbar, text="Felder — anhaken = aktiv (Reihenfolge = Excel-Spalten):",
+            style="Subtitle.TLabel",
+        ).pack(side="left")
+        ttk.Button(
+            toolbar, text="Eigenes Feld hinzufügen…", command=self._add_extra_field
+        ).pack(side="right")
+
+        list_wrap = ttk.Frame(self)
+        list_wrap.grid(row=2, column=0, sticky="nsew")
+        list_wrap.columnconfigure(0, weight=1)
+        list_wrap.rowconfigure(0, weight=1)
+        self._canvas = tk.Canvas(list_wrap, bg=COLORS["background"], highlightthickness=0)
+        self._canvas.grid(row=0, column=0, sticky="nsew")
+        vsb = ttk.Scrollbar(list_wrap, orient="vertical", command=self._canvas.yview)
+        vsb.grid(row=0, column=1, sticky="ns")
+        self._canvas.configure(yscrollcommand=vsb.set)
+        self._rows_frame = ttk.Frame(self._canvas)
+        self._rows_window = self._canvas.create_window(
+            (0, 0), window=self._rows_frame, anchor="nw"
+        )
+        self._rows_frame.bind(
+            "<Configure>",
+            lambda e: self._canvas.configure(scrollregion=self._canvas.bbox("all")),
+        )
+        self._canvas.bind(
+            "<Configure>",
+            lambda e: self._canvas.itemconfigure(self._rows_window, width=e.width),
+        )
+        self._canvas.bind("<MouseWheel>", self._on_wheel)
+        self._rows_frame.bind("<MouseWheel>", self._on_wheel)
+
+    def _on_wheel(self, event) -> None:
+        self._canvas.yview_scroll(int(-event.delta / 120), "units")
+
+    # -- Zeilen ------------------------------------------------------------ #
+    def _current_template(self) -> ProcessTemplate | None:
+        if self._process and self._process.template:
+            return self._templates.get(self._process.template)
+        return None
+
+    def _template_ids(self) -> set[str]:
+        tpl = self._current_template()
+        return set(tpl.field_map()) if tpl else set()
+
+    def _rebuild_rows(self) -> None:
+        self._rows = []
+        proc = self._process
+        if proc is not None:
+            tpl = self._current_template()
+            tpl_ids = set(tpl.field_map()) if tpl else set()
+            active_ids = []
+            for f in proc.fields:
+                self._rows.append(
+                    _FieldRow(field=f, is_extra=(f.id not in tpl_ids), active=True)
+                )
+                active_ids.append(f.id)
+            if tpl is not None:
+                for f in tpl.fields:
+                    if f.id not in active_ids:
+                        self._rows.append(
+                            _FieldRow(field=_copy_field(f), is_extra=False, active=False)
+                        )
+        self._render_rows()
+
+    def _render_rows(self) -> None:
+        for w in self._rows_frame.winfo_children():
+            w.destroy()
+        self._render_refs = []
+
+        for i, row in enumerate(self._rows):
+            f = row.field
+            rf = ttk.Frame(self._rows_frame)
+            rf.grid(row=i, column=0, sticky="ew", pady=1)
+            rf.columnconfigure(4, weight=1)
+            rf.bind("<MouseWheel>", self._on_wheel)
+
+            active_var = tk.BooleanVar(value=row.active)
+            ttk.Checkbutton(
+                rf, variable=active_var,
+                command=lambda r=row, v=active_var: self._on_toggle(r, v),
+            ).grid(row=0, column=0, sticky="w")
+
+            id_fg = COLORS["disabled"] if not row.active else COLORS["text_primary"]
+            ttk.Label(rf, text=f.id, width=22, foreground=id_fg).grid(
+                row=0, column=1, sticky="w"
+            )
+            ttk.Label(
+                rf, text=f.type, width=8, foreground=COLORS["text_secondary"]
+            ).grid(row=0, column=2, sticky="w")
+            ttk.Label(
+                rf, text=f.role, width=12, foreground=COLORS["text_secondary"]
+            ).grid(row=0, column=3, sticky="w")
+            name_txt = f.display_name + ("  [eigenes]" if row.is_extra else "")
+            ttk.Label(rf, text=name_txt).grid(row=0, column=4, sticky="w")
+
+            refs = {
+                "row": row, "active_var": active_var,
+                "min_var": None, "target_var": None, "max_var": None,
+            }
+            if f.type == "number":
+                min_var = tk.StringVar(value=_fmt_num(f.spec_min))
+                target_var = tk.StringVar(value=_fmt_num(f.spec_target))
+                max_var = tk.StringVar(value=_fmt_num(f.spec_max))
+                for col, var in enumerate((min_var, target_var, max_var), start=5):
+                    e = ttk.Entry(rf, textvariable=var, width=7)
+                    e.grid(row=0, column=col, sticky="w", padx=1)
+                    e.bind("<FocusOut>", lambda ev: self._dirty_cb())
+                refs.update(min_var=min_var, target_var=target_var, max_var=max_var)
+            else:
+                ttk.Label(rf, text="", width=23).grid(row=0, column=5, columnspan=3)
+
+            ttk.Button(
+                rf, text="↑", width=2, command=lambda idx=i: self._move_row(idx, -1)
+            ).grid(row=0, column=8, padx=1)
+            ttk.Button(
+                rf, text="↓", width=2, command=lambda idx=i: self._move_row(idx, 1)
+            ).grid(row=0, column=9, padx=1)
+            ttk.Button(
+                rf, text="Bearbeiten", command=lambda r=row: self._edit_row(r)
+            ).grid(row=0, column=10, padx=1)
+            if row.is_extra:
+                ttk.Button(
+                    rf, text="✕", width=2, command=lambda r=row: self._remove_extra(r)
+                ).grid(row=0, column=11, padx=1)
+
+            self._render_refs.append(refs)
+
+        self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+
+    def _harvest(self) -> None:
+        """Liest die aktuellen Widget-Werte in die Zeilen-Wahrheit zurück."""
+        self._inline_errors = []
+        for refs in self._render_refs:
+            row = refs["row"]
+            row.active = bool(refs["active_var"].get())
+            if refs["min_var"] is not None:
+                ok_min, vmin = _parse_float(refs["min_var"].get())
+                ok_t, vt = _parse_float(refs["target_var"].get())
+                ok_max, vmax = _parse_float(refs["max_var"].get())
+                for ok, raw in (
+                    (ok_min, refs["min_var"].get()),
+                    (ok_t, refs["target_var"].get()),
+                    (ok_max, refs["max_var"].get()),
+                ):
+                    if not ok:
+                        self._inline_errors.append(
+                            f"Feld '{row.field.id}': '{raw.strip()}' ist keine Zahl."
+                        )
+                row.field = replace(
+                    row.field, spec_min=vmin, spec_target=vt, spec_max=vmax
+                )
+
+    # -- Events ------------------------------------------------------------ #
+    def _on_toggle(self, row: _FieldRow, var: tk.BooleanVar) -> None:
+        self._harvest()
+        row.active = bool(var.get())
+        self._dirty_cb()
+        self.after_idle(self._render_rows)
+
+    def _move_row(self, idx: int, direction: int) -> None:
+        new = idx + direction
+        if new < 0 or new >= len(self._rows):
+            return
+        self._harvest()
+        self._rows[idx], self._rows[new] = self._rows[new], self._rows[idx]
+        self._render_rows()
+        self._dirty_cb()
+
+    def _on_template_id_typed(self) -> None:
+        self._template_id_manual = True
+        self._dirty_cb()
+
+    def _on_template_changed(self) -> None:
+        new_name = self._template_var.get()
+        if not self._process or not new_name or new_name == self._process.template:
+            return
+        new_tpl = self._templates.get(new_name)
+        if new_tpl is None:
+            return
+        old_tpl = self._current_template()
+        self._harvest()
+        self.flush()  # template_id/Name/Felder aktuell halten
+
+        new_ids = set(new_tpl.field_map())
+        old_ids = set(old_tpl.field_map()) if old_tpl else set()
+        would_drop = [
+            f.id for f in self._process.fields
+            if f.id not in new_ids and f.id in old_ids
+        ]
+        if would_drop and not messagebox.askyesno(
+            "Template wechseln",
+            f"Beim Wechsel zu '{new_name}' werden diese Felder entfernt:\n"
+            f"{', '.join(would_drop)}\n\nFortfahren?",
+            parent=self.winfo_toplevel(),
+        ):
+            self._template_var.set(self._process.template or "")
+            return
+
+        apply_template_change(self._process, old_tpl, new_tpl)
+        if not self._template_id_manual:
+            self._template_id_var.set(f"IPC{self._stage_hint}_{new_name}")
+            self._process.template_id = self._template_id_var.get()
+        self.load(self._process, self._stage_hint)
+        self._dirty_cb()
+
+    def _edit_row(self, row: _FieldRow) -> None:
+        self._harvest()
+
+        def on_save(updated: FieldDef) -> None:
+            row.field = updated
+            self._render_rows()
+            self._dirty_cb()
+
+        if row.is_extra:
+            FieldEditorDialog(
+                self.winfo_toplevel(), row.field, on_save,
+                forbidden_ids=self._template_ids(),
+            )
+        else:
+            FieldOverrideDialog(self.winfo_toplevel(), row.field, on_save)
+
+    def _add_extra_field(self) -> None:
+        if self._process is None:
+            return
+        self._harvest()
+
+        def on_save(new_field: FieldDef) -> None:
+            insert_at = 0
+            for j, r in enumerate(self._rows):
+                if r.active:
+                    insert_at = j + 1
+            self._rows.insert(
+                insert_at, _FieldRow(field=new_field, is_extra=True, active=True)
+            )
+            self._render_rows()
+            self._dirty_cb()
+
+        existing = {r.field.id for r in self._rows}
+        FieldEditorDialog(
+            self.winfo_toplevel(), None, on_save,
+            forbidden_ids=self._template_ids() | existing,
+        )
+
+    def _remove_extra(self, row: _FieldRow) -> None:
+        if not messagebox.askyesno(
+            "Feld entfernen",
+            f"Eigenes Feld '{row.field.id}' wirklich entfernen?",
+            parent=self.winfo_toplevel(),
+        ):
+            return
+        self._harvest()
+        self._rows = [r for r in self._rows if r is not row]
+        self._render_rows()
+        self._dirty_cb()
+
+
+# --------------------------------------------------------------------------- #
+# Override-Dialog (Template-Feld) — id/typ/rolle fix
+# --------------------------------------------------------------------------- #
+class FieldOverrideDialog(tk.Toplevel):
+    """Editiert die selteneren Override-Attribute eines Template-Feldes
+    (Anzeigename, Default, Optional, group_shared, machine_scoped, info_header,
+    Optionen). Spec-Werte werden inline in der Checkliste gesetzt; Typ/Rolle
+    sind durch das Template fix."""
+
+    def __init__(self, parent, field: FieldDef, on_save):
+        super().__init__(parent)
+        self._field = field
+        self._on_save = on_save
+        self.title(f"Feld bearbeiten: {field.id}")
+        self.transient(parent)
+        self.grab_set()
+        self.resizable(False, False)
+        self._build()
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.focus_set()
+
+    def _build(self) -> None:
+        m = ttk.Frame(self, padding=15)
+        m.pack(fill="both", expand=True)
+        m.columnconfigure(1, weight=1)
+        f = self._field
+
+        ttk.Label(
+            m, text=f"ID: {f.id}    Typ: {f.type}    Rolle: {f.role}",
+            style="Subtitle.TLabel",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+
+        r = 1
+        ttk.Label(m, text="Anzeigename:").grid(row=r, column=0, sticky="w", pady=3)
+        self._name_var = tk.StringVar(value=f.display_name)
+        ttk.Entry(m, textvariable=self._name_var, width=30).grid(
+            row=r, column=1, sticky="ew", pady=3
+        )
+        r += 1
+
+        ttk.Label(m, text="Default-Wert:").grid(row=r, column=0, sticky="w", pady=3)
+        self._default_var = tk.StringVar(value=f.default_value or "")
+        ttk.Entry(m, textvariable=self._default_var, width=30).grid(
+            row=r, column=1, sticky="ew", pady=3
+        )
+        r += 1
+
+        self._optional_var = tk.BooleanVar(value=f.optional)
+        ttk.Checkbutton(
+            m, text="Optional (darf leer bleiben)", variable=self._optional_var
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
+
+        self._gshared_var = None
+        if f.role == "measurement":
+            self._gshared_var = tk.BooleanVar(value=f.group_shared)
+            ttk.Checkbutton(
+                m, text="group_shared (über alle Nutzen geteilt)",
+                variable=self._gshared_var,
+            ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+            r += 1
+
+        self._machine_var = tk.BooleanVar(value=f.machine_scoped)
+        ttk.Checkbutton(
+            m, text="machine_scoped (an Maschinen-Auswahl gebunden)",
+            variable=self._machine_var,
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
+
+        self._info_var = tk.BooleanVar(value=f.info_header)
+        ttk.Checkbutton(
+            m, text="info_header (in Excel-Kopfblock statt Spalte)",
+            variable=self._info_var,
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
+
+        self._opts_text = None
+        if f.type == "choice":
+            ttk.Label(m, text="Optionen (je Zeile):").grid(
+                row=r, column=0, sticky="nw", pady=3
+            )
+            self._opts_text = tk.Text(
+                m, width=30, height=4, font=FONTS["body"],
+                bg=COLORS["surface"], fg=COLORS["text_primary"],
+                relief="solid", borderwidth=1,
+            )
+            self._opts_text.grid(row=r, column=1, sticky="ew", pady=3)
+            if f.options:
+                self._opts_text.insert("1.0", "\n".join(f.options))
+            r += 1
+
+        bf = ttk.Frame(m)
+        bf.grid(row=r, column=0, columnspan=2, pady=(12, 0), sticky="e")
+        ttk.Button(bf, text="Abbrechen", command=self.destroy).pack(
+            side="left", padx=(0, 8)
+        )
+        ttk.Button(
+            bf, text="Übernehmen", style="Accent.TButton", command=self._save
+        ).pack(side="left")
+
+    def _save(self) -> None:
+        opts = self._field.options
+        if self._opts_text is not None:
+            opts = [
+                ln.strip()
+                for ln in self._opts_text.get("1.0", "end").splitlines()
+                if ln.strip()
+            ]
+            if not opts:
+                messagebox.showwarning(
+                    "Fehler", "Choice-Feld braucht mindestens eine Option.",
+                    parent=self,
+                )
+                return
+        updated = replace(
+            self._field,
+            display_name=self._name_var.get().strip() or self._field.display_name,
+            default_value=self._default_var.get().strip() or None,
+            optional=self._optional_var.get(),
+            group_shared=(
+                self._gshared_var.get()
+                if self._gshared_var is not None
+                else self._field.group_shared
+            ),
+            machine_scoped=self._machine_var.get(),
+            info_header=self._info_var.get(),
+            options=opts,
+        )
+        self._on_save(updated)
+        self.destroy()
+
+
+# --------------------------------------------------------------------------- #
+# Voll-Editor (nur für extra_fields) — freie ID + alle Attribute
+# --------------------------------------------------------------------------- #
+class FieldEditorDialog(tk.Toplevel):
+    """Voll-Editor für produktunike Felder (extra_fields). Freie ID (muss
+    eindeutig sein und darf kein Template-Feld überdecken), alle Attribute."""
+
+    def __init__(self, parent, field: FieldDef | None, on_save, forbidden_ids=None):
+        super().__init__(parent)
+        self._on_save = on_save
+        self._editing = field is not None
+        self._forbidden = set(forbidden_ids or ())
+        if field is not None:
+            self._forbidden.discard(field.id)  # eigene ID erlauben
+
+        self.title("Eigenes Feld bearbeiten" if self._editing else "Neues eigenes Feld")
+        self.geometry("470x600")
+        self.resizable(False, True)
+        self.transient(parent)
+        self.grab_set()
+        self._build_ui(field)
+        self.focus_set()
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+
+    def _build_ui(self, field: FieldDef | None) -> None:
+        m = ttk.Frame(self, padding=15)
+        m.pack(fill="both", expand=True)
+        m.columnconfigure(1, weight=1)
+        r = 0
+
+        ttk.Label(m, text="ID:").grid(row=r, column=0, sticky="w", pady=3)
+        self._id_var = tk.StringVar(value=field.id if field else "")
+        ttk.Entry(m, textvariable=self._id_var, width=30).grid(
+            row=r, column=1, sticky="ew", pady=3
+        )
+        r += 1
+
+        ttk.Label(m, text="Anzeigename:").grid(row=r, column=0, sticky="w", pady=3)
+        self._name_var = tk.StringVar(value=field.display_name if field else "")
+        ttk.Entry(m, textvariable=self._name_var, width=30).grid(
+            row=r, column=1, sticky="ew", pady=3
+        )
+        r += 1
+
+        ttk.Label(m, text="Typ:").grid(row=r, column=0, sticky="w", pady=3)
+        self._type_var = tk.StringVar(value=field.type if field else "number")
+        type_combo = ttk.Combobox(
+            m, textvariable=self._type_var,
+            values=["text", "number", "choice", "date"],
+            state="readonly", width=15,
+        )
+        type_combo.grid(row=r, column=1, sticky="w", pady=3)
+        type_combo.bind("<<ComboboxSelected>>", lambda e: self._on_type_changed())
+        r += 1
+
+        ttk.Label(m, text="Rolle:").grid(row=r, column=0, sticky="w", pady=3)
+        self._role_var = tk.StringVar(value=field.role if field else "measurement")
+        ttk.Combobox(
+            m, textvariable=self._role_var,
+            values=["context", "measurement", "auto"],
+            state="readonly", width=15,
+        ).grid(row=r, column=1, sticky="w", pady=3)
+        r += 1
+
+        self._persistent_var = tk.BooleanVar(value=field.persistent if field else False)
+        ttk.Checkbutton(m, text="Persistent", variable=self._persistent_var).grid(
+            row=r, column=0, columnspan=2, sticky="w", pady=2
+        )
+        r += 1
+
+        self._optional_var = tk.BooleanVar(value=field.optional if field else False)
+        ttk.Checkbutton(m, text="Optional", variable=self._optional_var).grid(
+            row=r, column=0, columnspan=2, sticky="w", pady=2
+        )
+        r += 1
+
+        self._gshared_var = tk.BooleanVar(value=field.group_shared if field else False)
+        ttk.Checkbutton(
+            m, text="group_shared (über alle Nutzen geteilt)",
+            variable=self._gshared_var,
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
+
+        self._info_var = tk.BooleanVar(value=field.info_header if field else False)
+        ttk.Checkbutton(
+            m, text="info_header (in Excel-Kopfblock)", variable=self._info_var
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
+
+        self._machine_var = tk.BooleanVar(value=field.machine_scoped if field else False)
+        ttk.Checkbutton(
+            m, text="machine_scoped", variable=self._machine_var
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
+
+        ttk.Label(m, text="Default-Wert:").grid(row=r, column=0, sticky="w", pady=3)
+        self._default_var = tk.StringVar(value=(field.default_value or "") if field else "")
+        ttk.Entry(m, textvariable=self._default_var, width=30).grid(
+            row=r, column=1, sticky="ew", pady=3
+        )
+        r += 1
+
+        self._spec_frame = ttk.LabelFrame(m, text="Spezifikation", padding=8)
+        self._spec_frame.grid(row=r, column=0, columnspan=2, sticky="ew", pady=(8, 3))
+        self._spec_frame.columnconfigure(1, weight=1)
+        r += 1
+        self._target_var = tk.StringVar(
+            value=_fmt_num(field.spec_target) if field else ""
+        )
+        self._min_var = tk.StringVar(value=_fmt_num(field.spec_min) if field else "")
+        self._max_var = tk.StringVar(value=_fmt_num(field.spec_max) if field else "")
+        for i, (lbl, var) in enumerate(
+            [("Zielwert:", self._target_var), ("Minimum:", self._min_var),
+             ("Maximum:", self._max_var)]
+        ):
+            ttk.Label(self._spec_frame, text=lbl).grid(row=i, column=0, sticky="w", pady=2)
+            ttk.Entry(self._spec_frame, textvariable=var, width=15).grid(
+                row=i, column=1, sticky="w", pady=2
+            )
+
+        self._options_frame = ttk.LabelFrame(m, text="Optionen (je Zeile)", padding=8)
+        self._options_frame.grid(row=r, column=0, columnspan=2, sticky="ew", pady=(8, 3))
+        self._options_frame.columnconfigure(0, weight=1)
+        r += 1
+        self._opts_text = tk.Text(
+            self._options_frame, width=30, height=4, font=FONTS["body"],
+            bg=COLORS["surface"], fg=COLORS["text_primary"],
+            relief="solid", borderwidth=1,
+        )
+        self._opts_text.grid(row=0, column=0, sticky="ew")
+        if field and field.options:
+            self._opts_text.insert("1.0", "\n".join(field.options))
+
+        bf = ttk.Frame(m)
+        bf.grid(row=r, column=0, columnspan=2, pady=(15, 0), sticky="e")
+        ttk.Button(bf, text="Abbrechen", command=self.destroy).pack(
+            side="left", padx=(0, 10)
+        )
+        ttk.Button(
+            bf, text="Speichern", style="Accent.TButton", command=self._save
+        ).pack(side="left")
+
+        self._on_type_changed()
+
+    def _on_type_changed(self) -> None:
+        typ = self._type_var.get()
+        self._spec_frame.grid() if typ == "number" else self._spec_frame.grid_remove()
+        self._options_frame.grid() if typ == "choice" else self._options_frame.grid_remove()
+
+    def _save(self) -> None:
+        fid = self._id_var.get().strip()
+        fname = self._name_var.get().strip()
+        if not fid:
+            messagebox.showwarning("Fehler", "ID darf nicht leer sein.", parent=self)
+            return
+        if fid in self._forbidden:
+            messagebox.showwarning(
+                "Fehler",
+                f"ID '{fid}' ist bereits vergeben oder ein Template-Feld. "
+                "Bitte eine eindeutige ID wählen.",
+                parent=self,
+            )
+            return
+        if not fname:
+            messagebox.showwarning(
+                "Fehler", "Anzeigename darf nicht leer sein.", parent=self
+            )
+            return
+
+        ftype = self._type_var.get()
+        options = None
+        if ftype == "choice":
+            options = [
+                ln.strip()
+                for ln in self._opts_text.get("1.0", "end").splitlines()
+                if ln.strip()
+            ]
+            if not options:
+                messagebox.showwarning(
+                    "Fehler", "Choice-Feld braucht mindestens eine Option.",
+                    parent=self,
+                )
+                return
+
+        def pf(s):
+            ok, v = _parse_float(s)
+            return v if ok else None
+
+        field = FieldDef(
+            id=fid,
+            display_name=fname,
+            type=ftype,
+            role=self._role_var.get(),
+            persistent=self._persistent_var.get(),
+            spec_target=pf(self._target_var.get()) if ftype == "number" else None,
+            spec_min=pf(self._min_var.get()) if ftype == "number" else None,
+            spec_max=pf(self._max_var.get()) if ftype == "number" else None,
+            options=options,
+            optional=self._optional_var.get(),
+            default_value=self._default_var.get().strip() or None,
+            group_shared=self._gshared_var.get(),
+            info_header=self._info_var.get(),
+            machine_scoped=self._machine_var.get(),
+        )
+        self._on_save(field)
+        self.destroy()
+
+
+# --------------------------------------------------------------------------- #
+# Assistent für neue Produkte
+# --------------------------------------------------------------------------- #
+class NewProductWizard(tk.Toplevel):
+    """Geführte Neuanlage: Produkt-Kopf + beliebig viele Prozesse (je
+    ProcessEditorPanel, geseedet aus einem Template). Speichert nicht selbst —
+    übergibt das fertige Produkt an on_finish (= normaler Speicherpfad)."""
+
+    def __init__(self, parent, templates, on_finish):
+        super().__init__(parent)
+        self._templates = templates
+        self._on_finish = on_finish
+        self._processes: list[ProcessConfig] = []
+        self._selected: int | None = None
+
+        self.title("Neues Produkt — Assistent")
+        self.geometry("1100x740")  # Fallback, falls Maximieren nicht greift
+        self.transient(parent)
+        self.grab_set()
+        self._build()
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.focus_set()
+        # Maximiert (Vollbild mit Titelleiste) starten — der Assistent zeigt
+        # Prozessliste + Feld-Panel nebeneinander und braucht Platz.
+        self.after_idle(self._maximize)
+
+    def _maximize(self) -> None:
+        try:
+            self.state("zoomed")  # Windows
+        except tk.TclError:
+            try:
+                self.attributes("-zoomed", True)  # X11
+            except tk.TclError:
+                pass
+
+    def _build(self) -> None:
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+
+        head = ttk.LabelFrame(self, text="1) Produkt", padding=10)
+        head.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+        head.columnconfigure(1, weight=1)
+        head.columnconfigure(3, weight=1)
+        ttk.Label(head, text="Produkt-ID (REF):").grid(row=0, column=0, sticky="w", pady=2)
+        self._pid_var = tk.StringVar()
+        ttk.Entry(head, textvariable=self._pid_var, width=20).grid(
+            row=0, column=1, sticky="w", pady=2
+        )
+        ttk.Label(head, text="Anzeigename:").grid(row=0, column=2, sticky="w", pady=2, padx=(10, 0))
+        self._pname_var = tk.StringVar()
+        ttk.Entry(head, textvariable=self._pname_var, width=30).grid(
+            row=0, column=3, sticky="ew", pady=2
+        )
+        ttk.Label(head, text="Ausgabeverz.:").grid(row=1, column=0, sticky="w", pady=2)
+        self._pout_var = tk.StringVar()
+        ttk.Entry(head, textvariable=self._pout_var).grid(
+            row=1, column=1, columnspan=2, sticky="ew", pady=2
+        )
+        ttk.Button(head, text="Wählen…", command=self._choose_dir).grid(
+            row=1, column=3, sticky="w", pady=2, padx=(6, 0)
+        )
+
+        body = ttk.LabelFrame(self, text="2) Prozesse", padding=10)
+        body.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+
+        left = ttk.Frame(body)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left.rowconfigure(0, weight=1)
+        self._listbox = tk.Listbox(
+            left, font=FONTS["body"], bg=COLORS["background"],
+            fg=COLORS["text_primary"], selectbackground=COLORS["accent"],
+            selectforeground=COLORS["text_on_primary"], relief="solid",
+            borderwidth=1, width=24, exportselection=False,
+        )
+        self._listbox.grid(row=0, column=0, sticky="nsew")
+        self._listbox.bind("<<ListboxSelect>>", lambda e: self._on_select())
+        btns = ttk.Frame(left)
+        btns.grid(row=1, column=0, pady=(5, 0))
+        ttk.Button(btns, text="+ Prozess", command=self._add_process).pack(side="left", padx=2)
+        ttk.Button(btns, text="−", width=3, command=self._remove_process).pack(side="left", padx=2)
+
+        self._panel = ProcessEditorPanel(body, self._templates, dirty_callback=lambda: None)
+        self._panel.grid(row=0, column=1, sticky="nsew")
+        self._placeholder = ttk.Label(
+            body, text="„+ Prozess“ klicken, um einen Prozessschritt anzulegen.",
+            foreground=COLORS["text_secondary"],
+        )
+
+        foot = ttk.Frame(self)
+        foot.grid(row=2, column=0, sticky="ew", padx=10, pady=(5, 10))
+        foot.columnconfigure(0, weight=1)
+        ttk.Button(foot, text="Abbrechen", command=self.destroy).grid(
+            row=0, column=1, padx=(0, 8)
+        )
+        ttk.Button(
+            foot, text="Übernehmen & schließen", style="Accent.TButton",
+            command=self._finish,
+        ).grid(row=0, column=2)
+
+        self._show_panel(False)
+
+    def _choose_dir(self) -> None:
+        path = filedialog.askdirectory(title="Ausgabeverzeichnis wählen", parent=self)
+        if path:
+            self._pout_var.set(path)
+
+    def _show_panel(self, show: bool) -> None:
+        if show:
+            self._placeholder.grid_remove()
+            self._panel.grid()
+        else:
+            self._panel.grid_remove()
+            self._placeholder.grid(row=0, column=1, sticky="nsew")
+
+    def _flush(self) -> None:
+        if self._selected is not None and self._panel.has_process():
+            self._panel.flush()
+            proc = self._processes[self._selected]
+            self._listbox.delete(self._selected)
+            self._listbox.insert(self._selected, proc.display_name or proc.template_id)
+            self._listbox.selection_set(self._selected)
+
+    def _add_process(self) -> None:
+        self._flush()
+        name = choose_template(self, self._templates)
+        if not name:
+            return
+        idx = len(self._processes)
+        proc = seed_process_from_template(
+            self._templates[name], f"IPC{idx + 1}_{name}", f"IPC{idx + 1} {name}"
+        )
+        self._processes.append(proc)
+        self._listbox.insert(tk.END, proc.display_name)
+        self._listbox.selection_clear(0, tk.END)
+        self._listbox.selection_set(idx)
+        self._on_select()
+
+    def _remove_process(self) -> None:
+        if self._selected is None:
+            return
+        del self._processes[self._selected]
+        self._listbox.delete(self._selected)
+        self._selected = None
+        self._show_panel(False)
+
+    def _on_select(self) -> None:
+        sel = self._listbox.curselection()
+        if not sel:
+            return
+        self._flush()
+        idx = sel[0]
+        self._selected = idx
+        self._panel.load(self._processes[idx], stage_hint=idx + 1)
+        self._show_panel(True)
+
+    def _finish(self) -> None:
+        self._flush()
+        pid = self._pid_var.get().strip()
+        if not pid:
+            messagebox.showwarning("Produkt", "Produkt-ID darf nicht leer sein.", parent=self)
+            return
+        if not self._processes:
+            messagebox.showwarning("Produkt", "Mindestens einen Prozess anlegen.", parent=self)
+            return
+        product = ProductConfig(
+            product_id=pid,
+            display_name=self._pname_var.get().strip() or pid,
+            processes=self._processes,
+            output_dir=self._pout_var.get().strip() or None,
+        )
+        self._on_finish(product)
+        self.destroy()
+
+
+# --------------------------------------------------------------------------- #
+# Haupt-View
+# --------------------------------------------------------------------------- #
 class ConfigEditorView(ttk.Frame):
     """Erstellt und bearbeitet die Produkt-JSONs unter data/products/."""
 
     def __init__(self, parent, app_state):
         super().__init__(parent)
         self.app_state = app_state
-
         self._product: ProductConfig | None = None
-        self._selected_process_idx: int | None = None
-        self._dirty: bool = False
-
+        self._selected_idx: int | None = None
+        self._loaded_id: str | None = None
+        self._dirty = False
         self._build_ui()
         self._load_product_list()
 
     def _templates(self):
-        """Lädt die Prozess-Templates frisch (für das Auflösen dünner Configs)."""
         return load_process_templates(PROCESS_TEMPLATES_DIR)
 
+    # -- UI ---------------------------------------------------------------- #
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        product_frame = ttk.LabelFrame(self, text="Produkt", padding=10)
-        product_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
-        product_frame.columnconfigure(1, weight=1)
+        pf = ttk.LabelFrame(self, text="Produkt", padding=10)
+        pf.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        pf.columnconfigure(1, weight=1)
 
-        load_frame = ttk.Frame(product_frame)
+        load_frame = ttk.Frame(pf)
         load_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 8))
         load_frame.columnconfigure(0, weight=1)
-
         self._product_combo = ttk.Combobox(load_frame, state="readonly", width=30)
         self._product_combo.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ttk.Button(load_frame, text="Laden", command=self._on_load).grid(row=0, column=1, padx=2)
+        ttk.Button(load_frame, text="Neu (Assistent)", command=self._on_new).grid(row=0, column=2, padx=2)
+        ttk.Button(load_frame, text="Kopieren", command=self._on_copy).grid(row=0, column=3, padx=2)
 
-        ttk.Button(load_frame, text="Laden", command=self._on_load).grid(
-            row=0, column=1, padx=2
-        )
-        ttk.Button(load_frame, text="Neu", command=self._on_new).grid(
-            row=0, column=2, padx=2
-        )
-        ttk.Button(load_frame, text="Kopieren", command=self._on_copy).grid(
-            row=0, column=3, padx=2
-        )
-
-        ttk.Label(product_frame, text="Produkt-ID:").grid(
-            row=1, column=0, sticky="w", pady=2
-        )
+        ttk.Label(pf, text="Produkt-ID:").grid(row=1, column=0, sticky="w", pady=2)
         self._product_id_var = tk.StringVar()
         self._product_id_var.trace_add("write", lambda *_: self._mark_dirty())
-        ttk.Entry(product_frame, textvariable=self._product_id_var, width=30).grid(
+        ttk.Entry(pf, textvariable=self._product_id_var, width=30).grid(
             row=1, column=1, sticky="w", pady=2
         )
 
-        ttk.Label(product_frame, text="Anzeigename:").grid(
-            row=2, column=0, sticky="w", pady=2
-        )
+        ttk.Label(pf, text="Anzeigename:").grid(row=2, column=0, sticky="w", pady=2)
         self._product_name_var = tk.StringVar()
         self._product_name_var.trace_add("write", lambda *_: self._mark_dirty())
-        ttk.Entry(product_frame, textvariable=self._product_name_var, width=50).grid(
+        ttk.Entry(pf, textvariable=self._product_name_var, width=50).grid(
             row=2, column=1, columnspan=2, sticky="ew", pady=2
         )
 
-        ttk.Label(product_frame, text="Ausgabeverz.:").grid(
-            row=3, column=0, sticky="w", pady=2
-        )
-        dir_frame = ttk.Frame(product_frame)
+        ttk.Label(pf, text="Ausgabeverz.:").grid(row=3, column=0, sticky="w", pady=2)
+        dir_frame = ttk.Frame(pf)
         dir_frame.grid(row=3, column=1, columnspan=2, sticky="ew", pady=2)
         dir_frame.columnconfigure(0, weight=1)
-
         self._output_dir_var = tk.StringVar()
         self._output_dir_var.trace_add("write", lambda *_: self._mark_dirty())
         ttk.Entry(dir_frame, textvariable=self._output_dir_var).grid(
             row=0, column=0, sticky="ew", padx=(0, 5)
         )
-        ttk.Button(dir_frame, text="Wählen...", command=self._choose_output_dir).grid(
-            row=0, column=1
-        )
+        ttk.Button(dir_frame, text="Wählen...", command=self._choose_output_dir).grid(row=0, column=1)
+
+        badge_frame = ttk.Frame(pf)
+        badge_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        self._badge = ttk.Label(badge_frame, text="—", font=FONTS["body_bold"])
+        self._badge.pack(side="left")
+        self._hint_var = tk.StringVar(value="")
+        ttk.Label(
+            badge_frame, textvariable=self._hint_var, foreground=COLORS["text_secondary"]
+        ).pack(side="left", padx=(12, 0))
 
         proc_frame = ttk.LabelFrame(self, text="Prozesse", padding=10)
         proc_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
@@ -111,170 +1076,64 @@ class ConfigEditorView(ttk.Frame):
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
-
         self._proc_listbox = tk.Listbox(
-            left,
-            font=FONTS["body"],
-            bg=COLORS["background"],
-            fg=COLORS["text_primary"],
-            selectbackground=COLORS["accent"],
-            selectforeground=COLORS["text_on_primary"],
-            relief="solid",
-            borderwidth=1,
-            width=25,
-            exportselection=False,
+            left, font=FONTS["body"], bg=COLORS["background"],
+            fg=COLORS["text_primary"], selectbackground=COLORS["accent"],
+            selectforeground=COLORS["text_on_primary"], relief="solid",
+            borderwidth=1, width=24, exportselection=False,
         )
         self._proc_listbox.grid(row=0, column=0, sticky="nsew")
-        self._proc_listbox.bind("<<ListboxSelect>>", self._on_process_selected)
+        self._proc_listbox.bind("<<ListboxSelect>>", lambda e: self._on_process_selected())
+        pbtn = ttk.Frame(left)
+        pbtn.grid(row=1, column=0, pady=(5, 0))
+        ttk.Button(pbtn, text="+", width=3, command=self._add_process).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="−", width=3, command=self._remove_process).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="↑", width=3, command=lambda: self._move_process(-1)).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="↓", width=3, command=lambda: self._move_process(1)).pack(side="left", padx=2)
 
-        proc_btn_frame = ttk.Frame(left)
-        proc_btn_frame.grid(row=1, column=0, pady=(5, 0))
-        ttk.Button(proc_btn_frame, text="+", width=3, command=self._add_process).pack(
-            side="left", padx=2
+        right = ttk.Frame(proc_frame)
+        right.grid(row=0, column=1, sticky="nsew")
+        right.columnconfigure(0, weight=1)
+        right.rowconfigure(0, weight=1)
+        self._panel = ProcessEditorPanel(
+            right, {}, dirty_callback=self._mark_dirty
         )
-        ttk.Button(
-            proc_btn_frame, text="-", width=3, command=self._remove_process
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            proc_btn_frame, text="\u2191", width=3, command=self._move_process_up
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            proc_btn_frame, text="\u2193", width=3, command=self._move_process_down
-        ).pack(side="left", padx=2)
-
-        self._right_panel = ttk.Frame(proc_frame)
-        self._right_panel.grid(row=0, column=1, sticky="nsew")
-        self._right_panel.columnconfigure(0, weight=1)
-        self._right_panel.rowconfigure(1, weight=1)
-
-        detail_frame = ttk.Frame(self._right_panel)
-        detail_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        detail_frame.columnconfigure(1, weight=1)
-
-        ttk.Label(detail_frame, text="Template-ID:").grid(
-            row=0, column=0, sticky="w", pady=2
-        )
-        self._template_id_var = tk.StringVar()
-        self._template_id_entry = ttk.Entry(
-            detail_frame, textvariable=self._template_id_var, width=30
-        )
-        self._template_id_entry.grid(row=0, column=1, sticky="w", pady=2)
-        self._template_id_entry.bind("<FocusOut>", lambda e: self._sync_process_details())
-
-        ttk.Label(detail_frame, text="Anzeigename:").grid(
-            row=1, column=0, sticky="w", pady=2
-        )
-        self._proc_name_var = tk.StringVar()
-        self._proc_name_entry = ttk.Entry(
-            detail_frame, textvariable=self._proc_name_var, width=40
-        )
-        self._proc_name_entry.grid(row=1, column=1, sticky="ew", pady=2)
-        self._proc_name_entry.bind("<FocusOut>", lambda e: self._sync_process_details())
-
-        ttk.Label(detail_frame, text="Zeilengruppe:").grid(
-            row=2, column=0, sticky="w", pady=2
-        )
-        self._row_group_var = tk.StringVar()
-        self._row_group_entry = ttk.Entry(
-            detail_frame, textvariable=self._row_group_var, width=10
-        )
-        self._row_group_entry.grid(row=2, column=1, sticky="w", pady=2)
-        self._row_group_entry.bind("<FocusOut>", lambda e: self._sync_process_details())
-
-        fields_frame = ttk.LabelFrame(self._right_panel, text="Felder", padding=5)
-        fields_frame.grid(row=1, column=0, sticky="nsew")
-        fields_frame.columnconfigure(0, weight=1)
-        fields_frame.rowconfigure(0, weight=1)
-
-        tree_container = ttk.Frame(fields_frame)
-        tree_container.grid(row=0, column=0, sticky="nsew")
-        tree_container.columnconfigure(0, weight=1)
-        tree_container.rowconfigure(0, weight=1)
-
-        columns = ("id", "name", "typ", "rolle", "persistent", "optional")
-        self._fields_tree = ttk.Treeview(
-            tree_container, columns=columns, show="headings", height=8
-        )
-        self._fields_tree.heading("id", text="ID")
-        self._fields_tree.heading("name", text="Anzeigename")
-        self._fields_tree.heading("typ", text="Typ")
-        self._fields_tree.heading("rolle", text="Rolle")
-        self._fields_tree.heading("persistent", text="Persistent")
-        self._fields_tree.heading("optional", text="Optional")
-
-        self._fields_tree.column("id", width=100, minwidth=60)
-        self._fields_tree.column("name", width=150, minwidth=80)
-        self._fields_tree.column("typ", width=80, minwidth=50)
-        self._fields_tree.column("rolle", width=100, minwidth=60)
-        self._fields_tree.column("persistent", width=70, minwidth=50)
-        self._fields_tree.column("optional", width=70, minwidth=50)
-
-        self._fields_tree.grid(row=0, column=0, sticky="nsew")
-        self._fields_tree.bind("<Double-1>", lambda e: self._edit_field())
-
-        vsb = ttk.Scrollbar(
-            tree_container, orient="vertical", command=self._fields_tree.yview
-        )
-        vsb.grid(row=0, column=1, sticky="ns")
-        self._fields_tree.configure(yscrollcommand=vsb.set)
-
-        field_btn_frame = ttk.Frame(fields_frame)
-        field_btn_frame.grid(row=1, column=0, pady=(5, 0))
-
-        ttk.Button(
-            field_btn_frame, text="Hinzufügen", command=self._add_field
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            field_btn_frame, text="Bearbeiten", command=self._edit_field
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            field_btn_frame, text="Entfernen", command=self._remove_field
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            field_btn_frame, text="\u2191", width=3, command=self._move_field_up
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            field_btn_frame, text="\u2193", width=3, command=self._move_field_down
-        ).pack(side="left", padx=2)
-
+        self._panel.grid(row=0, column=0, sticky="nsew")
         self._no_proc_label = ttk.Label(
-            self._right_panel,
-            text="Prozess in der Liste links auswählen oder neuen Prozess hinzufügen.",
+            right,
+            text="Prozess links auswählen oder mit „+“ hinzufügen.",
             foreground=COLORS["text_secondary"],
         )
 
-        bottom_frame = ttk.Frame(self)
-        bottom_frame.grid(row=2, column=0, padx=10, pady=(5, 10), sticky="ew")
-        bottom_frame.columnconfigure(0, weight=1)
-
+        bottom = ttk.Frame(self)
+        bottom.grid(row=2, column=0, padx=10, pady=(5, 10), sticky="ew")
+        bottom.columnconfigure(0, weight=1)
         self._status_var = tk.StringVar(value="Bereit.")
-        ttk.Label(bottom_frame, textvariable=self._status_var).grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Button(
-            bottom_frame,
-            text="Freigabedokument erzeugen…",
+        ttk.Label(bottom, textvariable=self._status_var).grid(row=0, column=0, sticky="w")
+        self._btn_doc = ttk.Button(
+            bottom, text="Freigabedokument erzeugen…",
             command=self._on_create_freigabedokument,
-        ).grid(row=0, column=1, padx=(10, 0))
+        )
+        self._btn_doc.grid(row=0, column=1, padx=(10, 0))
+        self._btn_release = ttk.Button(
+            bottom, text="Freigabe erfassen…", command=self._on_record_freigabe
+        )
+        self._btn_release.grid(row=0, column=2, padx=(10, 0))
         ttk.Button(
-            bottom_frame,
-            text="Freigabe erfassen…",
-            command=self._on_record_freigabe,
-        ).grid(row=0, column=2, padx=(10, 0))
-        ttk.Button(
-            bottom_frame,
-            text="Speichern",
-            style="Accent.TButton",
-            command=self._on_save,
+            bottom, text="Speichern", style="Accent.TButton", command=self._on_save
         ).grid(row=0, column=3, padx=(10, 0))
 
-        self._show_right_panel(False)
+        self._show_panel(False)
+        self._refresh_badge()
 
+    # -- Produktliste / Laden --------------------------------------------- #
     def _load_product_list(self) -> None:
         if not PRODUCTS_DIR.exists():
             self._product_combo["values"] = []
             return
-        names = sorted(p.stem for p in PRODUCTS_DIR.glob("*.json"))
+        names = sorted(
+            p.stem for p in PRODUCTS_DIR.glob("*.json") if p.stem != "freigaben"
+        )
         self._product_combo["values"] = names
 
     def _on_load(self) -> None:
@@ -283,28 +1142,55 @@ class ConfigEditorView(ttk.Frame):
             return
         if self._dirty and not self._confirm_discard():
             return
-
         path = PRODUCTS_DIR / f"{name}.json"
         if not path.exists():
             self._status_var.set(f"Datei nicht gefunden: {path}")
             return
+        try:
+            if is_legacy_product(path):
+                messagebox.showerror(
+                    "Legacy-Config",
+                    "Diese Konfiguration ist im alten Vollformat (kein Template).\n"
+                    "Bitte template-basiert neu anlegen (Assistent „Neu“).\n"
+                    "Bearbeiten ist gesperrt.",
+                )
+                return
+        except Exception as e:
+            messagebox.showerror("Laden", f"Datei nicht lesbar:\n{e}")
+            return
 
-        product = load_product_config(path, self._templates())
-        self._populate_ui_from_product(product)
+        tpls = self._templates()
+        try:
+            product = load_product_config(path, tpls)
+        except ValueError as e:
+            messagebox.showerror(
+                "Template fehlt",
+                f"Konfiguration nicht auflösbar (Template fehlt?):\n{e}\n\n"
+                "Templates-Verzeichnis prüfen.",
+            )
+            return
+
+        self._panel.set_templates(tpls)
+        self._loaded_id = product.product_id
+        self._populate(product)
         self._dirty = False
         self._status_var.set(f"Geladen: {name}")
+        self._check_template_revision_drift(path, tpls)
+        self._refresh_badge(path=path)
 
     def _on_new(self) -> None:
         if self._dirty and not self._confirm_discard():
             return
-        product = ProductConfig(
-            product_id="",
-            display_name="",
-            processes=[],
-        )
-        self._populate_ui_from_product(product)
-        self._dirty = False
-        self._status_var.set("Neues Produkt erstellt.")
+        tpls = self._templates()
+        NewProductWizard(self.winfo_toplevel(), tpls, on_finish=self._adopt_wizard_product)
+
+    def _adopt_wizard_product(self, product: ProductConfig) -> None:
+        self._panel.set_templates(self._templates())
+        self._loaded_id = None  # neues Produkt -> eigene Datei
+        self._populate(product)
+        self._dirty = True
+        self._status_var.set("Neues Produkt aus Assistent — bitte speichern.")
+        self._refresh_badge()
 
     def _on_copy(self) -> None:
         name = self._product_combo.get()
@@ -312,287 +1198,183 @@ class ConfigEditorView(ttk.Frame):
             return
         if self._dirty and not self._confirm_discard():
             return
-
         path = PRODUCTS_DIR / f"{name}.json"
         if not path.exists():
             return
-
-        product = load_product_config(path, self._templates())
+        try:
+            if is_legacy_product(path):
+                messagebox.showerror(
+                    "Legacy-Config",
+                    "Legacy-Configs können nicht kopiert werden. "
+                    "Bitte template-basiert neu anlegen (Assistent „Neu“).",
+                )
+                return
+            tpls = self._templates()
+            product = load_product_config(path, tpls)
+        except ValueError as e:
+            messagebox.showerror("Kopieren", f"Konfiguration nicht lesbar:\n{e}")
+            return
         product.product_id = ""
-        self._populate_ui_from_product(product)
+        product.revision = 1
+        product.revision_history = []
+        self._panel.set_templates(tpls)
+        self._loaded_id = None
+        self._populate(product)
         self._dirty = True
-        self._status_var.set(f"Kopie von {name} erstellt. Neue Produkt-ID vergeben.")
+        self._status_var.set(f"Kopie von {name} — neue Produkt-ID vergeben und speichern.")
+        self._refresh_badge()
 
-    def _populate_ui_from_product(self, product: ProductConfig) -> None:
+    def _populate(self, product: ProductConfig) -> None:
         self._product = product
-        self._selected_process_idx = None
-
+        self._selected_idx = None
         self._product_id_var.set(product.product_id)
         self._product_name_var.set(product.display_name)
         self._output_dir_var.set(product.output_dir or "")
-
         self._proc_listbox.delete(0, tk.END)
         for proc in product.processes:
             self._proc_listbox.insert(tk.END, proc.display_name or proc.template_id)
+        self._show_panel(False)
 
-        self._show_right_panel(False)
-
-    def _build_product_from_ui(self) -> ProductConfig:
-        self._sync_process_details()
-
-        output_dir = self._output_dir_var.get().strip() or None
-        return ProductConfig(
-            product_id=self._product_id_var.get().strip(),
-            display_name=self._product_name_var.get().strip(),
-            processes=list(self._product.processes) if self._product else [],
-            output_dir=output_dir,
-            # Revision + Historie weitertragen — sonst setzt jedes Speichern
-            # die GMP-Änderungshistorie auf den Dataclass-Default zurück.
-            revision=self._product.revision if self._product else 1,
-            revision_history=(
-                list(self._product.revision_history) if self._product else []
-            ),
-        )
-
-    def _on_process_selected(self, event=None) -> None:
-        sel = self._proc_listbox.curselection()
-        if not sel:
+    def _check_template_revision_drift(self, path, tpls) -> None:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            # Best-effort-Hinweis nach erfolgreichem Laden — nicht GMP-kritisch,
+            # aber nicht still verschlucken.
+            logger.debug("Template-Revisions-Drift-Check übersprungen: %s nicht erneut lesbar", path)
             return
-        self._sync_process_details()
+        drift = []
+        for p in raw.get("processes", []):
+            tname = p.get("template")
+            if not tname or tname not in tpls:
+                continue
+            old = p.get("template_revision")
+            cur = tpls[tname].template_revision
+            if old is not None and old != cur:
+                drift.append(f"{tname}: Rev {old} → {cur}")
+        if drift:
+            messagebox.showinfo(
+                "Template aktualisiert",
+                "Seit dem letzten Speichern wurden Templates aktualisiert. Beim "
+                "nächsten Speichern wird gegen die neue Revision aufgelöst:\n\n"
+                + "\n".join(drift),
+            )
 
-        idx = sel[0]
-        self._selected_process_idx = idx
-        proc = self._product.processes[idx]
-
-        self._template_id_var.set(proc.template_id)
-        self._proc_name_var.set(proc.display_name)
-        self._row_group_var.set(str(proc.row_group_size) if proc.row_group_size else "")
-
-        self._show_right_panel(True)
-        self._refresh_fields_tree()
-
-    def _sync_process_details(self) -> None:
-        if self._selected_process_idx is None or not self._product:
-            return
-        if self._selected_process_idx >= len(self._product.processes):
-            return
-
-        proc = self._product.processes[self._selected_process_idx]
-        old_template = proc.template_id
-        old_name = proc.display_name
-        old_rg = proc.row_group_size
-
-        proc.template_id = self._template_id_var.get().strip()
-        proc.display_name = self._proc_name_var.get().strip()
-
-        rg_str = self._row_group_var.get().strip()
-        if rg_str:
-            try:
-                proc.row_group_size = int(rg_str)
-            except ValueError:
-                proc.row_group_size = None
-        else:
-            proc.row_group_size = None
-
-        display = proc.display_name or proc.template_id
-        self._proc_listbox.delete(self._selected_process_idx)
-        self._proc_listbox.insert(self._selected_process_idx, display)
-        self._proc_listbox.selection_set(self._selected_process_idx)
-
+    # -- Prozesse ---------------------------------------------------------- #
+    def _flush_panel(self) -> None:
         if (
-            proc.template_id != old_template
-            or proc.display_name != old_name
-            or proc.row_group_size != old_rg
+            self._selected_idx is not None
+            and self._product
+            and self._panel.has_process()
         ):
-            self._mark_dirty()
+            self._panel.flush()
+            proc = self._product.processes[self._selected_idx]
+            label = proc.display_name or proc.template_id
+            self._proc_listbox.delete(self._selected_idx)
+            self._proc_listbox.insert(self._selected_idx, label)
+            self._proc_listbox.selection_set(self._selected_idx)
+
+    def _on_process_selected(self) -> None:
+        sel = self._proc_listbox.curselection()
+        if not sel or not self._product:
+            return
+        self._flush_panel()
+        idx = sel[0]
+        self._selected_idx = idx
+        self._panel.load(self._product.processes[idx], stage_hint=idx + 1)
+        self._show_panel(True)
 
     def _add_process(self) -> None:
         if not self._product:
             return
-        self._sync_process_details()
-
-        proc = ProcessConfig(
-            template_id="",
-            display_name="Neuer Prozess",
-            fields=[],
+        self._flush_panel()
+        tpls = self._templates()
+        name = choose_template(self.winfo_toplevel(), tpls)
+        if not name:
+            return
+        idx = len(self._product.processes)
+        proc = seed_process_from_template(
+            tpls[name], f"IPC{idx + 1}_{name}", f"IPC{idx + 1} {name}"
         )
         self._product.processes.append(proc)
         self._proc_listbox.insert(tk.END, proc.display_name)
-
-        idx = len(self._product.processes) - 1
         self._proc_listbox.selection_clear(0, tk.END)
         self._proc_listbox.selection_set(idx)
+        self._panel.set_templates(tpls)
         self._on_process_selected()
         self._mark_dirty()
 
     def _remove_process(self) -> None:
-        if not self._product or self._selected_process_idx is None:
+        if not self._product or self._selected_idx is None:
             return
         if not messagebox.askyesno(
-            "Prozess entfernen",
-            "Soll der ausgewählte Prozess wirklich entfernt werden?",
+            "Prozess entfernen", "Ausgewählten Prozess wirklich entfernen?"
         ):
             return
-
-        del self._product.processes[self._selected_process_idx]
-        self._proc_listbox.delete(self._selected_process_idx)
-        self._selected_process_idx = None
-        self._show_right_panel(False)
+        del self._product.processes[self._selected_idx]
+        self._proc_listbox.delete(self._selected_idx)
+        self._selected_idx = None
+        self._show_panel(False)
         self._mark_dirty()
 
-    def _move_process_up(self) -> None:
-        self._move_process(-1)
-
-    def _move_process_down(self) -> None:
-        self._move_process(1)
-
     def _move_process(self, direction: int) -> None:
-        if not self._product or self._selected_process_idx is None:
+        if not self._product or self._selected_idx is None:
             return
-        self._sync_process_details()
-
-        idx = self._selected_process_idx
-        new_idx = idx + direction
-        if new_idx < 0 or new_idx >= len(self._product.processes):
+        self._flush_panel()
+        idx = self._selected_idx
+        new = idx + direction
+        if new < 0 or new >= len(self._product.processes):
             return
-
         procs = self._product.processes
-        procs[idx], procs[new_idx] = procs[new_idx], procs[idx]
-
+        procs[idx], procs[new] = procs[new], procs[idx]
         self._proc_listbox.delete(0, tk.END)
         for p in procs:
             self._proc_listbox.insert(tk.END, p.display_name or p.template_id)
-
-        self._selected_process_idx = new_idx
-        self._proc_listbox.selection_set(new_idx)
+        self._selected_idx = new
+        self._proc_listbox.selection_set(new)
+        self._panel.load(procs[new], stage_hint=new + 1)
         self._mark_dirty()
 
-    def _refresh_fields_tree(self) -> None:
-        self._fields_tree.delete(*self._fields_tree.get_children())
-        if self._selected_process_idx is None or not self._product:
-            return
+    def _show_panel(self, show: bool) -> None:
+        if show:
+            self._no_proc_label.grid_remove()
+            self._panel.grid()
+        else:
+            self._panel.grid_remove()
+            self._no_proc_label.grid(row=0, column=0, padx=20, pady=40)
 
-        proc = self._product.processes[self._selected_process_idx]
-        for field in proc.fields:
-            self._fields_tree.insert(
-                "",
-                "end",
-                values=(
-                    field.id,
-                    field.display_name,
-                    field.type,
-                    field.role,
-                    "Ja" if field.persistent else "Nein",
-                    "Ja" if field.optional else "Nein",
-                ),
-            )
-
-    def _get_selected_field_index(self) -> int | None:
-        sel = self._fields_tree.selection()
-        if not sel:
-            return None
-        return self._fields_tree.index(sel[0])
-
-    def _add_field(self) -> None:
-        if self._selected_process_idx is None or not self._product:
-            return
-
-        def on_save(field: FieldDef) -> None:
-            self._product.processes[self._selected_process_idx].fields.append(field)
-            self._refresh_fields_tree()
-            self._mark_dirty()
-
-        FieldEditorDialog(self.winfo_toplevel(), None, on_save)
-
-    def _edit_field(self) -> None:
-        if self._selected_process_idx is None or not self._product:
-            return
-        fi = self._get_selected_field_index()
-        if fi is None:
-            return
-
-        proc = self._product.processes[self._selected_process_idx]
-        field = proc.fields[fi]
-
-        def on_save(updated: FieldDef) -> None:
-            proc.fields[fi] = updated
-            self._refresh_fields_tree()
-            self._mark_dirty()
-
-        FieldEditorDialog(self.winfo_toplevel(), field, on_save)
-
-    def _remove_field(self) -> None:
-        if self._selected_process_idx is None or not self._product:
-            return
-        fi = self._get_selected_field_index()
-        if fi is None:
-            return
-        if not messagebox.askyesno(
-            "Feld entfernen",
-            "Soll das ausgewählte Feld wirklich entfernt werden?",
-        ):
-            return
-
-        del self._product.processes[self._selected_process_idx].fields[fi]
-        self._refresh_fields_tree()
-        self._mark_dirty()
-
-    def _move_field_up(self) -> None:
-        self._move_field(-1)
-
-    def _move_field_down(self) -> None:
-        self._move_field(1)
-
-    def _move_field(self, direction: int) -> None:
-        if self._selected_process_idx is None or not self._product:
-            return
-        fi = self._get_selected_field_index()
-        if fi is None:
-            return
-
-        fields = self._product.processes[self._selected_process_idx].fields
-        new_fi = fi + direction
-        if new_fi < 0 or new_fi >= len(fields):
-            return
-
-        fields[fi], fields[new_fi] = fields[new_fi], fields[fi]
-        self._refresh_fields_tree()
-        self._mark_dirty()
-
-        children = self._fields_tree.get_children()
-        if 0 <= new_fi < len(children):
-            self._fields_tree.selection_set(children[new_fi])
-
+    # -- Speichern --------------------------------------------------------- #
     def _on_save(self) -> None:
         if not self._product:
             return
-        self._sync_process_details()
+        self._flush_panel()
+        self._product.product_id = self._product_id_var.get().strip()
+        self._product.display_name = self._product_name_var.get().strip()
+        self._product.output_dir = self._output_dir_var.get().strip() or None
+        product = self._product
+        tpls = self._templates()
 
-        product = self._build_product_from_ui()
-
-        errors = validate_product_config(product)
+        inline = self._panel.inline_errors() if self._panel.has_process() else []
+        errors = (
+            inline
+            + validate_product_config(product)
+            + validate_editor_product(product, tpls)
+        )
         if errors:
-            messagebox.showerror(
-                "Validierungsfehler",
-                "\n".join(errors),
-            )
+            messagebox.showerror("Validierungsfehler", "\n".join(errors[:25]))
             return
 
         target = PRODUCTS_DIR / f"{product.product_id}.json"
-        if target.exists():
-            is_same = (
-                self._product
-                and self._product.product_id == product.product_id
-            )
-            if not is_same and not messagebox.askyesno(
+        if (
+            target.exists()
+            and product.product_id != self._loaded_id
+            and not messagebox.askyesno(
                 "Datei überschreiben",
                 f"Die Datei {target.name} existiert bereits.\nÜberschreiben?",
-            ):
-                return
+            )
+        ):
+            return
 
-        # GMP Change Control: bei inhaltlichen Änderungen Revision erhöhen und
-        # einen Historieneintrag mit Begründung verlangen. Abbruch des Dialogs
-        # bricht das Speichern ab.
         change_text: str | None = None
         if self._dirty or not target.exists():
             change_text = simpledialog.askstring(
@@ -613,8 +1395,13 @@ class ConfigEditorView(ttk.Frame):
                 "change": change_text.strip() or "Bearbeitet im Config-Editor",
             })
 
-        path = save_product_config(product, PRODUCTS_DIR, self._templates())
-        self._product = product
+        try:
+            path = save_product_config(product, PRODUCTS_DIR, tpls)
+        except Exception as e:
+            messagebox.showerror("Speichern", f"Konnte nicht speichern:\n{e}")
+            return
+
+        self._loaded_id = product.product_id
         self._dirty = False
 
         if self.app_state.audit:
@@ -633,44 +1420,71 @@ class ConfigEditorView(ttk.Frame):
         self.app_state.app_config = load_app_config(
             APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
         )
-
         self._load_product_list()
+        self._refresh_badge(path=path)
+        self._status_var.set(f"Gespeichert: {path} (Revision {product.revision})")
 
-        # Jede inhaltliche Änderung bricht den Freigabe-Hash — das Produkt ist
-        # bis zur neuen Vier-Augen-Freigabe nicht mehr im Scope.
+    # -- Freigabe ---------------------------------------------------------- #
+    def _refresh_badge(self, path=None) -> None:
         from src.config.freigabe import (
-            FREIGEGEBEN, compute_config_hash, determine_status, load_freigaben,
+            FREIGEGEBEN, GEAENDERT, compute_config_hash, determine_status,
+            load_freigaben,
         )
-        entry = load_freigaben(PRODUCTS_DIR).get(product.product_id)
-        status = determine_status(
-            entry, compute_config_hash(path), product.revision,
-        )
-        hint = (
-            "" if status == FREIGEGEBEN
-            else "  —  ⚠ nicht freigegeben: Freigabedokument unterschreiben "
-                 "lassen und Freigabe erfassen"
-        )
-        self._status_var.set(
-            f"Gespeichert: {path} (Revision {product.revision}){hint}"
-        )
+        if not self._product or not self._product.product_id.strip():
+            self._set_badge("—", COLORS["text_secondary"])
+            self._update_freigabe_buttons(file_ok=False)
+            return
+        if self._dirty:
+            self._set_badge("● Ungespeicherte Änderungen", COLORS["text_secondary"])
+            self._update_freigabe_buttons(file_ok=False)
+            return
+        p = path or (PRODUCTS_DIR / f"{self._product.product_id}.json")
+        if not p.exists():
+            self._set_badge("○ Ungespeichert", COLORS["text_secondary"])
+            self._update_freigabe_buttons(file_ok=False)
+            return
+        entry = load_freigaben(PRODUCTS_DIR).get(self._product.product_id)
+        status = determine_status(entry, compute_config_hash(p), self._product.revision)
+        if status == FREIGEGEBEN:
+            doc = entry.get("dokument", "") if entry else ""
+            self._set_badge(
+                f"● Freigegeben (Rev {self._product.revision}, Dok {doc})",
+                COLORS["success"],
+            )
+            self._hint_var.set("")
+        elif status == GEAENDERT:
+            self._set_badge(
+                "● Geändert seit Freigabe — neue Freigabe nötig", COLORS["warning"]
+            )
+            self._hint_var.set(
+                "Nächster Schritt: Freigabedokument erzeugen → unterschreiben → Freigabe erfassen."
+            )
+        else:
+            self._set_badge("○ Nicht freigegeben", COLORS["text_secondary"])
+            self._hint_var.set(
+                "Nächster Schritt: Freigabedokument erzeugen → unterschreiben → Freigabe erfassen."
+            )
+        self._update_freigabe_buttons(file_ok=True)
+
+    def _set_badge(self, text: str, color: str) -> None:
+        self._badge.configure(text=text, foreground=color)
+
+    def _update_freigabe_buttons(self, file_ok: bool) -> None:
+        state = ["!disabled"] if file_ok else ["disabled"]
+        self._btn_doc.state(state)
+        self._btn_release.state(state)
+        if not file_ok and self._product and self._dirty:
+            self._hint_var.set("Erst speichern — Freigabe bindet sich an den Dateistand.")
 
     def _on_create_freigabedokument(self) -> None:
-        """Erzeugt das Freigabedokument für das gewählte Produkt.
-
-        Mit Word-Vorlage (data/vorlagen/freigabedokument.docx) entsteht ein
-        .docx im immer gleichen Aufbau der Vorlage; ohne Vorlage ein HTML mit
-        festem Layout. Das Dokument bindet sich per SHA-256 an den
-        gespeicherten Dateistand — deshalb ist Speichern Voraussetzung."""
         if not self._product or not self._product.product_id.strip():
-            messagebox.showinfo(
-                "Freigabedokument", "Bitte zuerst ein Produkt laden."
-            )
+            messagebox.showinfo("Freigabedokument", "Bitte zuerst ein Produkt laden.")
             return
         if self._dirty:
             messagebox.showwarning(
                 "Freigabedokument",
-                "Es gibt ungespeicherte Änderungen. Bitte zuerst speichern — "
-                "das Dokument bindet sich an den gespeicherten Dateistand.",
+                "Es gibt ungespeicherte Änderungen. Bitte zuerst speichern — das "
+                "Dokument bindet sich an den gespeicherten Dateistand.",
             )
             return
         path = PRODUCTS_DIR / f"{self._product.product_id}.json"
@@ -682,60 +1496,42 @@ class ConfigEditorView(ttk.Frame):
             return
 
         from src.config.freigabedokument import erzeuge_freigabedokument
-        from src.config.settings import (
-            FREIGABE_VORLAGE_PATH, FREIGABEDOKUMENTE_DIR,
-        )
+        from src.config.settings import FREIGABE_VORLAGE_PATH, FREIGABEDOKUMENTE_DIR
 
         try:
-            # Frisch von der Datei laden — das Dokument muss exakt den
-            # gespeicherten (= zu hashenden) Stand zeigen, nicht den UI-Stand.
             product = load_product_config(path, self._templates())
-            vorlage = (
-                FREIGABE_VORLAGE_PATH if FREIGABE_VORLAGE_PATH.exists() else None
-            )
+            vorlage = FREIGABE_VORLAGE_PATH if FREIGABE_VORLAGE_PATH.exists() else None
             out, unresolved = erzeuge_freigabedokument(
-                product, path, FREIGABEDOKUMENTE_DIR, vorlage=vorlage,
+                product, path, FREIGABEDOKUMENTE_DIR, vorlage=vorlage
             )
         except Exception as e:
-            messagebox.showerror(
-                "Freigabedokument",
-                f"Dokument konnte nicht erzeugt werden:\n{e}",
-            )
+            messagebox.showerror("Freigabedokument", f"Dokument konnte nicht erzeugt werden:\n{e}")
             return
 
         if unresolved:
             messagebox.showwarning(
                 "Unbekannte Platzhalter in der Vorlage",
-                "Folgende Platzhalter wurden nicht ersetzt und stehen noch "
-                "im Dokument:\n\n" + ", ".join(sorted(unresolved))
-                + "\n\nBitte Vorlage prüfen (Schreibweise siehe "
-                "CONFIG_REFERENZ.md).",
+                "Folgende Platzhalter wurden nicht ersetzt und stehen noch im "
+                "Dokument:\n\n" + ", ".join(sorted(unresolved))
+                + "\n\nBitte Vorlage prüfen (Schreibweise siehe CONFIG_REFERENZ.md).",
             )
         hinweis = "" if vorlage else " (HTML-Fallback — keine Word-Vorlage gefunden)"
         self._status_var.set(f"Freigabedokument erzeugt: {out}{hinweis}")
         messagebox.showinfo(
             "Freigabedokument erzeugt",
             f"{out}\n\nAusdrucken, von zwei Personen prüfen/freigeben lassen "
-            "(Vier-Augen-Prinzip) und danach hier „Freigabe erfassen…“ "
-            "ausführen.",
+            "(Vier-Augen-Prinzip) und danach hier „Freigabe erfassen…“ ausführen.",
         )
 
     def _on_record_freigabe(self) -> None:
-        """Erfasst eine auf Papier erteilte Vier-Augen-Freigabe im Manifest.
-
-        Voraussetzung: Produkt ist gespeichert (Datei-Hash = Freigabe-Hash).
-        Die Prüfung/Unterschrift selbst passiert auf dem Freigabedokument —
-        hier wird nur dokumentiert, was dort steht."""
         if not self._product or not self._product.product_id.strip():
-            messagebox.showinfo(
-                "Freigabe erfassen", "Bitte zuerst ein Produkt laden."
-            )
+            messagebox.showinfo("Freigabe erfassen", "Bitte zuerst ein Produkt laden.")
             return
         if self._dirty:
             messagebox.showwarning(
                 "Freigabe erfassen",
-                "Es gibt ungespeicherte Änderungen. Bitte zuerst speichern — "
-                "die Freigabe bindet sich an den gespeicherten Dateistand.",
+                "Es gibt ungespeicherte Änderungen. Bitte zuerst speichern — die "
+                "Freigabe bindet sich an den gespeicherten Dateistand.",
             )
             return
         path = PRODUCTS_DIR / f"{self._product.product_id}.json"
@@ -755,11 +1551,9 @@ class ConfigEditorView(ttk.Frame):
         dialog.transient(self)
         dialog.grab_set()
         dialog.resizable(False, False)
-
         frame = ttk.Frame(dialog, padding=15)
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(1, weight=1)
-
         ttk.Label(
             frame,
             text=(
@@ -790,8 +1584,7 @@ class ConfigEditorView(ttk.Frame):
             freigegeben = vars_["freigegeben_von"].get().strip()
             if not dokument or not geprueft or not freigegeben:
                 messagebox.showwarning(
-                    "Freigabe erfassen", "Alle Felder sind Pflicht.",
-                    parent=dialog,
+                    "Freigabe erfassen", "Alle Felder sind Pflicht.", parent=dialog
                 )
                 return
             if geprueft.lower() == freigegeben.lower():
@@ -801,16 +1594,10 @@ class ConfigEditorView(ttk.Frame):
                     parent=dialog,
                 )
                 return
-
             user = self.app_state.current_user
             entry = record_freigabe(
-                PRODUCTS_DIR,
-                self._product.product_id,
-                path,
-                self._product.revision,
-                dokument=dokument,
-                geprueft_von=geprueft,
-                freigegeben_von=freigegeben,
+                PRODUCTS_DIR, self._product.product_id, path, self._product.revision,
+                dokument=dokument, geprueft_von=geprueft, freigegeben_von=freigegeben,
                 erfasst_von=user.user_id if user else None,
             )
             if self.app_state.audit:
@@ -820,7 +1607,6 @@ class ConfigEditorView(ttk.Frame):
                     file=str(path),
                     details={"product": self._product.product_id, **entry},
                 )
-            # Frisch laden, damit der Freigabe-Status überall greift.
             self.app_state.app_config = load_app_config(
                 APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
             )
@@ -829,33 +1615,16 @@ class ConfigEditorView(ttk.Frame):
                 f"Revision {self._product.revision} ({dokument})"
             )
             dialog.destroy()
+            self._refresh_badge()
 
-        btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=4, column=0, columnspan=2, pady=(12, 0))
-        ttk.Button(btn_frame, text="Abbrechen", command=dialog.destroy).pack(
-            side="left", padx=8
-        )
+        bf = ttk.Frame(frame)
+        bf.grid(row=4, column=0, columnspan=2, pady=(12, 0))
+        ttk.Button(bf, text="Abbrechen", command=dialog.destroy).pack(side="left", padx=8)
         ttk.Button(
-            btn_frame, text="Freigabe erfassen", style="Accent.TButton",
-            command=on_ok,
+            bf, text="Freigabe erfassen", style="Accent.TButton", command=on_ok
         ).pack(side="left", padx=8)
 
-    def _show_right_panel(self, show: bool) -> None:
-        if show:
-            self._no_proc_label.grid_remove()
-            for child in self._right_panel.winfo_children():
-                if child != self._no_proc_label:
-                    child.grid()
-        else:
-            for child in self._right_panel.winfo_children():
-                if child != self._no_proc_label:
-                    child.grid_remove()
-            self._no_proc_label.grid(row=0, column=0, padx=20, pady=40)
-            self._fields_tree.delete(*self._fields_tree.get_children())
-            self._template_id_var.set("")
-            self._proc_name_var.set("")
-            self._row_group_var.set("")
-
+    # -- Diverses ---------------------------------------------------------- #
     def _choose_output_dir(self) -> None:
         path = filedialog.askdirectory(title="Ausgabeverzeichnis wählen")
         if path:
@@ -863,270 +1632,9 @@ class ConfigEditorView(ttk.Frame):
 
     def _mark_dirty(self) -> None:
         self._dirty = True
+        self._refresh_badge()
 
     def _confirm_discard(self) -> bool:
         return messagebox.askyesno(
-            "Ungespeicherte Änderungen",
-            "Es gibt ungespeicherte Änderungen. Verwerfen?",
+            "Ungespeicherte Änderungen", "Es gibt ungespeicherte Änderungen. Verwerfen?"
         )
-
-
-class FieldEditorDialog(tk.Toplevel):
-    """Modaler Dialog zum Bearbeiten eines einzelnen Feldes."""
-
-    def __init__(
-        self,
-        parent,
-        field: FieldDef | None,
-        on_save: callable,
-    ):
-        super().__init__(parent)
-        self._on_save = on_save
-        self._editing = field is not None
-
-        self.title("Feld bearbeiten" if self._editing else "Neues Feld")
-        self.geometry("450x520")
-        self.resizable(False, True)
-        self.transient(parent)
-        self.grab_set()
-
-        self._build_ui(field)
-        self.focus_set()
-        self.protocol("WM_DELETE_WINDOW", self._cancel)
-
-    def _build_ui(self, field: FieldDef | None) -> None:
-        main = ttk.Frame(self, padding=15)
-        main.pack(fill="both", expand=True)
-        main.columnconfigure(1, weight=1)
-
-        row = 0
-
-        ttk.Label(main, text="ID:").grid(row=row, column=0, sticky="w", pady=3)
-        self._id_var = tk.StringVar(value=field.id if field else "")
-        ttk.Entry(main, textvariable=self._id_var, width=30).grid(
-            row=row, column=1, sticky="ew", pady=3
-        )
-        row += 1
-
-        ttk.Label(main, text="Anzeigename:").grid(
-            row=row, column=0, sticky="w", pady=3
-        )
-        self._name_var = tk.StringVar(value=field.display_name if field else "")
-        ttk.Entry(main, textvariable=self._name_var, width=30).grid(
-            row=row, column=1, sticky="ew", pady=3
-        )
-        row += 1
-
-        ttk.Label(main, text="Typ:").grid(row=row, column=0, sticky="w", pady=3)
-        self._type_var = tk.StringVar(value=field.type if field else "text")
-        type_combo = ttk.Combobox(
-            main,
-            textvariable=self._type_var,
-            values=["text", "number", "choice"],
-            state="readonly",
-            width=15,
-        )
-        type_combo.grid(row=row, column=1, sticky="w", pady=3)
-        type_combo.bind("<<ComboboxSelected>>", lambda e: self._on_type_changed())
-        row += 1
-
-        ttk.Label(main, text="Rolle:").grid(row=row, column=0, sticky="w", pady=3)
-        self._role_var = tk.StringVar(value=field.role if field else "measurement")
-        ttk.Combobox(
-            main,
-            textvariable=self._role_var,
-            values=["context", "measurement", "auto"],
-            state="readonly",
-            width=15,
-        ).grid(row=row, column=1, sticky="w", pady=3)
-        row += 1
-
-        self._persistent_var = tk.BooleanVar(
-            value=field.persistent if field else False
-        )
-        ttk.Checkbutton(
-            main, text="Persistent", variable=self._persistent_var
-        ).grid(row=row, column=0, columnspan=2, sticky="w", pady=3)
-        row += 1
-
-        self._optional_var = tk.BooleanVar(value=field.optional if field else False)
-        ttk.Checkbutton(main, text="Optional", variable=self._optional_var).grid(
-            row=row, column=0, columnspan=2, sticky="w", pady=3
-        )
-        row += 1
-
-        self._spec_frame = ttk.LabelFrame(main, text="Spezifikation", padding=8)
-        self._spec_frame.grid(
-            row=row, column=0, columnspan=2, sticky="ew", pady=(8, 3)
-        )
-        self._spec_frame.columnconfigure(1, weight=1)
-        self._spec_row = row
-        row += 1
-
-        ttk.Label(self._spec_frame, text="Zielwert:").grid(
-            row=0, column=0, sticky="w", pady=2
-        )
-        self._target_var = tk.StringVar(
-            value=str(field.spec_target) if field and field.spec_target is not None else ""
-        )
-        ttk.Entry(self._spec_frame, textvariable=self._target_var, width=15).grid(
-            row=0, column=1, sticky="w", pady=2
-        )
-
-        ttk.Label(self._spec_frame, text="Minimum:").grid(
-            row=1, column=0, sticky="w", pady=2
-        )
-        self._min_var = tk.StringVar(
-            value=str(field.spec_min) if field and field.spec_min is not None else ""
-        )
-        ttk.Entry(self._spec_frame, textvariable=self._min_var, width=15).grid(
-            row=1, column=1, sticky="w", pady=2
-        )
-
-        ttk.Label(self._spec_frame, text="Maximum:").grid(
-            row=2, column=0, sticky="w", pady=2
-        )
-        self._max_var = tk.StringVar(
-            value=str(field.spec_max) if field and field.spec_max is not None else ""
-        )
-        ttk.Entry(self._spec_frame, textvariable=self._max_var, width=15).grid(
-            row=2, column=1, sticky="w", pady=2
-        )
-
-        self._options_frame = ttk.LabelFrame(main, text="Optionen", padding=8)
-        self._options_frame.grid(
-            row=row, column=0, columnspan=2, sticky="ew", pady=(8, 3)
-        )
-        self._options_frame.columnconfigure(0, weight=1)
-        self._options_row = row
-        row += 1
-
-        self._options_listbox = tk.Listbox(
-            self._options_frame,
-            height=4,
-            font=FONTS["body"],
-            bg=COLORS["background"],
-            fg=COLORS["text_primary"],
-            relief="solid",
-            borderwidth=1,
-        )
-        self._options_listbox.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-
-        if field and field.options:
-            for opt in field.options:
-                self._options_listbox.insert(tk.END, opt)
-
-        opt_input_frame = ttk.Frame(self._options_frame)
-        opt_input_frame.grid(row=1, column=0, sticky="ew")
-        opt_input_frame.columnconfigure(0, weight=1)
-
-        self._new_option_var = tk.StringVar()
-        opt_entry = ttk.Entry(
-            opt_input_frame, textvariable=self._new_option_var, width=20
-        )
-        opt_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        opt_entry.bind("<Return>", lambda e: self._add_option())
-
-        ttk.Button(
-            opt_input_frame, text="Hinzufügen", command=self._add_option
-        ).grid(row=0, column=1, padx=2)
-        ttk.Button(
-            opt_input_frame, text="Entfernen", command=self._remove_option
-        ).grid(row=0, column=2, padx=2)
-
-        btn_frame = ttk.Frame(main)
-        btn_frame.grid(row=row, column=0, columnspan=2, pady=(15, 0), sticky="e")
-
-        ttk.Button(btn_frame, text="Abbrechen", command=self._cancel).pack(
-            side="left", padx=(0, 10)
-        )
-        ttk.Button(
-            btn_frame, text="Speichern", style="Accent.TButton", command=self._save
-        ).pack(side="left")
-
-        self._on_type_changed()
-
-    def _on_type_changed(self) -> None:
-        typ = self._type_var.get()
-        if typ == "number":
-            self._spec_frame.grid()
-        else:
-            self._spec_frame.grid_remove()
-
-        if typ == "choice":
-            self._options_frame.grid()
-        else:
-            self._options_frame.grid_remove()
-
-    def _add_option(self) -> None:
-        val = self._new_option_var.get().strip()
-        if val:
-            self._options_listbox.insert(tk.END, val)
-            self._new_option_var.set("")
-
-    def _remove_option(self) -> None:
-        sel = self._options_listbox.curselection()
-        if sel:
-            self._options_listbox.delete(sel[0])
-
-    def _save(self) -> None:
-        fid = self._id_var.get().strip()
-        fname = self._name_var.get().strip()
-
-        if not fid:
-            messagebox.showwarning("Fehler", "ID darf nicht leer sein.", parent=self)
-            return
-        if not fname:
-            messagebox.showwarning(
-                "Fehler", "Anzeigename darf nicht leer sein.", parent=self
-            )
-            return
-
-        ftype = self._type_var.get()
-        frole = self._role_var.get()
-        persistent = self._persistent_var.get()
-        optional = self._optional_var.get()
-
-        spec_target = self._parse_float(self._target_var.get())
-        spec_min = self._parse_float(self._min_var.get())
-        spec_max = self._parse_float(self._max_var.get())
-
-        options = None
-        if ftype == "choice":
-            options = list(self._options_listbox.get(0, tk.END))
-            if not options:
-                messagebox.showwarning(
-                    "Fehler",
-                    "Choice-Feld braucht mindestens eine Option.",
-                    parent=self,
-                )
-                return
-
-        field = FieldDef(
-            id=fid,
-            display_name=fname,
-            type=ftype,
-            role=frole,
-            persistent=persistent,
-            spec_target=spec_target if ftype == "number" else None,
-            spec_min=spec_min if ftype == "number" else None,
-            spec_max=spec_max if ftype == "number" else None,
-            options=options,
-            optional=optional,
-        )
-
-        self._on_save(field)
-        self.destroy()
-
-    def _cancel(self) -> None:
-        self.destroy()
-
-    @staticmethod
-    def _parse_float(s: str) -> float | None:
-        s = s.strip()
-        if not s:
-            return None
-        try:
-            return float(s)
-        except ValueError:
-            return None

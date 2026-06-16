@@ -158,23 +158,31 @@ class ReviewDialog(tk.Toplevel):
             )
 
         self.title("Prüfen und Senden")
-
-        if self._is_multi:
-            row_count = len(self.shared_values) + sum(
-                len(nv) for nv in self.nutzen_values
-            )
-            height = min(1100, 480 + row_count * 26)
-        else:
-            height = min(1100, 480 + len(self.raw_values) * 30)
-        self.geometry(f"720x{height}")
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
 
         self._build_ui()
+        self._fit_to_content()
 
         self.focus_set()
         self.protocol("WM_DELETE_WINDOW", self._cancel)
+
+    def _fit_to_content(self) -> None:
+        """Fenster an den Inhalt anpassen, auf die Bildschirmgröße begrenzen und
+        zentrieren. Der Messwerte-Bereich scrollt — so bleiben Zusammenfassung
+        und der Senden-Button immer sichtbar (nicht mehr unten abgeschnitten)."""
+        self.update_idletasks()
+        req_w = max(720, self.winfo_reqwidth())
+        req_h = self.winfo_reqheight()
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        w = min(req_w, screen_w - 80)
+        h = min(req_h, screen_h - 100)
+        x = max(0, (screen_w - w) // 2)
+        y = max(0, (screen_h - h) // 2 - 20)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(560, 360)
 
     def _has_errors(self) -> bool:
         if self._is_multi:
@@ -233,7 +241,7 @@ class ReviewDialog(tk.Toplevel):
     def _build_ui(self) -> None:
         self.configure(bg=COLORS["background"])
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(3, weight=1, minsize=200)
+        self.rowconfigure(3, weight=1, minsize=140)
 
         info_frame = ttk.LabelFrame(self, text="Prozess", padding=10)
         info_frame.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="ew")
@@ -297,6 +305,12 @@ class ReviewDialog(tk.Toplevel):
                 scroll_frame, self.raw_values, self.field_defs or [],
                 self.validation,
             )
+
+        # Messwerte-Bereich an den Inhalt anpassen (bis zu einem Maximum),
+        # darüber hinaus scrollen — damit Zusammenfassung und Senden-Button
+        # immer ins Fenster passen.
+        scroll_frame.update_idletasks()
+        canvas.configure(height=min(scroll_frame.winfo_reqheight(), 380))
 
         oos_blocked = self._oos_without_remark()
         if oos_blocked:

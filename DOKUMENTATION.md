@@ -16,11 +16,14 @@ QAInput/
 |-- QUESTALPHA_StaticLogo_pos_rgb.png  Logo für die Kopfleiste
 |-- build_exe.spec                  PyInstaller Build-Konfiguration
 |-- data/
-|   |-- app_config.json             Globale Einstellungen (Schichten, Ausgabeverzeichnis)
+|   |-- app_config.json             Globale Einstellungen (Schichten, Freigabepflicht)
+|   |-- process_templates/          Kanonische Feldstruktur je Operation (8 Dateien)
+|   |   |-- Vorschneiden.json, Schaelen.json, ... (eine je Operation)
 |   |-- products/
-|   |   |-- REF31962.json           Sugi Instrument Wipe, 80×80 mm, 250 Stk.
-|   |   |-- REF31963.json           Sugi Instrument Wipe Xtra, 80×80 mm, 250 Stk.
-|   |   |-- (weitere Produkte...)
+|   |   |-- <REF>.json              Dünne Produkt-Configs (template + active_fields + overrides)
+|   |   |-- freigaben.json          Freigabe-Manifest (Vier-Augen, Hash-gebunden)
+|   |-- vorlagen/
+|   |   |-- freigabedokument.docx   (optional) Word-Vorlage fürs Freigabedokument
 |   |-- users.kv                    Benutzerliste (Passwort, QR-Code, Name)
 |-- src/
 |   |-- audit/
@@ -97,21 +100,17 @@ Admin-Benutzer (gekennzeichnet durch `admin=true` in `users.kv`) bekommen in der
 
 ### Produktkonfigurations-Editor
 
-Der Editor erlaubt Admins, Produkte ohne manuelles JSON-Editieren zu verwalten:
+Der Editor ist seit v1.9.0 **template-basiert**: Feld-IDs kommen immer aus einem gewählten Operation-Template, nicht mehr per Freitext. So verwalten Admins Produkte ohne manuelles JSON-Editieren und ohne Tippfehler:
 
-- **Produkt laden/neu/kopieren** -- Bestehende Produkte aus der Dropdown-Liste laden, neue anlegen, oder ein bestehendes als Vorlage kopieren
-- **Prozesse verwalten** -- Prozesse hinzufügen, entfernen und umsortieren. Jeder Prozess hat eine Template-ID, einen Anzeigenamen und eine optionale Zeilengruppe
-- **Felder bearbeiten** -- Per Doppelklick oder "Bearbeiten"-Button öffnet sich ein Dialog mit allen Feldeigenschaften:
-  - ID und Anzeigename
-  - Typ (Text, Zahl, Auswahl)
-  - Rolle (Kontext, Messwert, Auto)
-  - Persistent und Optional Flags
-  - Spezifikationsgrenzen (Min/Max/Zielwert) für Zahlenfelder
-  - Optionsliste für Auswahl-Felder
-- **Ausgabeverzeichnis** -- Pro Produkt ein eigenes Ausgabeverzeichnis setzen
-- **Speichern** -- Validiert die Konfiguration (Pflichtfelder, doppelte IDs, Spec-Grenzen) und schreibt die JSON-Datei. Danach ist das Produkt sofort in der Produkt/Prozess-Auswahl verfügbar
+- **Neu (Assistent)** -- Geführte Neuanlage: Produkt-ID + Anzeigename + Ausgabeverzeichnis, danach beliebig viele Prozessschritte (je Operation-Template wählen, Felder ankreuzen, Specs setzen). Der Assistent übergibt das fertige Produkt an den normalen Speicherpfad.
+- **Laden / Kopieren** -- Bestehende dünne Produkte aus der Dropdown-Liste laden oder kopieren. Alte Voll-Feld-Configs ohne Template werden **blockiert** (per Assistent neu anlegen).
+- **Prozesse verwalten** -- Hinzufügen (Operation wählen), entfernen, umsortieren. Pro Prozess: Operation (Template), `template_id` (Excel-/Resume-Schlüssel, mit Warnung gegen spätere Änderung), Anzeigename, optionale Zeilengruppe (Nutzen).
+- **Feld-Checkliste** -- Alle Template-Felder als Checkliste; anhaken = aktiv, Reihenfolge = Excel-Spaltenreihenfolge. Vorausgewählt sind nur die Pflicht-Standardfelder (Kopf-Felder, Auto-Felder, Bemerkungen). Spec-Grenzen (Min/Soll/Max) werden **inline** in der Zeile gesetzt; seltenere Abweichungen (Anzeigename, group_shared, Default, Optional, info_header, Optionen) über den **Bearbeiten**-Dialog je Feld. Typ und Rolle sind durch das Template fix.
+- **Eigenes Feld hinzufügen…** -- Produktunike Felder mit voller Definition (freie ID + alle Attribute) → werden als `extra_fields` gespeichert.
+- **Freigabe-Badge** -- Zeigt oben den Freigabe-Status (grün freigegeben / orange geändert / grau nicht freigegeben); die Freigabe-Buttons sind kontextabhängig aktiv.
+- **Speichern** -- Validiert (Pflichtfelder, doppelte IDs, Spec-Grenzen, mindestens ein echter Messwert, Bemerkungen-Pflicht, Template vorhanden, eindeutige `template_id`), erhöht die Revision, verlangt eine Änderungsbeschreibung und schreibt die JSON-Datei dünn (atomar).
 
-Die gespeicherten JSON-Dateien können per USB-Stick auf andere Rechner verteilt werden -- einfach in den `data/products/`-Ordner kopieren.
+Die gespeicherten JSON-Dateien gehören mit `data/process_templates/` zusammen (dünne Configs lösen gegen die Templates auf) -- beide zusammen verteilen.
 
 ---
 
@@ -411,10 +410,13 @@ Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Lässt ein
 
 Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Enthält zwei Klassen:
 
-- **ConfigEditorView** -- Der Haupteditor mit Produkt-Auswahl, Prozessliste und Felder-Tabelle
-- **FieldEditorDialog** -- Modaler Dialog zum Bearbeiten eines einzelnen Feldes (Typ, Rolle, Spec-Limits, Optionen, Flags)
+- **ConfigEditorView** -- Der Haupteditor mit Produkt-Auswahl, Prozessliste und Freigabe-Badge
+- **ProcessEditorPanel** -- Geteilte Per-Prozess-Komponente (Editor + Assistent): Operation-Dropdown, `template_id`, Feld-Checkliste mit Inline-Specs
+- **FieldOverrideDialog** -- Override-Editor für ein Template-Feld (Anzeigename, group_shared, Default, Optional, info_header, Optionen; Typ/Rolle fix)
+- **FieldEditorDialog** -- Voll-Editor für produktunike Felder (`extra_fields`): freie ID + alle Attribute inkl. Datum-Typ
+- **NewProductWizard** -- Geführte Neuanlage neuer Produkte
 
-Der Editor validiert die Konfiguration vor dem Speichern und aktualisiert die App-Konfiguration sofort nach dem Schreiben.
+Die nicht-triviale Logik liegt Tk-frei in `src/config/config_editing.py` (unit-getestet). Der Editor validiert vor dem Speichern, schreibt dünn zurück und aktualisiert die App-Konfiguration sofort nach dem Schreiben.
 
 ---
 
@@ -442,7 +444,8 @@ Testet das komplette Konfigurationssystem:
 - Feld-Filterfunktionen (context/persistent/measurement/auto)
 - Schichtbestimmung zu verschiedenen Uhrzeiten (auch Mitternachts-Übergang)
 - JSON-Laden mit Defaults und Sonderoptionen (row_group_size, output_dir)
-- Laden der echten REF31962-Konfiguration als Integrationstest
+- Template-Auflösung dünner Configs + Multi-Nutzen-Erkennung (`is_multi_nutzen`)
+- Stand: ~200 Tests gesamt (alle Suiten zusammen), alle grün
 
 ### test_config_writer.py (26 Tests)
 
@@ -457,15 +460,16 @@ Testet Serialisierung und Validierung:
 Testet die Excel-Erstellung:
 - Dateinamengenerierung
 - Datumszuordnung für Nachtschicht
-- Datei erstellen mit korrekter Kopfzeile in Zeile 6
-- Info-Header schreiben (Zeilen 1-5)
+- Datei erstellen mit korrekter Kopfzeile in Zeile 9
+- Info-Header schreiben (Zeilen 1-12)
 - Bestehende Dateien finden
-- Datenzeilen zählen (für Resume)
+- Datenzeilen zählen (für Resume; wirft bei Lesefehlern)
+- Atomares Schreiben + Header-Validierung (`test_writer.py`)
 
 ### test_writer.py (6 Tests)
 
 Testet das Schreiben von Messwerten:
-- Zeile wird angehängt (ab Zeile 7)
+- Zeile wird angehängt (ab Zeile 10)
 - Werte landen in der richtigen Spalte
 - Zwei aufeinanderfolgende Schreibvorgänge
 - Fehlerbehandlung bei fehlender Datei

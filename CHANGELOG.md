@@ -1,5 +1,25 @@
 # Versionshistorie – QAInput
 
+## v1.9.0 – 2026-06-16
+
+### Neu
+- **Config-Editor komplett template-basiert neu** – Der Admin-Editor ist um das dünne Template-Modell herum neu gebaut. Pro Prozess wird eine **Operation (Template) per Dropdown** gewählt; die Felder erscheinen als **Checkliste** mit den IDs aus dem Template — **kein Freitext mehr für Feld-IDs** (Tippfehler-Quelle beseitigt). Spec-Grenzen (min/soll/max) werden **inline in der Zeile** gesetzt, seltenere Overrides (Anzeigename, group_shared, default, optional, machine_scoped, info_header, Optionen) über einen kleinen Bearbeiten-Dialog; Typ/Rolle bleiben fix aus dem Template. Reihenfolge der angehakten Felder = Excel-Spaltenreihenfolge
+- **Assistent für neue Produkte** – „Neu (Assistent)" führt durch Produktkopf + beliebig viele Prozessschritte (je Template wählen, Felder ankreuzen, Specs setzen). Speichert nicht selbst, sondern übergibt an den normalen Speicherpfad (eine GMP-Code-Bahn: Änderungsbeschreibung, Revision, Audit)
+- **Vorauswahl = nur Pflicht-Standard** – Beim Wählen eines Templates sind nur die vier Kopf-Felder (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel), die Auto-Felder und Bemerkungen vorausgewählt. Messwerte und optionale Kontextfelder hakt der Admin bewusst dazu
+- **Eigene (produktunike) Felder** – „Eigenes Feld hinzufügen…" öffnet einen Voll-Editor (freie ID, alle Attribute) → wird als `extra_fields` gespeichert. Kollision mit Template-IDs wird verhindert
+- **Freigabe-Status sichtbar + geführt** – Prominentes Status-Badge (grün „freigegeben" / orange „geändert seit Freigabe" / grau „nicht freigegeben") für das geladene Produkt; die Buttons „Freigabedokument erzeugen…"/„Freigabe erfassen…" sind nur bei gespeichertem Stand aktiv, mit Nächster-Schritt-Hinweis
+- **Neues Tk-freies Logikmodul `src/config/config_editing.py`** – `default_active_ids`, `is_legacy_product`, `seed_process_from_template`, `apply_template_change`, `validate_editor_product` — unit-testbar ohne Tkinter. 21 neue Tests (`test_config_editing.py`, `test_editor_roundtrip.py`)
+
+### Geändert
+- **Operation-Wechsel eines Prozesses** meldet wegfallende Felder vor dem Entfernen (Bestätigung); Extra-Felder und in beiden Templates vorhandene Felder bleiben samt Overrides erhalten; `template_id` wird nur neu vorgeschlagen, wenn er nicht manuell gesetzt wurde
+- **`template_id`-Vergabe** schlägt `IPC<n>_<Operation>` vor (editierbar) mit deutlicher Warnung, dass eine spätere Änderung Resume/Spaltenmapping bricht
+- **Zusätzliche Editor-Validierung vor dem Speichern** – je Prozess mindestens ein echter Messwert (Bemerkungen zählt nicht), Bemerkungen-Pflichtfeld, gewähltes/vorhandenes Template, eindeutige `template_id` über alle Prozesse; nicht-numerische Inline-Specs blockieren das Speichern
+- **Template-Revisions-Drift sichtbar** – Beim Laden weist der Editor darauf hin, wenn ein Template seit dem letzten Speichern aktualisiert wurde (beim nächsten Speichern wird gegen die neue Revision aufgelöst)
+
+### Entfernt / blockiert
+- **Legacy-Voll-Configs (ohne Template) werden beim Laden hart geblockt** – klare Meldung mit Verweis auf den Assistenten; Kopieren von Legacy ebenfalls gesperrt. Die dünne Form ist damit der einzige Bearbeitungspfad
+- Das Datenmodell, der dünne Write-Back (`config_writer`) und die Freigabe-Logik bleiben **unverändert** — Acid-Roundtrip (resolve(save(load)) == load) weiterhin 0 Abweichungen
+
 ## v1.8.0 – 2026-06-15
 
 ### Neu
