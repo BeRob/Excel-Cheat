@@ -39,6 +39,7 @@ def default_active_ids(tpl: ProcessTemplate) -> list[str]:
     for f in tpl.fields:
         if (
             (f.role == "context" and f.info_header)
+            or f.role == "identifier"
             or f.role == "auto"
             or f.id == "bemerkungen"
         ):
@@ -173,5 +174,13 @@ def validate_editor_product(
 
         if not any(f.id == "bemerkungen" for f in proc.fields):
             errors.append(f"{prefix}: Feld 'Bemerkungen' fehlt (Pflicht).")
+
+        # Clone-Felder (je Nutzen/Bahn wiederholt) brauchen eine Max-/Default-
+        # Nutzenzahl, aus der der Bediener beim Start 1..Max wählt.
+        if any(f.clone for f in proc.fields) and not proc.row_group_size:
+            errors.append(
+                f"{prefix}: Es gibt Felder mit 'clone' (je Nutzen/Bahn), aber "
+                "keine Standard-/Max-Anzahl Nutzen gesetzt."
+            )
 
     return errors

@@ -47,7 +47,7 @@ Schaelen, Stanzen, Schneiden, Packliste, Ausschussplatten, Probenfertigung.
 | `active_fields` | Liste von Feld-ids | ✔ (dünn) | **Auswahl UND Reihenfolge** der Felder = Excel-Spaltenreihenfolge. Jede id muss im Template oder in `extra_fields` existieren, sonst Ladefehler |
 | `field_overrides` | object | – | Je Feld-id ein Objekt mit abweichenden Attributen (nur die Keys aus Abschnitt 3, typisch `spec_min`/`spec_max`/`spec_target`). Overrides für ids außerhalb `active_fields` sind wirkungslos |
 | `extra_fields` | Liste von Feld-Objekten | – | Produktunike Felder mit **voller** Definition (Abschnitt 3) |
-| `row_group_size` | int | – | Bahnen/Nutzen je Messung (mehrere Zeilen). Multi-Nutzen-Modus aktiviert, sobald `row_group_size` gesetzt ist UND es ein wiederholbares Messfeld gibt — ein `group_shared`-Messfeld **oder** ein pro-Nutzen-Messfeld (z. B. nur `breite` je Bahn). Fest pro Produkt; weglassen = einzeilig |
+| `row_group_size` | int | – | **Standard-/Max-Anzahl Nutzen/Bahnen** je Messung. Der Bediener wählt beim Prozessstart 1..Max; beim Fortsetzen wird die Anzahl aus der Datei gelesen. Multi-Nutzen (Wide-Format) ist aktiv, sobald mind. ein Feld `clone: true` ist — clone-Felder verlangen einen `row_group_size`-Wert. Weglassen = einzeilig |
 | `template_revision` | int | – | Rein informativ in der Datei — beim Laden gilt immer die Revision der Template-Datei |
 
 ### Prozess (Legacy — nur noch für Alt-/Sonderfälle)
@@ -65,14 +65,14 @@ durchgereicht. Neue Configs bitte immer dünn anlegen.
 | `id` | string | Pflicht | Technischer Schlüssel (klein, snake_case). Einige ids haben **Sonderverhalten** — siehe Abschnitt 4! |
 | `display_name` | string | Pflicht | Anzeigename = **Excel-Spaltenkopf** (Zeile 9). Ändern bricht das Spalten-Mapping bestehender Dateien nicht (Header-basiert), aber neue und alte Spalte koexistieren dann |
 | `type` | `text` \| `number` \| `choice` \| `date` | `text` | `number` → Dezimal-Validierung + Spec-Prüfung; `choice` → Dropdown (braucht `options`); `date` → Eingabe + 📅-Kalender |
-| `role` | `context` \| `measurement` \| `auto` | `measurement` | `context` = Rahmendaten, `measurement` = Messwert, `auto` = systemgeneriert (Abschnitt 4) |
+| `role` | `context` \| `identifier` \| `measurement` \| `auto` | `measurement` | `context` = Rahmendaten, `identifier` = Zeilen-Kennung (Rollen-Nr./Bahn/Lfd. Nr. — wie Kontext erfasst, als Spalte geschrieben, nie geklont), `measurement` = Messwert, `auto` = systemgeneriert (Abschnitt 4) |
 | `persistent` | bool | false | Nur bei `role: context`: Wert gilt für die ganze Sitzung (ContextView „Feste Werte"); false = je Messung neu („Gemeinsame Werte") |
 | `spec_min` / `spec_max` | Zahl | – | Spezifikationsgrenzen (nur `number`). Verletzung ⇒ Out-of-Spec-Gate: Senden nur mit echter Bemerkung |
 | `spec_target` | Zahl | – | Sollwert (Anzeige/Doku, keine Prüfung) |
 | `options` | Liste von strings | – | Pflicht bei `choice` (z.B. `["Ja", "Nein"]`) |
 | `optional` | bool | false | true = darf leer bleiben. **false + leer = Fehler, blockiert das Senden** (seit v1.6.0) |
 | `default_value` | string | – | Vorbelegung beim Laden und nach jedem Speichern (z.B. `"n/a"` für Bemerkungen) |
-| `group_shared` | bool | false | Messfeld gilt für alle Nutzen gemeinsam (Multi-Nutzen, z.B. Schälspalt) |
+| `clone` | bool | false | `true` = Feld wird je Nutzen/Bahn wiederholt und erzeugt im Wide-Format **je Nutzen eine eigene Spalte** („Breite Bahn 1", „Breite Bahn 2" …). `false` = einmal je Messung (gemeinsam, z. B. Schälspalt). Löst `group_shared` ab (invertiert: altes `group_shared: true` == `clone: false`); Alt-Configs werden beim Laden automatisch umgesetzt |
 | `info_header` | bool | false | Feld wandert in den Excel-Info-Block (Zeilen 2–12, Spalten C/D) statt als Spalte; im Formular read-only in der Kopfleiste mit ✎ |
 | `machine_scoped` | bool | false | Kontextfeld, dessen Wert je Maschine gemerkt wird — braucht ein `choice`-Feld mit `id: "maschine"` im selben Prozess |
 
@@ -86,14 +86,15 @@ durchgereicht. Neue Configs bitte immer dünn anlegen.
 |---|---|
 | id `datum` (role auto) | App schreibt Zeitstempel `YYYY-MM-DD HH:MM:SS` beim Speichern |
 | id `bearbeiter` (role auto) | App schreibt den Anzeigenamen des angemeldeten Benutzers |
-| id `nutzen` (role auto) | Laufende Bahn-/Nutzen-Nr. innerhalb der Zeilengruppe (braucht `row_group_size`). `display_name` frei wählbar (z. B. „Bahn" bei Vorschneiden/Schneiden, „Nutzen" bei Schälen) — die Auto-Zählung hängt an der id `nutzen` |
+| id `nutzen` (role auto) | Liefert im Wide-Format die **Nutzen-Bezeichnung** für die Spaltennamen (`display_name` z. B. „Bahn" → „Breite Bahn 1"; „Nutzen" bei Schälen). Wird selbst **nicht** als eigene Spalte geschrieben |
 | id `pruefmuster`, `beutel_nr` (role auto) | Fortlaufende Nummer **je Datei** (läuft beim Fortsetzen weiter; Rollback bei Schreibfehler) |
 | id `karton` (role auto) | `(beutel_nr − 1) // 20 + 1` — das Sequenz-Feld muss in der Feldreihenfolge **vor** `karton` stehen |
 | id `messmittel` (context, info_header) | Komma-getrennte Eingabe wird im Excel-Info-Block auf mehrere Zeilen verteilt |
 | id `bemerkungen` | Ziel des Out-of-Spec-Gates (Platzhalter `n/a`, `-`, `—` … zählen als leer). Empfehlung: `optional: true`, `default_value: "n/a"` — **jeder Prozess braucht dieses Feld** |
 | id `maschine` (choice) | Anker für `machine_scoped`-Felder („Aktive Rolle pro Maschine") |
-| id `rolle_bahn_nutzen` (context) | Konvention ab Schälen: ersetzt die einfache „Rollen Nr." durch den Identifier „Rollen Nr. / Bahn / Nutzen" (display_name) |
-| id `lfd_nr` (context) | Manuelles Eingabefeld (kein Auto-Zähler), pro Rolle; nur Produkte, die es in `active_fields` aufnehmen |
+| id `rollen_nr` (role identifier) | Reine Rollennummer als eigene Kennung; wahlweise neben oder statt `rolle_bahn_nutzen` |
+| id `rolle_bahn_nutzen` (role identifier) | Konvention ab Schälen: zusammengesetzte Kennung „Rollen Nr. / Bahn / Nutzen" (display_name) |
+| id `lfd_nr` (role identifier) | Manuelles Eingabefeld (kein Auto-Zähler), pro Rolle; nur Produkte, die es in `active_fields` aufnehmen |
 | ids `schichtdicke` / `schichtdicke_anfang_links` … | Ein Messwert je Nutzen; Produkte mit Positionsmessung nehmen stattdessen die Anfang/Ende-links/rechts-Varianten. nass/trocken = Produkt-Eigenschaft (display_name-Override), kein eigenes Feld |
 | display_name `FA-Nr.`, `LOT Nr.`, `Verwendbarkeitsdatum` | Werden beim Prozesswechsel als „carried values" vorgetragen — exakt diese Schreibweise verwenden |
 | `FA-Nr.` + `LOT Nr.` | Bestandteil des Excel-Dateinamens und des Resume-Schlüssels |

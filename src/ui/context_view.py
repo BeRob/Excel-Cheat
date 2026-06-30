@@ -12,6 +12,9 @@ from src.config.process_config import (
     get_info_header_fields,
     get_all_headers,
     get_measurement_fields,
+    is_multi_nutzen,
+    get_nutzen_label,
+    read_nutzen_count_from_file,
 )
 from src.excel.creator import (
     find_existing_file,
@@ -32,6 +35,9 @@ class ContextView(BaseView):
         self._field_entries: list[tk.Widget] = []
         self._pending_file = None
         self._is_resume: bool = False
+        self._nutzen_var: tk.IntVar | None = None
+        self._nutzen_buttons: list[tk.Widget] = []
+        self._nutzen_locked_label: ttk.Label | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -60,18 +66,23 @@ class ContextView(BaseView):
         self.no_fields_label.grid(row=3, column=0, padx=40, pady=5)
         self.no_fields_label.grid_remove()
 
+        # Anzahl Nutzen/Bahnen (nur bei Multi-Nutzen-Prozessen) — einmal je Datei.
+        self.nutzen_frame = ttk.LabelFrame(self, text="Anzahl Nutzen/Bahnen", padding=10)
+        self.nutzen_frame.grid(row=4, column=0, pady=(0, 5))
+        self.nutzen_frame.grid_remove()
+
         self.file_status_label = ttk.Label(self, text="")
-        self.file_status_label.grid(row=4, column=0, pady=(0, 5))
+        self.file_status_label.grid(row=5, column=0, pady=(0, 5))
 
         self.next_btn = ttk.Button(
             self, text="Weiter zur Messung", command=self._go_next,
             style="Accent.TButton",
         )
-        self.next_btn.grid(row=5, column=0, pady=15)
+        self.next_btn.grid(row=6, column=0, pady=15)
 
         # Navigations-Leiste am unteren Fensterrand
         nav_bar = ttk.Frame(self)
-        nav_bar.grid(row=6, column=0, sticky="ew", padx=10, pady=(0, 10))
+        nav_bar.grid(row=7, column=0, sticky="ew", padx=10, pady=(0, 10))
         nav_bar.columnconfigure(0, weight=1)
 
         nav_right = ttk.Frame(nav_bar)
@@ -101,6 +112,7 @@ class ContextView(BaseView):
         self._is_resume = False
         self.file_status_label.config(text="")
 
+        self._setup_nutzen_selector()
         self._generate_fields()
 
     def _generate_fields(self) -> None:
@@ -170,6 +182,60 @@ class ContextView(BaseView):
 
         self._on_field_changed()
 
+    def _setup_nutzen_selector(self) -> None:
+        """Baut den Anzahl-Nutzen-Wähler bei Multi-Nutzen-Prozessen (Wide-Format).
+
+        Die Anzahl wird je Datei einmal festgelegt; beim Fortsetzen einer
+        bestehenden Datei wird sie aus den Spaltenköpfen gelesen und gesperrt."""
+        for w in self.nutzen_frame.winfo_children():
+            w.destroy()
+        self._nutzen_var = None
+        self._nutzen_buttons = []
+        self._nutzen_locked_label = None
+
+        process = self.app_state.selected_process
+        if not process or not is_multi_nutzen(process):
+            self.nutzen_frame.grid_remove()
+            return
+
+        self.nutzen_frame.grid()
+        label = get_nutzen_label(process)
+        self.nutzen_frame.config(text=f"Anzahl {label}/Nutzen")
+        max_n = process.row_group_size or 1
+        self._nutzen_var = tk.IntVar(value=max_n)
+        for n in range(1, max_n + 1):
+            rb = ttk.Radiobutton(
+                self.nutzen_frame, text=str(n), variable=self._nutzen_var, value=n,
+            )
+            rb.pack(side="left", padx=8)
+            self._nutzen_buttons.append(rb)
+        self._nutzen_locked_label = ttk.Label(
+            self.nutzen_frame, text="", foreground=COLORS["accent"],
+        )
+        self._nutzen_locked_label.pack(side="left", padx=(12, 0))
+
+    def _lock_nutzen_for_resume(self, existing_file) -> None:
+        """Sperrt den Wähler beim Fortsetzen und liest die Anzahl aus der Datei."""
+        if self._nutzen_var is None:
+            return
+        process = self.app_state.selected_process
+        try:
+            n = read_nutzen_count_from_file(existing_file, process)
+        except Exception:
+            n = self._nutzen_var.get()
+        self._nutzen_var.set(n)
+        for rb in self._nutzen_buttons:
+            rb.configure(state="disabled")
+        if self._nutzen_locked_label is not None:
+            self._nutzen_locked_label.config(text=f"aus Datei übernommen: {n}")
+
+    def _unlock_nutzen(self) -> None:
+        """Gibt den Wähler frei (neue Datei)."""
+        for rb in self._nutzen_buttons:
+            rb.configure(state="normal")
+        if self._nutzen_locked_label is not None:
+            self._nutzen_locked_label.config(text="")
+
     def _on_field_changed(self, *_) -> None:
         self._check_fields()
         self._check_file_status()
@@ -195,6 +261,7 @@ class ContextView(BaseView):
             self.file_status_label.config(text="", style="TLabel")
             self._pending_file = None
             self._is_resume = False
+            self._unlock_nutzen()
             return
 
         existing = find_existing_file(
@@ -211,6 +278,7 @@ class ContextView(BaseView):
             )
             self._pending_file = existing
             self._is_resume = True
+            self._lock_nutzen_for_resume(existing)
         else:
             self.file_status_label.config(
                 text="＋  Neue Datei wird erstellt",
@@ -218,6 +286,7 @@ class ContextView(BaseView):
             )
             self._pending_file = None
             self._is_resume = False
+            self._unlock_nutzen()
 
     def _go_next(self) -> None:
         self.app_state.persistent_values = {
@@ -239,6 +308,27 @@ class ContextView(BaseView):
             if self.app_state.current_user else None
         )
 
+        # Anzahl Nutzen/Bahnen je Datei festlegen (Wide-Format). Beim Fortsetzen
+        # aus der Datei lesen, sonst aus dem Wähler.
+        if is_multi_nutzen(process):
+            if self._pending_file and self._pending_file.exists():
+                try:
+                    self.app_state.nutzen_count = read_nutzen_count_from_file(
+                        self._pending_file, process
+                    )
+                except Exception:
+                    self.app_state.nutzen_count = (
+                        self._nutzen_var.get() if self._nutzen_var
+                        else (process.row_group_size or 1)
+                    )
+            else:
+                self.app_state.nutzen_count = (
+                    self._nutzen_var.get() if self._nutzen_var
+                    else (process.row_group_size or 1)
+                )
+        else:
+            self.app_state.nutzen_count = 1
+
         if self._pending_file and self._pending_file.exists():
             filepath = self._pending_file
             file_event = Event.FILE_RESUMED
@@ -250,6 +340,7 @@ class ContextView(BaseView):
                     protection_password=getattr(
                         self.app_state.app_config, "sheet_protection_password", "hexhex"
                     ),
+                    nutzen_count=self.app_state.nutzen_count,
                 )
             except Exception as e:
                 if self.app_state.audit:
@@ -341,13 +432,19 @@ class ContextView(BaseView):
                 user=user_id,
                 file=str(filepath),
                 context=dict(self.app_state.persistent_values),
-                details={"resumed": self._is_resume},
+                details={
+                    "resumed": self._is_resume,
+                    "nutzen_count": self.app_state.nutzen_count,
+                },
             )
             self.app_state.audit.log_event(
                 file_event,
                 user=user_id,
                 file=str(filepath),
-                details={"row_count": row_count},
+                details={
+                    "row_count": row_count,
+                    "nutzen_count": self.app_state.nutzen_count,
+                },
             )
 
         self.on_navigate("form")

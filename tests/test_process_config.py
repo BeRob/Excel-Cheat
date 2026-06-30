@@ -214,14 +214,14 @@ class TestTemplateResolution(unittest.TestCase):
                 "active_fields": ["fa_nr", "schnittkante"],
                 "field_overrides": {
                     "schnittkante": {"display_name": "Schnittkante sauber?",
-                                     "group_shared": True},
+                                     "clone": True},
                 },
             }],
         })
         proc = load_product_config(path, templates).processes[0]
         sk = next(f for f in proc.fields if f.id == "schnittkante")
         self.assertEqual(sk.display_name, "Schnittkante sauber?")
-        self.assertTrue(sk.group_shared)
+        self.assertTrue(sk.clone)
         self.assertEqual(sk.options, ["Ja", "Nein"])  # aus Template übernommen
 
     def test_extra_field_product_unique(self):
@@ -495,7 +495,7 @@ class TestLoadRealConfig(unittest.TestCase):
 
 
 class TestIsMultiNutzen(unittest.TestCase):
-    """Multi-Nutzen aktiviert, sobald row_group_size + etwas Wiederholbares."""
+    """Multi-Nutzen (Wide-Format) aktiviert, sobald ein clone-Feld vorhanden ist."""
 
     def _proc(self, row_group_size, fields):
         from src.config.process_config import ProcessConfig
@@ -504,28 +504,35 @@ class TestIsMultiNutzen(unittest.TestCase):
             fields=fields, row_group_size=row_group_size,
         )
 
-    def _f(self, fid, role="measurement", group_shared=False):
+    def _f(self, fid, role="measurement", clone=False):
         return FieldDef(id=fid, display_name=fid, type="number",
-                        role=role, group_shared=group_shared)
+                        role=role, clone=clone)
 
-    def test_no_row_group_size_never_multi(self):
+    def test_no_clone_field_not_multi(self):
         from src.config.process_config import is_multi_nutzen
         p = self._proc(None, [self._f("breite")])
         self.assertFalse(is_multi_nutzen(p))
 
-    def test_per_nutzen_measurement_activates(self):
-        # Vorschneiden-Fall: einziges Messfeld 'breite' je Bahn, kein group_shared
+    def test_clone_measurement_activates(self):
+        # Vorschneiden-Fall: einziges Messfeld 'breite' je Bahn als clone
         from src.config.process_config import is_multi_nutzen
-        p = self._proc(3, [self._f("breite"), self._f("bemerkungen", "measurement")])
+        p = self._proc(3, [self._f("breite", clone=True),
+                           self._f("bemerkungen", "measurement", clone=True)])
         self.assertTrue(is_multi_nutzen(p))
 
-    def test_group_shared_still_activates(self):
+    def test_clone_independent_of_row_group_size(self):
+        # clone aktiviert auch ohne row_group_size (row_group_size = nur Max/Default)
         from src.config.process_config import is_multi_nutzen
-        p = self._proc(3, [self._f("spalt", group_shared=True)])
+        p = self._proc(None, [self._f("breite", clone=True)])
         self.assertTrue(is_multi_nutzen(p))
 
-    def test_row_group_size_without_measurement_not_multi(self):
-        # row_group_size, aber nur Kontext/Auto -> nichts zu wiederholen
+    def test_shared_measurement_not_multi(self):
+        # nur nicht-geklonte Messwerte -> kein Multi-Nutzen
+        from src.config.process_config import is_multi_nutzen
+        p = self._proc(3, [self._f("spalt")])
+        self.assertFalse(is_multi_nutzen(p))
+
+    def test_only_context_auto_not_multi(self):
         from src.config.process_config import is_multi_nutzen
         p = self._proc(3, [self._f("fa_nr", "context"), self._f("datum", "auto")])
         self.assertFalse(is_multi_nutzen(p))

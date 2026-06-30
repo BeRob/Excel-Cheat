@@ -1,12 +1,15 @@
 {
   "template": "Schneiden",
-  "template_revision": 2,
+  "template_revision": 3,
   "_unification_notes": {
-    "breite": "Hauptmesswert je Bahn — wie Vorschneiden. Anzahl Bahnen je Produkt über row_group_size; eine id 'breite' für alle.",
-    "rollenlaenge": "Pro Rolle (group_shared), nur bei manchen Produkten — via active_fields aufnehmen.",
+    "breite": "Hauptmesswert je Bahn — clone=true: je Nutzen/Bahn eine eigene Spalte ('Breite Bahn 1' …). Anzahl Bahnen wählt der Bediener beim Prozessstart (Max = row_group_size der Produkt-Config).",
+    "rollenlaenge": "Pro Rolle (einmal je Messung, clone=false), nur bei manchen Produkten — via active_fields aufnehmen.",
     "klebestellen": "Anzahl Klebestellen je Rolle; Spec max 10 als Default (per field_override produktweise anpassbar).",
-    "lfd_nr": "Manuelles Eingabefeld pro Rolle (kein Auto-Zähler), optional je Produkt.",
-    "schnittkante": "Schnittkante sauber Ja/Nein, je Bahn."
+    "rollen_nr": "Reine Rollennummer als eigene Kennung (role=identifier). Alternativ das zusammengesetzte rolle_bahn_nutzen verwenden.",
+    "rolle_bahn_nutzen": "Zusammengesetzte Kennung Rolle/Bahn/Nutzen (role=identifier).",
+    "lfd_nr": "Manuelles Eingabefeld pro Rolle (kein Auto-Zähler), Kennung, optional je Produkt.",
+    "schnittkante": "Schnittkante sauber Ja/Nein, je Bahn (clone=true).",
+    "_rollen": "Kennungen (Rollen-Nr./Bahn/Lfd. Nr.) sind role=identifier; ASK ist eine Ja/Nein-Prüfung (role=measurement), kein Kontext."
   },
   "fields": [
     {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
@@ -14,15 +17,16 @@
     {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
     {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
-    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "context"},
-    {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "context"},
-    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
-    {"id": "rollenlaenge", "display_name": "Rollenlänge", "type": "number", "role": "measurement", "group_shared": true},
-    {"id": "klebestellen", "display_name": "Klebestellen", "type": "number", "role": "measurement", "group_shared": true, "spec_max": 10},
+    {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "identifier"},
+    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "identifier"},
+    {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "identifier"},
+    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
+    {"id": "rollenlaenge", "display_name": "Rollenlänge", "type": "number", "role": "measurement"},
+    {"id": "klebestellen", "display_name": "Klebestellen", "type": "number", "role": "measurement", "spec_max": 10},
     {"id": "nutzen", "display_name": "Bahn", "type": "number", "role": "auto"},
-    {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement"},
-    {"id": "schnittkante", "display_name": "Schnittkante sauber", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
-    {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
+    {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "clone": true},
+    {"id": "schnittkante", "display_name": "Schnittkante sauber", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"], "clone": true},
+    {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a", "clone": true},
     {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
     {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto"}
   ]

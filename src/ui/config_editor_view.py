@@ -131,6 +131,8 @@ class ProcessEditorPanel(ttk.Frame):
         self._process: ProcessConfig | None = None
         self._rows: list[_FieldRow] = []
         self._render_refs: list[dict] = []
+        self._row_frames: list[tk.Widget] = []
+        self._drag_from: int | None = None
         self._template_id_manual = False
         self._inline_errors: list[str] = []
         self._build_ui()
@@ -215,11 +217,16 @@ class ProcessEditorPanel(ttk.Frame):
         name_entry.grid(row=3, column=1, sticky="ew", pady=2)
         name_entry.bind("<KeyRelease>", lambda e: self._dirty_cb())
 
-        ttk.Label(head, text="Zeilengruppe (Nutzen):").grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Label(head, text="Standard-/Max-Anzahl Nutzen:").grid(row=4, column=0, sticky="w", pady=2)
         self._rg_var = tk.StringVar()
         rg_entry = ttk.Entry(head, textvariable=self._rg_var, width=8)
         rg_entry.grid(row=4, column=1, sticky="w", pady=2)
         rg_entry.bind("<KeyRelease>", lambda e: self._dirty_cb())
+        ttk.Label(
+            head,
+            text="(Bediener wählt beim Prozessstart 1..Max; nötig für clone-Felder)",
+            foreground=COLORS["text_secondary"],
+        ).grid(row=5, column=1, sticky="w")
 
         toolbar = ttk.Frame(self)
         toolbar.grid(row=1, column=0, sticky="ew", pady=(4, 2))
@@ -292,32 +299,46 @@ class ProcessEditorPanel(ttk.Frame):
         for w in self._rows_frame.winfo_children():
             w.destroy()
         self._render_refs = []
+        self._row_frames = []
 
         for i, row in enumerate(self._rows):
             f = row.field
             rf = ttk.Frame(self._rows_frame)
             rf.grid(row=i, column=0, sticky="ew", pady=1)
-            rf.columnconfigure(4, weight=1)
+            rf.columnconfigure(5, weight=1)
             rf.bind("<MouseWheel>", self._on_wheel)
+            self._row_frames.append(rf)
+
+            # Drag-Griff: per Maus ziehen, um die Feldreihenfolge zu ändern.
+            grip = ttk.Label(rf, text="⠿", foreground=COLORS["text_secondary"], cursor="fleur")
+            grip.grid(row=0, column=0, sticky="w", padx=(0, 4))
+            grip.bind("<ButtonPress-1>", lambda e, idx=i: self._drag_start(idx))
+            grip.bind("<B1-Motion>", self._drag_motion)
+            grip.bind("<ButtonRelease-1>", self._drag_drop)
 
             active_var = tk.BooleanVar(value=row.active)
             ttk.Checkbutton(
                 rf, variable=active_var,
                 command=lambda r=row, v=active_var: self._on_toggle(r, v),
-            ).grid(row=0, column=0, sticky="w")
+            ).grid(row=0, column=1, sticky="w")
 
             id_fg = COLORS["disabled"] if not row.active else COLORS["text_primary"]
             ttk.Label(rf, text=f.id, width=22, foreground=id_fg).grid(
-                row=0, column=1, sticky="w"
+                row=0, column=2, sticky="w"
             )
             ttk.Label(
                 rf, text=f.type, width=8, foreground=COLORS["text_secondary"]
-            ).grid(row=0, column=2, sticky="w")
+            ).grid(row=0, column=3, sticky="w")
             ttk.Label(
                 rf, text=f.role, width=12, foreground=COLORS["text_secondary"]
-            ).grid(row=0, column=3, sticky="w")
-            name_txt = f.display_name + ("  [eigenes]" if row.is_extra else "")
-            ttk.Label(rf, text=name_txt).grid(row=0, column=4, sticky="w")
+            ).grid(row=0, column=4, sticky="w")
+            tags = []
+            if row.is_extra:
+                tags.append("eigenes")
+            if f.clone:
+                tags.append("clone")
+            name_txt = f.display_name + (f"  [{', '.join(tags)}]" if tags else "")
+            ttk.Label(rf, text=name_txt).grid(row=0, column=5, sticky="w")
 
             refs = {
                 "row": row, "active_var": active_var,
@@ -327,31 +348,69 @@ class ProcessEditorPanel(ttk.Frame):
                 min_var = tk.StringVar(value=_fmt_num(f.spec_min))
                 target_var = tk.StringVar(value=_fmt_num(f.spec_target))
                 max_var = tk.StringVar(value=_fmt_num(f.spec_max))
-                for col, var in enumerate((min_var, target_var, max_var), start=5):
+                for col, var in enumerate((min_var, target_var, max_var), start=6):
                     e = ttk.Entry(rf, textvariable=var, width=7)
                     e.grid(row=0, column=col, sticky="w", padx=1)
                     e.bind("<FocusOut>", lambda ev: self._dirty_cb())
                 refs.update(min_var=min_var, target_var=target_var, max_var=max_var)
             else:
-                ttk.Label(rf, text="", width=23).grid(row=0, column=5, columnspan=3)
+                ttk.Label(rf, text="", width=23).grid(row=0, column=6, columnspan=3)
 
             ttk.Button(
                 rf, text="↑", width=2, command=lambda idx=i: self._move_row(idx, -1)
-            ).grid(row=0, column=8, padx=1)
-            ttk.Button(
-                rf, text="↓", width=2, command=lambda idx=i: self._move_row(idx, 1)
             ).grid(row=0, column=9, padx=1)
             ttk.Button(
-                rf, text="Bearbeiten", command=lambda r=row: self._edit_row(r)
+                rf, text="↓", width=2, command=lambda idx=i: self._move_row(idx, 1)
             ).grid(row=0, column=10, padx=1)
+            ttk.Button(
+                rf, text="Bearbeiten", command=lambda r=row: self._edit_row(r)
+            ).grid(row=0, column=11, padx=1)
             if row.is_extra:
                 ttk.Button(
                     rf, text="✕", width=2, command=lambda r=row: self._remove_extra(r)
-                ).grid(row=0, column=11, padx=1)
+                ).grid(row=0, column=12, padx=1)
 
             self._render_refs.append(refs)
 
         self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+
+    # -- Drag & Drop der Feldreihenfolge ----------------------------------- #
+    def _drag_start(self, idx: int) -> None:
+        self._drag_from = idx
+
+    def _drag_motion(self, event) -> None:
+        # Zielzeile optisch hervorheben, solange gezogen wird.
+        if self._drag_from is None:
+            return
+        target = self._row_index_at_pointer()
+        for j, rf in enumerate(self._row_frames):
+            rf.configure(relief="solid" if j == target else "flat", borderwidth=1 if j == target else 0)
+
+    def _drag_drop(self, event) -> None:
+        if self._drag_from is None:
+            return
+        target = self._row_index_at_pointer()
+        src = self._drag_from
+        self._drag_from = None
+        if target is None or target == src:
+            self._render_rows()  # Hervorhebung zurücksetzen
+            return
+        self._harvest()
+        row = self._rows.pop(src)
+        self._rows.insert(target, row)
+        self._render_rows()
+        self._dirty_cb()
+
+    def _row_index_at_pointer(self) -> int | None:
+        """Index der Zeile unter dem Mauszeiger (oder None)."""
+        x = self._rows_frame.winfo_pointerx()
+        y = self._rows_frame.winfo_pointery()
+        w = self._rows_frame.winfo_containing(x, y)
+        while w is not None:
+            if w in self._row_frames:
+                return self._row_frames.index(w)
+            w = getattr(w, "master", None)
+        return None
 
     def _harvest(self) -> None:
         """Liest die aktuellen Widget-Werte in die Zeilen-Wahrheit zurück."""
@@ -508,11 +567,20 @@ class FieldOverrideDialog(tk.Toplevel):
         f = self._field
 
         ttk.Label(
-            m, text=f"ID: {f.id}    Typ: {f.type}    Rolle: {f.role}",
+            m, text=f"ID: {f.id}    Typ: {f.type}",
             style="Subtitle.TLabel",
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
 
         r = 1
+        ttk.Label(m, text="Rolle:").grid(row=r, column=0, sticky="w", pady=3)
+        self._role_var = tk.StringVar(value=f.role)
+        ttk.Combobox(
+            m, textvariable=self._role_var,
+            values=["context", "identifier", "measurement", "auto"],
+            state="readonly", width=15,
+        ).grid(row=r, column=1, sticky="w", pady=3)
+        r += 1
+
         ttk.Label(m, text="Anzeigename:").grid(row=r, column=0, sticky="w", pady=3)
         self._name_var = tk.StringVar(value=f.display_name)
         ttk.Entry(m, textvariable=self._name_var, width=30).grid(
@@ -533,14 +601,12 @@ class FieldOverrideDialog(tk.Toplevel):
         ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
         r += 1
 
-        self._gshared_var = None
-        if f.role == "measurement":
-            self._gshared_var = tk.BooleanVar(value=f.group_shared)
-            ttk.Checkbutton(
-                m, text="group_shared (über alle Nutzen geteilt)",
-                variable=self._gshared_var,
-            ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-            r += 1
+        self._clone_var = tk.BooleanVar(value=f.clone)
+        ttk.Checkbutton(
+            m, text="clone (je Nutzen/Bahn eigene Spalte: „Breite Bahn 1“ …)",
+            variable=self._clone_var,
+        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+        r += 1
 
         self._machine_var = tk.BooleanVar(value=f.machine_scoped)
         ttk.Checkbutton(
@@ -596,14 +662,11 @@ class FieldOverrideDialog(tk.Toplevel):
                 return
         updated = replace(
             self._field,
+            role=self._role_var.get(),
             display_name=self._name_var.get().strip() or self._field.display_name,
             default_value=self._default_var.get().strip() or None,
             optional=self._optional_var.get(),
-            group_shared=(
-                self._gshared_var.get()
-                if self._gshared_var is not None
-                else self._field.group_shared
-            ),
+            clone=self._clone_var.get(),
             machine_scoped=self._machine_var.get(),
             info_header=self._info_var.get(),
             options=opts,
@@ -671,7 +734,7 @@ class FieldEditorDialog(tk.Toplevel):
         self._role_var = tk.StringVar(value=field.role if field else "measurement")
         ttk.Combobox(
             m, textvariable=self._role_var,
-            values=["context", "measurement", "auto"],
+            values=["context", "identifier", "measurement", "auto"],
             state="readonly", width=15,
         ).grid(row=r, column=1, sticky="w", pady=3)
         r += 1
@@ -688,10 +751,10 @@ class FieldEditorDialog(tk.Toplevel):
         )
         r += 1
 
-        self._gshared_var = tk.BooleanVar(value=field.group_shared if field else False)
+        self._clone_var = tk.BooleanVar(value=field.clone if field else False)
         ttk.Checkbutton(
-            m, text="group_shared (über alle Nutzen geteilt)",
-            variable=self._gshared_var,
+            m, text="clone (je Nutzen/Bahn eigene Spalte)",
+            variable=self._clone_var,
         ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
         r += 1
 
@@ -812,7 +875,7 @@ class FieldEditorDialog(tk.Toplevel):
             options=options,
             optional=self._optional_var.get(),
             default_value=self._default_var.get().strip() or None,
-            group_shared=self._gshared_var.get(),
+            clone=self._clone_var.get(),
             info_header=self._info_var.get(),
             machine_scoped=self._machine_var.get(),
         )

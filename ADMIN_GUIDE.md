@@ -1,6 +1,6 @@
 # QAInput – Admin-Guide (kurz)
 
-Stand: v1.9.0. Für Details siehe `DOKUMENTATION.md`, `CLAUDE.md`, `CONFIG_REFERENZ.md`.
+Stand: v0.9.0. Für Details siehe `DOKUMENTATION.md`, `CLAUDE.md`, `CONFIG_REFERENZ.md`.
 
 ## 1. Verzeichnisstruktur (Netzlaufwerk)
 
@@ -48,9 +48,9 @@ X:\Produktion\14_QAInput\
 4. Zentral auf dem Share anlegen: `Data\process_templates\` (mitgeliefert), `Data\products\` (anfangs leer + `freigaben.json={}`), `Data\config\app_config.json`, `Data\user\users.kv`.
 5. Erststart prüfen: Login, Produktauswahl (anfangs leer ist normal), Audit-Eintrag `app_start`/`config_loaded` im `Audit\`.
 
-## 4. Produkt anlegen / ändern (Config-Editor, v1.9.0)
+## 4. Produkt anlegen / ändern (Config-Editor, v0.9.0)
 
-Der Editor ist template-basiert: Feld-IDs kommen immer aus dem gewählten **Operation-Template** (Dropdown), es gibt **keinen Freitext** für IDs mehr.
+Der Editor ist template-basiert: Feld-IDs kommen immer aus dem gewählten **Operation-Template** (Dropdown), es gibt **keinen Freitext** für IDs mehr. Felder lassen sich per **Maus-Griff (⠿) ziehen**, um die Reihenfolge (= Excel-Spalten) zu ändern (↑/↓ als Alternative). Felder, die **je Nutzen/Bahn** erfasst werden, bekommen den Haken **`clone`** (erzeugen je Nutzen eine eigene Spalte „Breite Bahn 1/2"); die **Rolle** (Kontext/Kennung/Messwert/Auto) ist je Feld wählbar. Die **Anzahl Nutzen** wählt der Bediener beim Prozessstart (1..Standard/Max); im Editor wird nur die „Standard-/Max-Anzahl Nutzen" gesetzt — clone-Felder verlangen einen Wert.
 
 **Neues Produkt (Assistent):**
 1. Tab „Produktkonfiguration" → **„Neu (Assistent)"**.

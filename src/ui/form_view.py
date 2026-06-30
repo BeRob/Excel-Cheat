@@ -14,10 +14,14 @@ from src.config.process_config import (
     get_per_measurement_context_fields,
     get_form_persistent_fields,
     get_info_header_fields,
-    get_group_shared_fields,
-    get_per_nutzen_fields,
+    get_shared_input_fields,
+    get_identifier_fields,
+    get_clone_fields,
     get_auto_fields,
     is_multi_nutzen,
+    get_nutzen_label,
+    clone_column_name,
+    NUTZEN_FIELD_ID,
     FieldDef,
 )
 from src.config.settings import HEADER_ROW, save_ui_prefs
@@ -491,7 +495,11 @@ class FormView(BaseView):
         if self._is_multi_nutzen:
             self._generate_multi_nutzen_fields(process)
         else:
-            per_meas_ctx_all = get_per_measurement_context_fields(process)
+            # Gemeinsame Werte = pro-Messung-Kontext + Kennungen (identifier).
+            per_meas_ctx_all = (
+                get_per_measurement_context_fields(process)
+                + get_identifier_fields(process)
+            )
             measurement = get_measurement_fields(process)
 
             scoped_ids = {f.id for f in self._machine_scoped_fields}
@@ -551,43 +559,45 @@ class FormView(BaseView):
         self.canvas.yview_moveto(0)
 
     def _generate_multi_nutzen_fields(self, process) -> None:
-        """Baut das Multi-Nutzen-Formular: Anzahl-Wähler, Gemeinsame Werte, Nutzen-Sektionen."""
-        max_nutzen = process.row_group_size
+        """Baut das Multi-Nutzen-(Wide-)Formular: Gemeinsame Werte + Nutzen-Sektionen.
 
-        # Anzahl-Nutzen-Wähler – default: alle Nutzen (row_group_size) sichtbar
-        if self.app_state.nutzen_count <= 1 or self.app_state.nutzen_count > max_nutzen:
-            self.app_state.nutzen_count = max_nutzen
+        Die Anzahl Nutzen/Bahnen wird beim Prozessstart festgelegt (je Datei
+        konstant) und hier nur read-only angezeigt — sie kann im Formular nicht
+        geändert werden, weil sie die Excel-Spalten bestimmt."""
+        count = self.app_state.nutzen_count
+        if count < 1:
+            count = process.row_group_size or 1
+            self.app_state.nutzen_count = count
 
-        count_frame = ttk.LabelFrame(
-            self.scrollable_frame, text="Anzahl Nutzen", padding=10,
-        )
-        count_frame.pack(fill="x", padx=5, pady=(0, 5))
-        self._nutzen_count_var = tk.IntVar(value=self.app_state.nutzen_count)
-        for n in range(1, max_nutzen + 1):
-            ttk.Radiobutton(
-                count_frame, text=str(n), variable=self._nutzen_count_var, value=n,
-                command=self._rebuild_nutzen_sections,
-            ).pack(side="left", padx=10)
+        label = get_nutzen_label(process)
+        info_frame = ttk.Frame(self.scrollable_frame)
+        info_frame.pack(fill="x", padx=5, pady=(0, 5))
+        ttk.Label(
+            info_frame,
+            text=f"{label}/Nutzen je Messung: {count}  "
+                 f"(beim Prozessstart festgelegt)",
+            foreground=COLORS["text_secondary"],
+            font=("Segoe UI", 9, "bold"),
+        ).pack(side="left")
 
-        # Gemeinsame Werte: per-measurement context + group_shared Messfelder
-        per_meas_ctx = get_per_measurement_context_fields(process)
-        shared_meas = get_group_shared_fields(process)
-        shared_fields = per_meas_ctx + shared_meas
+        # Gemeinsame Werte: pro-Messung-Kontext + Kennungen + nicht-geklonte Messwerte
+        shared_fields = get_shared_input_fields(process)
         self._field_defs = shared_fields
 
-        shared_frame = ttk.LabelFrame(
-            self.scrollable_frame, text="Gemeinsame Werte", padding=10,
-        )
-        shared_frame.pack(fill="x", padx=5, pady=(0, 5))
-        if self.app_state.layout_mode == "vertical":
-            first_shared, _ = self._generate_vertical_fields(shared_fields, shared_frame)
-        else:
-            first_shared, _ = self._generate_horizontal_fields(shared_fields, shared_frame)
-        if self._first_focus_widget is None:
-            self._first_focus_widget = first_shared
+        if shared_fields:
+            shared_frame = ttk.LabelFrame(
+                self.scrollable_frame, text="Gemeinsame Werte", padding=10,
+            )
+            shared_frame.pack(fill="x", padx=5, pady=(0, 5))
+            if self.app_state.layout_mode == "vertical":
+                first_shared, _ = self._generate_vertical_fields(shared_fields, shared_frame)
+            else:
+                first_shared, _ = self._generate_horizontal_fields(shared_fields, shared_frame)
+            if self._first_focus_widget is None:
+                self._first_focus_widget = first_shared
 
-        # Per-Nutzen-Felder speichern
-        self._nutzen_field_defs = get_per_nutzen_fields(process)
+        # Geklonte Felder (je Nutzen/Bahn wiederholt)
+        self._nutzen_field_defs = get_clone_fields(process)
 
         # Container für Nutzen-Sektionen
         self._nutzen_sections_parent = ttk.Frame(self.scrollable_frame)
@@ -596,20 +606,17 @@ class FormView(BaseView):
         self._rebuild_nutzen_sections()
 
     def _rebuild_nutzen_sections(self) -> None:
-        """Baut die Nutzen-Sektionen neu auf wenn die Anzahl geändert wird.
+        """Baut die Nutzen-Sektionen auf (eine je Nutzen/Bahn).
 
-        Im vertikalen Layout-Modus stehen die Sektionen untereinander,
-        im horizontalen Modus nebeneinander."""
-        if self._nutzen_sections_parent is None or self._nutzen_count_var is None:
+        Die Anzahl steht in ``app_state.nutzen_count`` (beim Prozessstart fest).
+        Im vertikalen Layout-Modus stehen die Sektionen untereinander, im
+        horizontalen nebeneinander."""
+        if self._nutzen_sections_parent is None:
             return
 
-        count = self._nutzen_count_var.get()
-        if count != self.app_state.nutzen_count and self.app_state.audit:
-            self.app_state.audit.log_event(
-                Event.NUTZEN_COUNT_CHANGED,
-                details={"from": self.app_state.nutzen_count, "to": count},
-            )
-        self.app_state.nutzen_count = count
+        process = self.app_state.selected_process
+        label = get_nutzen_label(process) if process else "Nutzen"
+        count = max(self.app_state.nutzen_count, 1)
 
         # Alte per-nutzen Einträge aus field_vars und Border-Map entfernen
         for key in [k for k in self.field_vars if "_n" in k]:
@@ -628,7 +635,7 @@ class FormView(BaseView):
         for i in range(1, count + 1):
             section = ttk.LabelFrame(
                 self._nutzen_sections_parent,
-                text=f"Nutzen {i}",
+                text=f"{label} {i}",
                 padding=10,
             )
             if horizontal:
@@ -874,8 +881,13 @@ class FormView(BaseView):
                     base_name = fd.display_name
                     break
             fd = next((f for f in all_defs if f.display_name == base_name), None)
-            # Kontext-, Choice- und group_shared-Felder behalten ihren Wert.
-            if fd and (fd.role == "context" or fd.type == "choice" or fd.group_shared):
+            # Kontext-, Kennungs-, Choice- und nicht-geklonte (gemeinsame)
+            # Messfelder behalten ihren Wert über mehrere Messungen.
+            if fd and (
+                fd.role in ("context", "identifier")
+                or fd.type == "choice"
+                or (fd.role == "measurement" and not fd.clone)
+            ):
                 continue
             var.set(fd.default_value if fd and fd.default_value is not None else "")
         for border in self._validation_borders.values():
@@ -992,7 +1004,7 @@ class FormView(BaseView):
 
         for fd in self._field_defs:
             val = normalized_values.get(fd.display_name)
-            if fd.role == "context":
+            if fd.role in ("context", "identifier"):
                 context_values[fd.display_name] = str(val) if val is not None else ""
             else:
                 measurement_values[fd.display_name] = val
@@ -1117,43 +1129,51 @@ class FormView(BaseView):
         shared_normalized: dict[str, float | str | None],
         nutzen_normalized: list[dict[str, float | str | None]],
     ) -> None:
+        """Wide-Format: schreibt EINE Zeile je Messung. Geklonte Felder landen
+        je Nutzen/Bahn in einer eigenen nummerierten Spalte
+        ('Breite Bahn 1', 'Breite Bahn 2', …)."""
         process = self.app_state.selected_process
         if not process:
             return
 
         nutzen_count = len(nutzen_normalized)
+        label = get_nutzen_label(process)
         now = datetime.now()
 
-        context_values: dict[str, str] = {}
-        context_values.update(self.app_state.persistent_values)
-        shared_meas: dict[str, float | str | None] = {}
+        row: dict[str, str | float | None] = {}
+        row.update(self.app_state.persistent_values)
+
+        # Gemeinsame Felder: Kontext/Kennung als String, geteilte Messwerte als Wert.
         for fd in self._field_defs:
             value = shared_normalized.get(fd.display_name)
-            if fd.role == "context":
-                context_values[fd.display_name] = (
-                    str(value) if value is not None else ""
-                )
+            if fd.role in ("context", "identifier"):
+                row[fd.display_name] = str(value) if value is not None else ""
             else:
-                shared_meas[fd.display_name] = value
+                row[fd.display_name] = value
 
-        rows = []
+        # Geklonte Felder: je Nutzen eine nummerierte Spalte.
         for i, per_nutzen in enumerate(nutzen_normalized, 1):
-            auto: dict[str, str | float | None] = {}
-            for fd in get_auto_fields(process):
-                if fd.id == "datum":
-                    auto[fd.display_name] = now.strftime("%Y-%m-%d %H:%M:%S")
-                elif fd.id == "bearbeiter":
-                    user = self.app_state.current_user
-                    auto[fd.display_name] = user.display_name if user else ""
-                elif fd.id == "nutzen":
-                    auto[fd.display_name] = i
+            for fd in self._nutzen_field_defs:
+                col = clone_column_name(fd.display_name, label, i)
+                row[col] = per_nutzen.get(fd.display_name)
 
-            row: dict[str, str | float | None] = {}
-            row.update(context_values)
-            row.update(shared_meas)
-            row.update(per_nutzen)
-            row.update(auto)
-            rows.append(row)
+        # Auto-Felder: einmal je Zeile. Das nutzen-Auto-Feld entfällt im Wide-Format.
+        seq_increments = 0
+        for fd in get_auto_fields(process):
+            if fd.id == NUTZEN_FIELD_ID:
+                continue
+            if fd.id == "datum":
+                row[fd.display_name] = now.strftime("%Y-%m-%d %H:%M:%S")
+            elif fd.id == "bearbeiter":
+                user = self.app_state.current_user
+                row[fd.display_name] = user.display_name if user else ""
+            elif fd.id in ("pruefmuster", "beutel_nr"):
+                self.app_state.auto_sequence += 1
+                seq_increments += 1
+                row[fd.display_name] = self.app_state.auto_sequence
+            elif fd.id == "karton":
+                bag_no = self.app_state.auto_sequence
+                row[fd.display_name] = ((bag_no - 1) // 20) + 1 if bag_no >= 1 else 1
 
         if self.app_state.audit:
             self.app_state.audit.log_event(
@@ -1166,18 +1186,20 @@ class FormView(BaseView):
 
         result = write_measurement_rows(
             filepath=self.app_state.current_file,
-            rows=rows,
+            rows=[row],
             process=process,
+            nutzen_count=nutzen_count,
         )
 
         if result.success:
-            self.app_state.row_group_counter += nutzen_count
-
-            for i, row in enumerate(rows, 1):
-                meas_vals = {**shared_meas}
+            for i, per_nutzen in enumerate(nutzen_normalized, 1):
+                meas_vals: dict[str, float | str | None] = {}
+                for fd in self._field_defs:
+                    if fd.role == "measurement":
+                        meas_vals[fd.display_name] = shared_normalized.get(fd.display_name)
                 for fd in self._nutzen_field_defs:
-                    meas_vals[fd.display_name] = row.get(fd.display_name)
-                self._add_to_history(meas_vals, label=f"Nutzen {i}")
+                    meas_vals[fd.display_name] = per_nutzen.get(fd.display_name)
+                self._add_to_history(meas_vals, label=f"{label} {i}")
 
             if self.app_state.audit:
                 self.app_state.audit.log_event(
@@ -1185,13 +1207,13 @@ class FormView(BaseView):
                     user=self.app_state.current_user.user_id if self.app_state.current_user else None,
                     file=str(self.app_state.current_file),
                     context=dict(self.app_state.persistent_values),
-                    details={"last_row": result.row_number, "nutzen_count": nutzen_count,
+                    details={"row": result.row_number, "nutzen_count": nutzen_count,
                              **self._template_details(process)},
                 )
 
             suffix = self._audit_health_suffix()
             self.status_var.set(
-                f"{nutzen_count} Nutzen gespeichert (bis Zeile {result.row_number})."
+                f"Zeile {result.row_number} mit {nutzen_count} {label} geschrieben."
                 f"{suffix}"
             )
             self.status_label.config(
@@ -1202,6 +1224,8 @@ class FormView(BaseView):
             messagebox.showerror("Fehler beim Schreiben", result.error)
             self.status_var.set(f"Fehler: {result.error}")
             self.status_label.config(style="Error.TLabel")
+            if seq_increments:
+                self.app_state.auto_sequence -= seq_increments
             if self.app_state.audit:
                 self.app_state.audit.log_event(
                     Event.WRITE_FAIL, level="error",
@@ -1293,18 +1317,23 @@ class FormView(BaseView):
         return process.display_name if process else "_"
 
     def _default_history_columns(self) -> list[str]:
-        """Default: Zeit + alle measurement-Felder + ausgewählte Kontextfelder."""
+        """Default: Zeit + alle Messwert-Felder (Clone-Felder als nummerierte
+        Spalten) + Kennungen + ausgewählte Kontextfelder."""
         process = self.app_state.selected_process
         if not process:
             return ["Zeit"]
+        multi = is_multi_nutzen(process)
+        label = get_nutzen_label(process)
+        count = max(self.app_state.nutzen_count, 1)
+        wanted_context_ids = {"rollencharge", "rollen_nr", "bahn", "maschine"}
         cols: list[str] = ["Zeit"]
-        wanted_context_ids = {"rollencharge", "rollen_nr", "bahn", "nutzen", "maschine"}
         for fd in process.fields:
-            if fd.role == "measurement":
+            if multi and fd.clone:
+                for i in range(1, count + 1):
+                    cols.append(clone_column_name(fd.display_name, label, i))
+            elif fd.role in ("measurement", "identifier"):
                 cols.append(fd.display_name)
             elif fd.id in wanted_context_ids and fd.role == "context":
-                cols.append(fd.display_name)
-            elif fd.id == "nutzen" and fd.role == "auto":
                 cols.append(fd.display_name)
         return cols
 
@@ -1386,9 +1415,19 @@ class FormView(BaseView):
         process = self.app_state.selected_process
         if not process:
             return
+        multi = is_multi_nutzen(process)
+        label = get_nutzen_label(process)
+        count = max(self.app_state.nutzen_count, 1)
         available: list[str] = ["Zeit"]
         for fd in process.fields:
-            if fd.role in ("context", "measurement", "auto"):
+            if multi and fd.id == NUTZEN_FIELD_ID and fd.role == "auto":
+                continue
+            if multi and fd.clone:
+                for i in range(1, count + 1):
+                    name = clone_column_name(fd.display_name, label, i)
+                    if name not in available:
+                        available.append(name)
+            elif fd.role in ("context", "identifier", "measurement", "auto"):
                 if fd.display_name not in available:
                     available.append(fd.display_name)
 

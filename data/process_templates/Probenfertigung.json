@@ -1,13 +1,19 @@
 {
   "template": "Probenfertigung",
-  "template_revision": 2,
+  "template_revision": 3,
+  "_unification_notes": {
+    "rollen_nr": "Reine Rollennummer als Kennung (role=identifier).",
+    "rolle_bahn_nutzen": "Zusammengesetzte Kennung Rolle/Bahn/Nutzen (role=identifier).",
+    "_nutzen": "Eine Zeile je Probe, keine clone-Felder."
+  },
   "fields": [
     {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
     {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
-    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "context"},
+    {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "identifier"},
+    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "identifier"},
     {"id": "muster_gefertigt", "display_name": "Muster gefertigt", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
     {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
     {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},

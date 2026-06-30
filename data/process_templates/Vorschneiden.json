@@ -1,17 +1,23 @@
 {
   "template": "Vorschneiden",
-  "template_revision": 2,
+  "template_revision": 3,
+  "_unification_notes": {
+    "breite": "Hauptmesswert je Bahn (clone=true → 'Breite Bahn 1' …). Anzahl Bahnen wählt der Bediener beim Prozessstart (Max = row_group_size).",
+    "rollen_nr": "Reine Rollennummer als Kennung (role=identifier).",
+    "_rollen": "ASK/Flächengewicht sind Ja/Nein-Prüfungen (role=measurement), kein Kontext."
+  },
   "fields": [
     {"id": "fa_nr", "display_name": "FA-Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "lot_nr", "display_name": "LOT Nr.", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
     {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
-    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
-    {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
+    {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "identifier"},
+    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
+    {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
     {"id": "nutzen", "display_name": "Bahn", "type": "number", "role": "auto"},
-    {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement"},
-    {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a"},
+    {"id": "breite", "display_name": "Breite", "type": "number", "role": "measurement", "clone": true},
+    {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a", "clone": true},
     {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
     {"id": "bearbeiter", "display_name": "Bearbeiter", "type": "text", "role": "auto"}
   ]

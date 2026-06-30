@@ -1,5 +1,27 @@
 # Versionshistorie – QAInput
 
+## v0.9.0 – 2026-06-30
+
+> Versions-Neubasislinie: Die App wird ausdrücklich auf **0.9.0** gesetzt (Vorgänger-Stand war 1.9.0). Ab hier zählt 0.9.x als aktuelle Pre-1.0-Linie.
+
+### Neu
+- **Nutzen/Bahnen als nummerierte Spalten (Wide-Format)** – Wird ein Messfeld je Nutzen/Bahn erfasst, erzeugt es jetzt **je Nutzen eine eigene Excel-Spalte** statt mehrerer Zeilen: aus „Breite" werden „Breite Bahn 1", „Breite Bahn 2" … (keine verbundenen Zellen, je Wert eine Zelle). Eine Zeile je Messung
+- **Feld-Flag `clone`** – Löst `group_shared` ab (invertiert: `group_shared=true` == `clone=false`). `clone=true` = je Nutzen/Bahn wiederholen. Alt-Configs mit `group_shared` werden beim Laden automatisch umgesetzt
+- **Anzahl Nutzen/Bahnen wählt der Bediener beim Prozessstart** – Einmal je Datei (1..Max, Max = `row_group_size` der Config). Beim Fortsetzen wird die Anzahl aus den Spaltenköpfen der bestehenden Datei zurückgelesen und gesperrt — so bleibt die Datei in sich konsistent. Kleine Rolle = 1 Nutzen, große = 2, ohne Config-Änderung
+- **Neue Feld-Rolle `identifier` („Kennung")** – Zeilen-Kennungen wie Rollen-Nr., Rolle/Bahn/Nutzen, Lfd. Nr. sind weder Kontext noch Messwert. Sie werden im „Gemeinsame Werte"-Block erfasst, als Spalte geschrieben und nie geklont
+- **Eigenes Rollennummer-Feld `rollen_nr`** in den kanonischen Templates (Vorschneiden, Schälen, Schneiden, Walzen, Probenfertigung) — wahlweise neben dem zusammengesetzten `rolle_bahn_nutzen`
+- **Drag-&-Drop der Feldreihenfolge** im Config-Editor – Felder per Maus-Griff (⠿) umsortieren; ↑/↓-Buttons bleiben als Alternative
+
+### Geändert
+- **Templates neu klassifiziert (Revision 3)** – Kennungen (`rolle_bahn_nutzen`, `rollen_nr`, `lfd_nr`) sind jetzt `role=identifier`; die Ja/Nein-Prüfungen `ask`/`flaechengewicht`/`schnittkante` sind `role=measurement` statt Kontext; per-Nutzen-Messwerte sind `clone=true`. Walzen/Probenfertigung bleiben einzeilig (keine clone-Felder)
+- **Config-Editor** – Override-/Voll-Editor zeigen statt `group_shared` den **`clone`**-Haken; die Feld-**Rolle ist im Editor frei wählbar** (auch für Template-Felder, inkl. `identifier`); das Feld „Zeilengruppe" heißt jetzt „Standard-/Max-Anzahl Nutzen"
+- **Editor-Validierung** – clone-Felder verlangen eine Standard-/Max-Nutzenzahl; Kennungen sind beim Template-Wählen vorausgewählt
+- **Excel-Writer/Creator Wide-fähig** – Header-Erzeugung und -Validierung expandieren clone-Felder anhand der gewählten Nutzenzahl; das `nutzen`-Auto-Feld entfällt als Spalte (die Nutzen-Nr. steckt im Spaltennamen)
+
+### Hinweise
+- Bestehende Long-Format-Dateien (eine Zeile je Nutzen) werden vom neuen Writer **nicht** weiter beschrieben — die Templates werden ohnehin neu entworfen
+- Die noch nicht redesignten Auto-Generat-Templates (Stanzen, Ausschussplatten, Packliste) laden unverändert (kein clone-Feld → einzeilig)
+
 ## v1.9.0 – 2026-06-16
 
 ### Neu

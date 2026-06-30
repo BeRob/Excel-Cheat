@@ -37,8 +37,8 @@ def field_to_dict(field: FieldDef) -> dict:
         d["options"] = field.options
     if field.default_value is not None:
         d["default_value"] = field.default_value
-    if field.group_shared:
-        d["group_shared"] = True
+    if field.clone:
+        d["clone"] = True
     if field.info_header:
         d["info_header"] = True
     if field.machine_scoped:
@@ -178,7 +178,7 @@ def validate_product_config(product: ProductConfig) -> list[str]:
                 errors.append(f"{fp}: Anzeigename darf nicht leer sein.")
             if field.type not in ("text", "number", "choice", "date"):
                 errors.append(f"{fp}: Ungültiger Typ '{field.type}'.")
-            if field.role not in ("context", "measurement", "auto"):
+            if field.role not in ("context", "identifier", "measurement", "auto"):
                 errors.append(f"{fp}: Ungültige Rolle '{field.role}'.")
             if field.type == "choice" and not field.options:
                 errors.append(f"{fp}: Choice-Feld braucht mindestens eine Option.")

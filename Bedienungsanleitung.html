@@ -213,9 +213,9 @@
 <tr><td><code>current_file</code></td><td>Pfad zur aktuell beschriebenen Excel-Datei</td></tr>
 <tr><td><code>persistent_values</code></td><td>Dict aller persistenten Kontextwerte (FA-Nr., LOT, &hellip;)</td></tr>
 <tr><td><code>carried_values</code></td><td>FA-Nr./LOT/Verwendbarkeitsdatum &ndash; bleiben beim Prozesswechsel erhalten</td></tr>
-<tr><td><code>row_group_counter</code></td><td>Nutzen-Zähler bei Multi-Nutzen-Prozessen</td></tr>
+<tr><td><code>row_group_counter</code></td><td>Legacy-Zähler (nur Single-Nutzen-Pfad); im Wide-Format ungenutzt</td></tr>
 <tr><td><code>auto_sequence</code></td><td>Globaler Zähler für Auto-Sequenz-Felder (Prüfmuster, Beutel-Nr.)</td></tr>
-<tr><td><code>nutzen_count</code></td><td>Anzahl der gerade angezeigten Nutzen-Sektionen</td></tr>
+<tr><td><code>nutzen_count</code></td><td>Anzahl Nutzen/Bahnen der aktuellen Datei (beim Prozessstart gewählt, beim Resume aus der Datei gelesen)</td></tr>
 <tr><td><code>layout_mode</code></td><td><code>"horizontal"</code> (Default) oder <code>"vertical"</code></td></tr>
 <tr><td><code>is_resume</code></td><td><code>True</code> wenn die aktuelle Datei fortgesetzt wird</td></tr>
 <tr><td><code>current_view</code></td><td>Vom Navigator gesetzte aktive View (fürs Audit-Log)</td></tr>
@@ -292,7 +292,7 @@
 <tr><td><code>optional</code></td><td>bool</td><td><code>true</code> &rarr; darf leer bleiben; Hinweis <em>optional</em> erscheint im UI</td></tr>
 <tr><td><code>default_value</code></td><td>any</td><td>Vorbelegung beim Aufbau und nach jedem <em>Felder leeren</em></td></tr>
 <tr><td><code>info_header</code></td><td>bool</td><td><code>true</code> &rarr; Feld erscheint im Excel-Info-Block (Zeilen 2&ndash;8 Spalte C/D), <strong>nicht</strong> als Datenspalte. Im Form als read-only Header oben</td></tr>
-<tr><td><code>group_shared</code></td><td>bool</td><td><code>true</code> &rarr; Wert ist im Multi-Nutzen-Modus für alle Nutzen gleich (im Block <em>Gemeinsame Werte</em> einmal eingegeben). Voraussetzung: <code>row_group_size</code> ist gesetzt</td></tr>
+<tr><td><code>clone</code></td><td>bool</td><td><code>true</code> &rarr; Feld wird je Nutzen/Bahn wiederholt und erzeugt im Wide-Format je Nutzen eine eigene Spalte („Breite Bahn 1", „Breite Bahn 2"). <code>false</code> = einmal je Messung (gemeinsam). Löst <code>group_shared</code> ab (invertiert); Alt-Configs werden beim Laden automatisch umgesetzt. Hinweis: <code>role:"identifier"</code> kennzeichnet Zeilen-Kennungen (Rollen-Nr./Bahn/Lfd. Nr.) — wie Kontext erfasst, als Spalte geschrieben, nie geklont</td></tr>
 </tbody>
 </table>
 
@@ -300,7 +300,7 @@
 <ul>
 <li><code>template_id</code> &mdash; eindeutige ID, geht in den Dateinamen ein</li>
 <li><code>display_name</code> &mdash; Anzeigename in der Auswahl</li>
-<li><code>row_group_size</code> &mdash; Anzahl Nutzen pro Rolle (z. B. <code>3</code>). In Kombination mit mindestens einem <code>group_shared</code>-Messfeld aktiviert das den Multi-Nutzen-Modus</li>
+<li><code>row_group_size</code> &mdash; Standard-/Max-Anzahl Nutzen pro Rolle (z. B. <code>3</code>); der Bediener wählt beim Prozessstart 1..Max. Der Multi-Nutzen-(Wide-)Modus wird durch mindestens ein <code>clone:true</code>-Feld aktiviert</li>
 <li><code>fields</code> &mdash; Liste der Felddefinitionen in JSON-Reihenfolge (= Excel-Spaltenreihenfolge)</li>
 </ul>
 
@@ -323,10 +323,12 @@
 <tr><td><code>get_form_persistent_fields(process)</code></td><td>Persistente Kontext-Felder <strong>ohne</strong> <code>info_header</code> (für FormView <em>Feste Werte</em>)</td></tr>
 <tr><td><code>get_info_header_fields(process)</code></td><td>Felder mit <code>info_header:true</code> &mdash; Header-Bar oben im Form, Excel-Info-Block</td></tr>
 <tr><td><code>get_measurement_fields(process)</code></td><td>Alle Mess-Felder</td></tr>
-<tr><td><code>get_group_shared_fields(process)</code></td><td>Mess-Felder mit <code>group_shared:true</code></td></tr>
-<tr><td><code>get_per_nutzen_fields(process)</code></td><td>Mess-Felder ohne <code>group_shared</code> (pro Nutzen)</td></tr>
+<tr><td><code>get_identifier_fields(process)</code></td><td>Felder mit <code>role:"identifier"</code> (Kennungen)</td></tr>
+<tr><td><code>get_shared_input_fields(process)</code></td><td>Block <em>Gemeinsame Werte</em>: Per-Messung-Kontext + Kennungen + nicht-geklonte Messwerte</td></tr>
+<tr><td><code>get_shared_measurement_fields(process)</code></td><td>Mess-Felder mit <code>clone:false</code> (einmal je Messung)</td></tr>
+<tr><td><code>get_clone_fields(process)</code></td><td>Felder mit <code>clone:true</code> (je Nutzen/Bahn wiederholt)</td></tr>
 <tr><td><code>get_auto_fields(process)</code></td><td>Felder mit <code>role:"auto"</code></td></tr>
-<tr><td><code>get_all_headers(process)</code></td><td>Anzeigenamen aller Felder <strong>außer</strong> <code>info_header</code>-Felder &rarr; Excel-Spaltenkopf</td></tr>
+<tr><td><code>get_all_headers(process, nutzen_count)</code></td><td>Anzeigenamen aller Felder <strong>außer</strong> <code>info_header</code> &rarr; Excel-Spaltenkopf; expandiert Clone-Felder zu nummerierten Spalten</td></tr>
 <tr><td><code>get_field_by_id(process, id)</code></td><td>Feldsuche nach ID</td></tr>
 <tr><td><code>determine_shift(hour, shifts)</code></td><td>Schicht-Bestimmung mit Mitternachts-Logik</td></tr>
 </tbody>
@@ -414,13 +416,13 @@ user.max.admin=true</code></pre>
 <tbody>
 <tr><td><code>datum</code></td><td><code>now.strftime("%Y-%m-%d %H:%M:%S")</code></td></tr>
 <tr><td><code>bearbeiter</code></td><td><code>current_user.display_name</code></td></tr>
-<tr><td><code>nutzen</code></td><td>Nutzen-Index (1&hellip;<code>row_group_size</code>); aus <code>row_group_counter % row_group_size + 1</code></td></tr>
+<tr><td><code>nutzen</code></td><td>Liefert im Wide-Format die Nutzen-Bezeichnung für die Spaltennamen (z. B. „Bahn" &rarr; „Breite Bahn 1"); wird selbst <strong>nicht</strong> als Spalte geschrieben</td></tr>
 <tr><td><code>pruefmuster</code></td><td>Inkrementiert <code>app_state.auto_sequence</code> &mdash; durchgehende Nummerierung über alle Messungen</td></tr>
 <tr><td><code>beutel_nr</code></td><td>Identisches Verhalten wie <code>pruefmuster</code> (auto-inkrementiert)</td></tr>
 </tbody>
 </table>
 <p><strong>Rollback bei Schreibfehler:</strong> Wenn <code>write_measurement_row()</code> fehlschlägt und der Prozess <code>pruefmuster</code> oder <code>beutel_nr</code> als Auto-Feld hat, wird <code>auto_sequence</code> wieder dekrementiert &mdash; verhindert Lücken in der Nummerierung.</p>
-<p>Beim Resume initialisiert <code>ContextView._go_next()</code> die Zähler aus der Datei: <code>auto_sequence = count_data_rows(filepath)</code> und <code>row_group_counter = count % row_group_size</code>.</p>
+<p>Beim Resume initialisiert <code>ContextView._go_next()</code> die Zähler aus der Datei: <code>auto_sequence = count_data_rows(filepath)</code> (eine Zeile je Messung im Wide-Format) und liest die Nutzen-Anzahl per <code>read_nutzen_count_from_file()</code> aus den Spaltenköpfen zurück.</p>
 
 <hr />
 
@@ -499,15 +501,15 @@ user.max.admin=true</code></pre>
 </ol>
 <p>Ganz oben liegt eine 1-Zeilen-<strong>Meta-Leiste</strong> in <code>FONTS["small"]</code> und sekundärer Farbe: <code>{User} · {Produkt} · {Prozess} · Schicht {N} · {Dateiname}</code>. Direkt darunter die <strong>Header-Bar</strong>: für jedes <code>info_header</code>-Feld erscheint <code>{Name}: {Wert}</code> nur lesend (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel), inkl. <em>✎</em>-Button (<code>Manual.TButton</code>) pro Chip. Ein Klick auf <em>✎</em> loggt <code>CONTEXT_EDIT_REQUESTED</code> und navigiert zurück zur ContextView.</p>
 
-<h4>Layout-Aufbau (Multi-Nutzen)</h4>
-<p>Aktiviert sobald <code>row_group_size</code> gesetzt ist <strong>und</strong> mindestens ein <code>group_shared</code>-Messfeld existiert. Frames:</p>
+<h4>Layout-Aufbau (Multi-Nutzen, Wide-Format)</h4>
+<p>Aktiviert sobald mindestens ein Feld <code>clone:true</code> ist (<code>is_multi_nutzen</code>). Die Anzahl Nutzen/Bahnen wählt der Bediener <strong>beim Prozessstart</strong> (ContextView) &mdash; je Datei konstant, beim Fortsetzen aus den Spaltenköpfen gelesen (<code>read_nutzen_count_from_file</code>) und gesperrt. Frames im Formular:</p>
 <ol>
 <li><strong>Feste Werte</strong> &mdash; wie oben (Persistente non-info_header)</li>
-<li><strong>Anzahl Nutzen</strong> &mdash; Radio-Buttons 1&hellip;<code>row_group_size</code> (Standard: maximale Anzahl)</li>
-<li><strong>Gemeinsame Werte</strong> &mdash; per-Messung-Kontext + alle Messfelder mit <code>group_shared:true</code></li>
-<li><strong>Nutzen 1 / Nutzen 2 / &hellip;</strong> &mdash; je eine LabelFrame-Sektion mit den per-Nutzen-Feldern</li>
+<li><strong>Hinweis</strong> &mdash; read-only Anzeige „{Bahn}/Nutzen je Messung: N (beim Prozessstart festgelegt)"</li>
+<li><strong>Gemeinsame Werte</strong> &mdash; per-Messung-Kontext + Kennungen + nicht-geklonte Messwerte (<code>get_shared_input_fields</code>)</li>
+<li><strong>Bahn 1 / Bahn 2 / &hellip;</strong> bzw. <strong>Nutzen 1 / &hellip;</strong> &mdash; je eine LabelFrame-Sektion mit den <code>clone</code>-Feldern</li>
 </ol>
-<p>Im horizontalen Layout-Modus stehen die Nutzen-Sektionen nebeneinander (Grid mit <code>uniform="nutzen"</code>), im vertikalen untereinander.</p>
+<p>Im horizontalen Layout-Modus stehen die Nutzen-Sektionen nebeneinander (Grid mit <code>uniform="nutzen"</code>), im vertikalen untereinander. In Excel erzeugt jedes <code>clone</code>-Feld je Nutzen eine eigene nummerierte Spalte („Breite Bahn 1", „Breite Bahn 2") &mdash; <strong>eine Zeile je Messung</strong> (Wide-Format).</p>
 <p>Per-Nutzen-Feldvariablen werden in <code>field_vars</code> mit Schlüssel <code>{display_name}_n{i}</code> gespeichert; der gleiche Suffix dient als <code>border_key</code>, sodass jeder Nutzen seinen eigenen Validation-Border hat.</p>
 
 <h4>Eingabe-Widgets</h4>
@@ -541,12 +543,12 @@ user.max.admin=true</code></pre>
 <p>Aufgeklappt erscheint darunter ein <code>ttk.Treeview</code> mit <code>height=5</code> und dynamisch nur den ausgewählten Spalten. Audit-Events: <code>HISTORY_TOGGLED</code> beim Toggle, <code>HISTORY_COLUMNS_CHANGED</code> nach OK im Picker. Default-Spaltenwahl: alle <code>role:measurement</code> + <code>rollencharge</code>/<code>rollen_nr</code>/<code>bahn</code>/<code>nutzen</code>/<code>maschine</code> wenn vorhanden.</p>
 
 <h4>Felder leeren</h4>
-<p><code>_clear_fields()</code> nach dem Senden: setzt alle Variablen zurück. Persistente Kontextfelder, Choice-Felder und <code>group_shared</code>-Felder behalten ihren Wert; alle anderen werden auf <code>default_value</code> bzw. leer gesetzt. Validation-Borders gehen in den neutralen <code>border</code>-Zustand zurück. Loggt <code>FIELDS_CLEARED</code> mit Feldanzahl.</p>
+<p><code>_clear_fields()</code> nach dem Senden: setzt alle Variablen zurück. Kontext-, Kennungs-, Choice- und nicht-geklonte (gemeinsame) Messfelder behalten ihren Wert; geklonte (per-Nutzen) Felder werden auf <code>default_value</code> bzw. leer gesetzt. Validation-Borders gehen in den neutralen <code>border</code>-Zustand zurück. Loggt <code>FIELDS_CLEARED</code> mit Feldanzahl.</p>
 
 <h4>Save-Pfad</h4>
 <ul>
 <li><strong>Single-Nutzen:</strong> <code>raw_values</code> (Dict aus <code>field_vars</code>) → <code>ReviewDialog(on_confirm, on_cancel)</code> → <code>_do_write(normalized_values)</code> → <code>write_measurement_row</code></li>
-<li><strong>Multi-Nutzen:</strong> <code>shared_raw</code> + <code>nutzen_raw_list</code> → <code>ReviewDialog(shared_values=&hellip;, nutzen_values=&hellip;, on_cancel=&hellip;)</code> → <code>_do_multi_nutzen_write(shared_normalized, nutzen_normalized)</code> → <code>write_measurement_rows</code> (alle Nutzen in einem File-Open)</li>
+<li><strong>Multi-Nutzen (Wide):</strong> <code>shared_raw</code> + <code>nutzen_raw_list</code> → <code>ReviewDialog(shared_values=&hellip;, nutzen_values=&hellip;, on_cancel=&hellip;)</code> → <code>_do_multi_nutzen_write(shared_normalized, nutzen_normalized)</code> → baut <strong>eine</strong> Zeile (Clone-Werte in nummerierten Spalten via <code>clone_column_name</code>) → <code>write_measurement_rows(&hellip;, nutzen_count=N)</code></li>
 </ul>
 <p>Bei jeder Speichern-Aktion wird <code>REVIEW_OPENED</code> geloggt, bei Cancel zusätzlich <code>REVIEW_CANCELLED</code>. Wenn der Dialog wegen fehlender OoS-Bemerkung gesperrt war, kommt zusätzlich <code>OOS_BLOCKED</code> mit Liste der betroffenen Sektionen.</p>
 

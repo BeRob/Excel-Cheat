@@ -12,7 +12,7 @@ class FieldDef:
     id: str
     display_name: str
     type: str  # "text" | "number" | "choice" | "date"
-    role: str  # "context" | "measurement" | "auto"
+    role: str  # "context" | "identifier" | "measurement" | "auto"
     persistent: bool = False
     spec_target: float | None = None
     spec_min: float | None = None
@@ -20,7 +20,10 @@ class FieldDef:
     options: list[str] | None = None
     optional: bool = False
     default_value: str | None = None
-    group_shared: bool = False
+    # clone=true: das Feld wird je Nutzen/Bahn wiederholt und erzeugt im Wide-
+    # Format je Nutzen eine eigene Excel-Spalte ("Breite Bahn 1", "Breite Bahn 2").
+    # Löst das frühere group_shared ab (invertiert: group_shared=true == clone=false).
+    clone: bool = False
     info_header: bool = False
     machine_scoped: bool = False
 
@@ -87,6 +90,19 @@ class AppConfig:
     freigabe_pflicht: bool = True
 
 
+def _parse_clone_flag(data: dict) -> bool:
+    """Liest das clone-Flag, mit Abwärtskompatibilität zum alten group_shared.
+
+    Neu: ``clone`` ist maßgeblich. Fehlt ``clone``, aber ``group_shared`` ist
+    gesetzt, wird invertiert übernommen (group_shared=true bedeutete „über alle
+    Nutzen geteilt", also clone=false). Ohne beide Schlüssel: clone=false."""
+    if "clone" in data:
+        return bool(data["clone"])
+    if "group_shared" in data:
+        return not bool(data["group_shared"])
+    return False
+
+
 def _parse_field(data: dict) -> FieldDef:
     return FieldDef(
         id=data["id"],
@@ -100,7 +116,7 @@ def _parse_field(data: dict) -> FieldDef:
         options=data.get("options"),
         optional=data.get("optional", False),
         default_value=data.get("default_value"),
-        group_shared=data.get("group_shared", False),
+        clone=_parse_clone_flag(data),
         info_header=data.get("info_header", False),
         machine_scoped=data.get("machine_scoped", False),
     )
@@ -110,7 +126,7 @@ def _parse_field(data: dict) -> FieldDef:
 # config_writer benutzt, um beim Speichern die Overrides zurückzurechnen.
 FIELD_OVERRIDE_KEYS = {
     "display_name", "type", "role", "persistent", "spec_target", "spec_min",
-    "spec_max", "options", "optional", "default_value", "group_shared",
+    "spec_max", "options", "optional", "default_value", "clone",
     "info_header", "machine_scoped",
 }
 
@@ -346,39 +362,124 @@ def get_per_measurement_context_fields(process: ProcessConfig) -> list[FieldDef]
     return [f for f in process.fields if f.role == "context" and not f.persistent]
 
 
+def get_identifier_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Zeilen-Kennungen je Messung (Rollen-Nr., Bahn, Lfd. Nr. …) — weder reiner
+    Kontext noch Messwert. Werden wie Kontext gerendert, aber als Spalte
+    geschrieben und nie geklont."""
+    return [f for f in process.fields if f.role == "identifier"]
+
+
+def get_shared_input_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Felder des 'Gemeinsame Werte'-Blocks: pro-Messung-Kontext + Kennungen +
+    nicht-geklonte Messwerte (einmal je Messung erfasst). info_header-Felder
+    gehören in die Kopfleiste, nicht hierher."""
+    return [
+        f for f in process.fields
+        if not f.info_header and (
+            (f.role == "context" and not f.persistent)
+            or f.role == "identifier"
+            or (f.role == "measurement" and not f.clone)
+        )
+    ]
+
+
 def get_measurement_fields(process: ProcessConfig) -> list[FieldDef]:
     return [f for f in process.fields if f.role == "measurement"]
 
 
-def get_group_shared_fields(process: ProcessConfig) -> list[FieldDef]:
-    return [f for f in process.fields if f.role == "measurement" and f.group_shared]
+def get_shared_measurement_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Messwerte, die einmal je Messung erfasst werden (nicht geklont)."""
+    return [f for f in process.fields if f.role == "measurement" and not f.clone]
 
 
-def get_per_nutzen_fields(process: ProcessConfig) -> list[FieldDef]:
-    return [f for f in process.fields if f.role == "measurement" and not f.group_shared]
+def get_clone_fields(process: ProcessConfig) -> list[FieldDef]:
+    """Felder, die je Nutzen/Bahn wiederholt werden (clone=true)."""
+    return [f for f in process.fields if f.clone]
 
 
 def get_auto_fields(process: ProcessConfig) -> list[FieldDef]:
     return [f for f in process.fields if f.role == "auto"]
 
 
+NUTZEN_FIELD_ID = "nutzen"
+
+
 def is_multi_nutzen(process: ProcessConfig) -> bool:
-    """True, wenn der Prozess mehrere Zeilen je Messung erzeugt (Multi-Nutzen).
+    """True, wenn der Prozess je Messung mehrere Nutzen/Bahnen erfasst.
 
-    Aktiviert, sobald ``row_group_size`` gesetzt ist UND es etwas zu Wiederholen
-    gibt — entweder ein gemeinsames Messfeld (``group_shared``) oder ein
-    pro-Nutzen-Messfeld. Letzteres deckt Prozesse ab, bei denen das einzige
-    Messfeld je Nutzen variiert (z.B. Vorschneiden: nur ``breite`` je Bahn,
-    keine gemeinsamen Messwerte)."""
-    return bool(
-        process.row_group_size
-        and (get_group_shared_fields(process) or get_per_nutzen_fields(process))
-    )
+    Aktiv, sobald mindestens ein Feld ``clone=true`` ist. Im Wide-Format wird
+    jedes Clone-Feld je Nutzen zu einer eigenen Spalte; die Anzahl Nutzen wählt
+    der Bediener beim Prozessstart (Max/Default = ``row_group_size``)."""
+    return any(f.clone for f in process.fields)
 
 
-def get_all_headers(process: ProcessConfig) -> list[str]:
-    """Spaltenkopf-Namen für Zeile 6 (Info-Header-Felder ausgeschlossen)."""
-    return [f.display_name for f in process.fields if not f.info_header]
+def get_nutzen_label(process: ProcessConfig) -> str:
+    """Bezeichnung der Nutzen-Achse (z.B. 'Bahn' oder 'Nutzen'), abgeleitet aus
+    dem ``nutzen``-Auto-Feld; Default 'Nutzen'."""
+    for f in process.fields:
+        if f.id == NUTZEN_FIELD_ID:
+            return f.display_name
+    return "Nutzen"
+
+
+def clone_column_name(display_name: str, nutzen_label: str, index: int) -> str:
+    """Spaltenname eines geklonten Feldes für Nutzen ``index`` (1-basiert),
+    z.B. ('Breite', 'Bahn', 1) -> 'Breite Bahn 1'. Einzige Quelle der Wahrheit —
+    Creator (Header), Writer (Validierung) und FormView (Schreiben) nutzen sie."""
+    return f"{display_name} {nutzen_label} {index}"
+
+
+def get_all_headers(process: ProcessConfig, nutzen_count: int = 1) -> list[str]:
+    """Spaltenkopf-Namen für Zeile 9 (Info-Header-Felder ausgeschlossen).
+
+    Im Wide-Format (Multi-Nutzen) wird jedes ``clone``-Feld zu ``nutzen_count``
+    nummerierten Spalten expandiert; das ``nutzen``-Auto-Feld entfällt als Spalte
+    (die Nutzen-Nr. steckt im Clone-Spaltennamen)."""
+    multi = is_multi_nutzen(process)
+    label = get_nutzen_label(process)
+    headers: list[str] = []
+    for f in process.fields:
+        if f.info_header:
+            continue
+        if multi and f.id == NUTZEN_FIELD_ID and f.role == "auto":
+            continue
+        if multi and f.clone:
+            for i in range(1, max(nutzen_count, 1) + 1):
+                headers.append(clone_column_name(f.display_name, label, i))
+        else:
+            headers.append(f.display_name)
+    return headers
+
+
+def read_nutzen_count_from_file(filepath, process: ProcessConfig) -> int:
+    """Liest beim Resume die Nutzen-Anzahl aus den vorhandenen Spaltenköpfen
+    (Zeile 9), indem die nummerierten Clone-Spalten des ersten Clone-Feldes
+    gezählt werden. Liefert mindestens 1. So bleibt die Anzahl je Datei stabil,
+    ohne sie separat speichern zu müssen."""
+    clone_fields = get_clone_fields(process)
+    if not clone_fields:
+        return 1
+    import openpyxl
+
+    from src.config.settings import HEADER_ROW
+
+    label = get_nutzen_label(process)
+    first = clone_fields[0].display_name
+    prefix = f"{first} {label} "
+    wb = openpyxl.load_workbook(filepath, read_only=True)
+    try:
+        ws = wb.active
+        count = 0
+        for col in range(1, ws.max_column + 1):
+            val = ws.cell(HEADER_ROW, col).value
+            if val is None:
+                continue
+            text = str(val)
+            if text.startswith(prefix) and text[len(prefix):].strip().isdigit():
+                count += 1
+        return max(count, 1)
+    finally:
+        wb.close()
 
 
 def get_field_by_id(process: ProcessConfig, field_id: str) -> FieldDef | None:

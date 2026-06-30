@@ -100,12 +100,12 @@ Admin-Benutzer (gekennzeichnet durch `admin=true` in `users.kv`) bekommen in der
 
 ### Produktkonfigurations-Editor
 
-Der Editor ist seit v1.9.0 **template-basiert**: Feld-IDs kommen immer aus einem gewählten Operation-Template, nicht mehr per Freitext. So verwalten Admins Produkte ohne manuelles JSON-Editieren und ohne Tippfehler:
+Der Editor ist **template-basiert**: Feld-IDs kommen immer aus einem gewählten Operation-Template, nicht mehr per Freitext. So verwalten Admins Produkte ohne manuelles JSON-Editieren und ohne Tippfehler:
 
 - **Neu (Assistent)** -- Geführte Neuanlage: Produkt-ID + Anzeigename + Ausgabeverzeichnis, danach beliebig viele Prozessschritte (je Operation-Template wählen, Felder ankreuzen, Specs setzen). Der Assistent übergibt das fertige Produkt an den normalen Speicherpfad.
 - **Laden / Kopieren** -- Bestehende dünne Produkte aus der Dropdown-Liste laden oder kopieren. Alte Voll-Feld-Configs ohne Template werden **blockiert** (per Assistent neu anlegen).
-- **Prozesse verwalten** -- Hinzufügen (Operation wählen), entfernen, umsortieren. Pro Prozess: Operation (Template), `template_id` (Excel-/Resume-Schlüssel, mit Warnung gegen spätere Änderung), Anzeigename, optionale Zeilengruppe (Nutzen).
-- **Feld-Checkliste** -- Alle Template-Felder als Checkliste; anhaken = aktiv, Reihenfolge = Excel-Spaltenreihenfolge. Vorausgewählt sind nur die Pflicht-Standardfelder (Kopf-Felder, Auto-Felder, Bemerkungen). Spec-Grenzen (Min/Soll/Max) werden **inline** in der Zeile gesetzt; seltenere Abweichungen (Anzeigename, group_shared, Default, Optional, info_header, Optionen) über den **Bearbeiten**-Dialog je Feld. Typ und Rolle sind durch das Template fix.
+- **Prozesse verwalten** -- Hinzufügen (Operation wählen), entfernen, umsortieren. Pro Prozess: Operation (Template), `template_id` (Excel-/Resume-Schlüssel, mit Warnung gegen spätere Änderung), Anzeigename, **Standard-/Max-Anzahl Nutzen** (`row_group_size` — der Bediener wählt beim Prozessstart 1..Max).
+- **Feld-Checkliste** -- Alle Template-Felder als Checkliste; anhaken = aktiv, Reihenfolge = Excel-Spaltenreihenfolge. Felder lassen sich per **Maus-Griff (⠿) ziehen** (↑/↓ als Alternative). Vorausgewählt sind nur die Pflicht-Standardfelder (Kopf-Felder, Kennungen, Auto-Felder, Bemerkungen). Spec-Grenzen (Min/Soll/Max) werden **inline** in der Zeile gesetzt; seltenere Abweichungen (Anzeigename, **`clone`** = je Nutzen/Bahn eigene Spalte, Default, Optional, info_header, Optionen) und die **Rolle** (Kontext/Kennung/Messwert/Auto) über den **Bearbeiten**-Dialog je Feld. Der Typ ist durch das Template fix.
 - **Eigenes Feld hinzufügen…** -- Produktunike Felder mit voller Definition (freie ID + alle Attribute) → werden als `extra_fields` gespeichert.
 - **Freigabe-Badge** -- Zeigt oben den Freigabe-Status (grün freigegeben / orange geändert / grau nicht freigegeben); die Freigabe-Buttons sind kontextabhängig aktiv.
 - **Speichern** -- Validiert (Pflichtfelder, doppelte IDs, Spec-Grenzen, mindestens ein echter Messwert, Bemerkungen-Pflicht, Template vorhanden, eindeutige `template_id`), erhöht die Revision, verlangt eine Änderungsbeschreibung und schreibt die JSON-Datei dünn (atomar).
@@ -198,7 +198,7 @@ Optionales Top-Level-Feld:
 - **output_dir** -- Ausgabeverzeichnis für dieses Produkt (überschreibt den globalen Wert)
 
 Besonderheiten einzelner Prozesse:
-- **IPC2 Schaelen** hat `row_group_size: 3` -- das bedeutet, es gibt 3 Nutzen pro Rolle. Die App zählt automatisch "Nutzen 1 von 3", "Nutzen 2 von 3", etc.
+- **IPC2 Schaelen** hat `clone`-Felder (je Nutzen/Bahn) und `row_group_size: 3` (Standard-/Max-Anzahl). Der Bediener wählt beim Prozessstart die Anzahl Nutzen (1..3); im **Wide-Format** bekommt jedes Clone-Feld je Nutzen eine eigene Spalte ("Schichtdicke Nutzen 1", "Schichtdicke Nutzen 2", …) — eine Zeile je Messung. Beim Fortsetzen wird die Anzahl aus der Datei gelesen.
 - **IPC4 Stanzen** hat ein Auto-Feld "Prüfmuster", das bei jeder Messung hochzählt.
 
 Standard-Kontextfelder in allen Prozessen beider Produkte (persistent):
@@ -412,7 +412,7 @@ Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Enthält z
 
 - **ConfigEditorView** -- Der Haupteditor mit Produkt-Auswahl, Prozessliste und Freigabe-Badge
 - **ProcessEditorPanel** -- Geteilte Per-Prozess-Komponente (Editor + Assistent): Operation-Dropdown, `template_id`, Feld-Checkliste mit Inline-Specs
-- **FieldOverrideDialog** -- Override-Editor für ein Template-Feld (Anzeigename, group_shared, Default, Optional, info_header, Optionen; Typ/Rolle fix)
+- **FieldOverrideDialog** -- Override-Editor für ein Template-Feld (Rolle, Anzeigename, `clone`, Default, Optional, machine_scoped, info_header, Optionen; Typ fix)
 - **FieldEditorDialog** -- Voll-Editor für produktunike Felder (`extra_fields`): freie ID + alle Attribute inkl. Datum-Typ
 - **NewProductWizard** -- Geführte Neuanlage neuer Produkte
 
@@ -445,7 +445,8 @@ Testet das komplette Konfigurationssystem:
 - Schichtbestimmung zu verschiedenen Uhrzeiten (auch Mitternachts-Übergang)
 - JSON-Laden mit Defaults und Sonderoptionen (row_group_size, output_dir)
 - Template-Auflösung dünner Configs + Multi-Nutzen-Erkennung (`is_multi_nutzen`)
-- Stand: ~200 Tests gesamt (alle Suiten zusammen), alle grün
+- `test_wide_format.py` -- Wide-Format: Clone-Spalten-Expansion, group_shared→clone-Kompat, identifier-Rolle, Schreib-/Resume-Roundtrip
+- Stand: 241 Tests gesamt (alle Suiten zusammen), alle grün
 
 ### test_config_writer.py (26 Tests)
 

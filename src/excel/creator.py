@@ -91,8 +91,12 @@ def create_measurement_file(
     shift: str,
     dt: date,
     protection_password: str = SHEET_PROTECTION_PASSWORD,
+    nutzen_count: int = 1,
 ) -> Path:
-    """Legt eine neue Excel-Datei mit Kopfzeile an und gibt den Pfad zurück."""
+    """Legt eine neue Excel-Datei mit Kopfzeile an und gibt den Pfad zurück.
+
+    ``nutzen_count`` bestimmt im Wide-Format, wie viele nummerierte Spalten je
+    Clone-Feld angelegt werden (einmalig je Datei festgelegt)."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
     name = generate_file_name(lot, fa_nr, product_id, process.template_id, shift, dt)
@@ -102,7 +106,7 @@ def create_measurement_file(
     ws = wb.active
     ws.title = "Messdaten"
 
-    headers = get_all_headers(process)
+    headers = get_all_headers(process, nutzen_count)
     for col_idx, header in enumerate(headers, 1):
         cell = ws.cell(HEADER_ROW, col_idx, header)
         cell.font = HEADER_FONT

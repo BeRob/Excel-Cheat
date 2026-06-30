@@ -83,6 +83,7 @@ def _append_rows(
     filepath: str | Path,
     rows: list[dict[str, str | float | None]],
     process=None,
+    nutzen_count: int = 1,
 ) -> WriteResult:
     """Gemeinsamer Kern: hängt Zeilen an, validiert Spalten, speichert atomar."""
     result = WriteResult()
@@ -121,7 +122,10 @@ def _append_rows(
             ignore: set[str] = set()
             if process is not None:
                 ignore = {f.display_name for f in get_info_header_fields(process)}
-                missing = [h for h in get_all_headers(process) if h not in col_map]
+                missing = [
+                    h for h in get_all_headers(process, nutzen_count)
+                    if h not in col_map
+                ]
                 if missing:
                     result.error = (
                         "Spalten fehlen in der Datei (Header-Zeile verändert?): "
@@ -177,19 +181,21 @@ def write_measurement_row(
     context_values: dict[str, str],
     measurements: dict[str, float | str | None],
     auto_values: dict[str, str | float | None],
+    nutzen_count: int = 1,
 ) -> WriteResult:
     """Hängt eine Messzeile an. Spaltenposition wird aus der Datei gelesen, nicht aus process.fields."""
     all_values: dict[str, str | float | None] = {}
     all_values.update(context_values)
     all_values.update(measurements)
     all_values.update(auto_values)
-    return _append_rows(filepath, [all_values], process)
+    return _append_rows(filepath, [all_values], process, nutzen_count)
 
 
 def write_measurement_rows(
     filepath: str | Path,
     rows: list[dict[str, str | float | None]],
     process=None,
+    nutzen_count: int = 1,
 ) -> WriteResult:
-    """Hängt mehrere Messzeilen in einem Schreibvorgang an (für Multi-Nutzen)."""
-    return _append_rows(filepath, rows, process)
+    """Hängt mehrere Messzeilen in einem Schreibvorgang an."""
+    return _append_rows(filepath, rows, process, nutzen_count)

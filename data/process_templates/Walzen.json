@@ -1,10 +1,11 @@
 {
   "template": "Walzen",
-  "template_revision": 2,
+  "template_revision": 3,
   "_unification_notes": {
-    "_nutzen": "Walzen hat immer genau einen Nutzen je Messung -> kein row_group_size, kein Nutzen-Zähler. Eine Zeile je Messung, identifiziert über rolle_bahn_nutzen.",
+    "_nutzen": "Walzen hat immer genau einen Nutzen je Messung -> keine clone-Felder, keine Nutzen-Spalten. Eine Zeile je Messung, identifiziert über die Kennungen (Rollen-Nr. / Bahn / Nutzen).",
     "schichtdicke": "Ein Messwert je Messung. Produkte mit Positionsmessung nehmen stattdessen die Anfang/Ende-links/rechts-Varianten in active_fields auf.",
-    "lfd_nr": "Manuelles Eingabefeld (kein Auto-Zähler), optional je Produkt.",
+    "rollen_nr": "Reine Rollennummer als Kennung (role=identifier).",
+    "lfd_nr": "Manuelles Eingabefeld (kein Auto-Zähler), Kennung (role=identifier).",
     "klebestellen": "anzahl_klebestellen (Zahl) + position_klebestellen (Text), nur bei manchen Produkten."
   },
   "fields": [
@@ -13,10 +14,11 @@
     {"id": "verwendbarkeitsdatum", "display_name": "Verwendbarkeitsdatum", "type": "date", "role": "context", "persistent": true, "info_header": true},
     {"id": "messmittel", "display_name": "Messmittel", "type": "text", "role": "context", "persistent": true, "info_header": true},
     {"id": "rollencharge", "display_name": "Rollencharge", "type": "text", "role": "context"},
-    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "context"},
-    {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "context"},
-    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
-    {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "context", "options": ["Ja", "Nein"]},
+    {"id": "rollen_nr", "display_name": "Rollen Nr.", "type": "text", "role": "identifier"},
+    {"id": "rolle_bahn_nutzen", "display_name": "Rollen Nr. / Bahn / Nutzen", "type": "text", "role": "identifier"},
+    {"id": "lfd_nr", "display_name": "Lfd. Nr.", "type": "number", "role": "identifier"},
+    {"id": "ask", "display_name": "ASK", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
+    {"id": "flaechengewicht", "display_name": "Flächengewicht", "type": "choice", "role": "measurement", "options": ["Ja", "Nein"]},
     {"id": "schichtdicke", "display_name": "Schichtdicke", "type": "number", "role": "measurement"},
     {"id": "schichtdicke_anfang_links", "display_name": "Schichtdicke Anfang links", "type": "number", "role": "measurement"},
     {"id": "schichtdicke_anfang_rechts", "display_name": "Schichtdicke Anfang rechts", "type": "number", "role": "measurement"},

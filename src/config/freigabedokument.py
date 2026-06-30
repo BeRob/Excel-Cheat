@@ -68,8 +68,8 @@ def _flags(fd) -> str:
         flags.append("optional")
     if fd.info_header:
         flags.append("info_header")
-    if fd.group_shared:
-        flags.append("group_shared")
+    if fd.clone:
+        flags.append("clone")
     if fd.machine_scoped:
         flags.append("machine_scoped")
     return ", ".join(flags)
