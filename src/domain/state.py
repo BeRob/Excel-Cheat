@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.audit.audit_logger import AuditLogger
     from src.config.process_config import AppConfig, ProductConfig, ProcessConfig
+    from src.downtime.downtime_store import DowntimeStore
+    from src.downtime.downtime_models import StoerungsCodes
 
 
 _CARRIED_DISPLAY_NAMES = {"FA-Nr.", "LOT Nr.", "Verwendbarkeitsdatum"}
@@ -52,6 +54,13 @@ class AppState:
         self.audit: AuditLogger | None = None
         self.layout_mode: str = "horizontal"
 
+        # Störungs-/Stillstandserfassung (von app.py gesetzt).
+        self.downtime_store: DowntimeStore | None = None
+        self.stoerungs_codes: StoerungsCodes | None = None
+        # Aktuell offene Störung im laufenden Prozesskontext (Start-Datensatz-
+        # Dict) oder None. Wird beim FormView-Eintritt aus dem Store rekonstruiert.
+        self.active_downtime: dict | None = None
+
         # Vom Hauptfenster gesetzt — aktuelle View, fürs Audit nutzbar
         self.current_view: str | None = None
 
@@ -82,6 +91,9 @@ class AppState:
         self.auto_sequence = 0
         self.nutzen_count = 1
         self.machine_scoped_values = {}
+        # Beim Prozesswechsel verwerfen — FormView rekonstruiert eine offene
+        # Störung des neuen Kontexts aus dem Store (kein Leck über Prozesse).
+        self.active_downtime = None
         self.reset_context()
 
     def reset_context(self) -> None:

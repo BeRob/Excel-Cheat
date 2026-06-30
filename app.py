@@ -18,9 +18,12 @@ from src.audit.logging_setup import init_logging, shutdown_logging
 from src.config.settings import (
     APP_TITLE, APP_VERSION, WINDOW_WIDTH, WINDOW_HEIGHT, AUDIT_LOG_PATH,
     APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR,
-    DEBUG_LOG_PATH, ERROR_LOG_PATH, load_ui_prefs, load_app_config_raw,
+    DEBUG_LOG_PATH, ERROR_LOG_PATH, DOWNTIME_LOG_PATH, STOERUNGS_CODES_PATH,
+    load_ui_prefs, load_app_config_raw,
 )
 from src.config.process_config import load_app_config
+from src.downtime.downtime_store import DowntimeStore
+from src.downtime.downtime_models import load_stoerungs_codes
 from src.domain.state import AppState
 from src.ui.theme import (
     apply_theme, COLORS, FONTS,
@@ -90,10 +93,13 @@ class MeasurementApp:
         apply_theme(self.root)
 
         self.state = AppState()
-        self.state.audit = AuditLogger(
-            AUDIT_LOG_PATH,
-            lock_timeout=_num(raw_cfg, "audit_lock_timeout_seconds", 5.0),
+        _lock_timeout = _num(raw_cfg, "audit_lock_timeout_seconds", 5.0)
+        self.state.audit = AuditLogger(AUDIT_LOG_PATH, lock_timeout=_lock_timeout)
+        # Störungs-/Stillstands-Store + Fehler-Code-Liste (eigener System-of-Record).
+        self.state.downtime_store = DowntimeStore(
+            DOWNTIME_LOG_PATH, lock_timeout=_lock_timeout,
         )
+        self.state.stoerungs_codes = load_stoerungs_codes(STOERUNGS_CODES_PATH)
         try:
             self.state.app_config = load_app_config(
                 APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR

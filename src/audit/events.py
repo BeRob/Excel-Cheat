@@ -50,4 +50,10 @@ class Event:
     CONFIG_RELEASED = "config_released"
     CONTEXT_EDIT_REQUESTED = "context_edit_requested"
 
+    # Störungs-/Stillstandserfassung — Breadcrumbs ins zentrale Audit-Log.
+    # System-of-Record ist der eigene Störungs-Store (data/.../stoerungen.jsonl).
+    STOERUNG_START = "stoerung_start"
+    STOERUNG_ENDE = "stoerung_ende"
+    STOERUNG_FAIL = "stoerung_fail"
+
     EXCEPTION = "exception"

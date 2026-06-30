@@ -30,7 +30,9 @@ from src.excel.reader import read_all_data
 from src.excel.writer import write_measurement_row, write_measurement_rows
 from src.ui.base_view import BaseView
 from src.ui.review_dialog import ReviewDialog
+from src.ui.downtime_window import StoerungFenster
 from src.ui.theme import COLORS, FONTS
+from src.downtime.downtime_query import pair_stoerungen, find_open
 
 
 def _format_spec_text(fd: FieldDef) -> str:
@@ -147,6 +149,11 @@ class FormView(BaseView):
         ttk.Button(
             nav_left, text="Prozess wechseln", command=self._change_process,
         ).pack(side="left", padx=5)
+        self.stoerung_btn = ttk.Button(
+            nav_left, text="⚠ Störung / Stillstand",
+            command=self._open_stoerung_fenster,
+        )
+        self.stoerung_btn.pack(side="left", padx=5)
         ttk.Button(
             nav_left, text="Abmelden", command=self._logout,
         ).pack(side="left", padx=5)
@@ -256,6 +263,7 @@ class FormView(BaseView):
             self._set_initial_focus()
 
         self.status_var.set("")
+        self._refresh_stoerung_btn()
 
     def _render_header_bar(self) -> None:
         """Zeigt die Info-Header-Felder read-only mit kleinem ✎-Button."""
@@ -283,6 +291,55 @@ class FormView(BaseView):
                 style="Manual.TButton",
                 command=self._change_context,
             ).pack(side="left")
+
+    def _current_maschine(self) -> str:
+        """Aktuell gewählte Maschine (falls der Prozess ein maschine-Feld hat)."""
+        if self._machine_field:
+            var = self.field_vars.get(self._machine_field.display_name)
+            if var:
+                return var.get()
+        return ""
+
+    def _current_open_fault(self):
+        """Offene Störung des aktuellen Produkt+Prozess(+Maschine)-Kontexts."""
+        store = self.app_state.downtime_store
+        product = self.app_state.selected_product
+        process = self.app_state.selected_process
+        if store is None or not product or not process:
+            return None
+        return find_open(
+            pair_stoerungen(store.read_all()),
+            produkt_id=product.product_id,
+            prozess_template_id=process.template_id,
+            maschine=self._current_maschine() or None,
+        )
+
+    def _refresh_stoerung_btn(self) -> None:
+        """Buttontext/State an eine ggf. offene Störung anpassen (aus dem Store)."""
+        if not hasattr(self, "stoerung_btn"):
+            return
+        try:
+            fault = self._current_open_fault()
+        except Exception:  # noqa: BLE001 — Store-Lesefehler darf die Maske nicht kippen
+            fault = None
+        if fault is not None:
+            self.app_state.active_downtime = {
+                "id": fault.id, "ts_start": fault.ts_start,
+                "kategorie": fault.kategorie, "ursache": fault.ursache,
+            }
+            self.stoerung_btn.config(text="⚠ Störung aktiv – freigeben")
+        else:
+            self.app_state.active_downtime = None
+            self.stoerung_btn.config(text="⚠ Störung / Stillstand")
+
+    def _open_stoerung_fenster(self) -> None:
+        """Öffnet das Störungsfenster (Erfassen + Freigeben in einem Dialog)."""
+        StoerungFenster(
+            self, self.app_state,
+            maschine=self._current_maschine(),
+            on_change=self._refresh_stoerung_btn,
+        )
+        self._refresh_stoerung_btn()
 
     def _change_context(self) -> None:
         """✎-Button: zurück zur ContextView, um Info-Header zu ändern."""

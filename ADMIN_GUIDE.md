@@ -1,6 +1,6 @@
 # QAInput – Admin-Guide (kurz)
 
-Stand: v0.9.0. Für Details siehe `DOKUMENTATION.md`, `CLAUDE.md`, `CONFIG_REFERENZ.md`.
+Stand: v0.9.1. Für Details siehe `DOKUMENTATION.md`, `CLAUDE.md`, `CONFIG_REFERENZ.md`.
 
 ## 1. Verzeichnisstruktur (Netzlaufwerk)
 
@@ -18,8 +18,9 @@ X:\Produktion\14_QAInput\
 │  ├─ config\                  app_config.json (Schichten, freigabe_pflicht)
 │  ├─ process_templates\       kanonische Feldstruktur je Operation
 │  ├─ products\                <REF>.json (dünne Configs) + freigaben.json
+│  ├─ stoerungs_codes.json     zweistufige Fehler-Code-Liste (Störungserfassung)
 │  └─ vorlagen\                freigabedokument.docx (optional)
-├─ Audit\                      audit_log.jsonl (+ Tagesrotation .YYYY-MM-DD)
+├─ Audit\                      audit_log.jsonl (+ Tagesrotation) + stoerungen.jsonl (Störungs-Store)
 ├─ Log\                        debug.log, error.log
 ├─ Freigabedokumente\          erzeugte Freigabe-PDFs/DOCX (das Papier ist der Record)
 └─ Output\                     erzeugte Excel-Chargendateien (oder je Produkt anders)
@@ -33,7 +34,7 @@ X:\Produktion\14_QAInput\
 |---|---|---|---|
 | `Data\process_templates`, `Data\products`, `Data\config` | Lesen | Lesen | Ändern |
 | `Data\user` (users.kv) | Lesen* | – | Ändern |
-| `Audit\` | **Schreiben/Anfügen, KEIN Löschen** | Lesen | Lesen (kein Löschen) |
+| `Audit\` (inkl. `stoerungen.jsonl`) | **Schreiben/Anfügen, KEIN Löschen** | Lesen | Lesen (kein Löschen) |
 | `Log\` | Schreiben | Lesen | Ändern |
 | `Output\` | Ändern (Anfügen), **KEIN Löschen** | Lesen | Ändern |
 | `Freigabedokumente\` | – | Lesen | Ändern |
@@ -73,6 +74,15 @@ Das **Status-Badge** oben im Editor zeigt: grün „freigegeben" / orange „ge�
 Jede spätere Änderung der Config bricht den Hash → Badge wird orange, Produkt fällt automatisch aus dem Scope, bis neu freigegeben wird.
 
 **Schalter `freigabe_pflicht`** in `app_config.json`: `true` = nur freigegebene Produkte wählbar (Zielzustand). `false` = Übergangsbetrieb (nicht freigegebene erscheinen mit ⚠). Nach Abschluss der Erst-Freigaben auf `true` setzen.
+
+## 4b. Störungen / Stillstandszeiten (v0.9.1)
+
+Bediener melden Maschinenstörungen im Messwert-Bildschirm über **„⚠ Störung / Stillstand"** (Erfassen → Beheben → Freigeben). Jede Störung ist an Produkt + Prozess (+ ggf. Maschine) gebunden.
+
+- **Store:** `stoerungen.jsonl` (append-only, gepaarte `stoerung_start`/`stoerung_ende`-Einträge) — eigener GMP-Record, **kein Löschen** durch Werker. Default neben dem Audit-Trail; via `QAINPUT_DOWNTIME_DIR` bzw. Bootstrap-`config.json`-Key `downtime_dir` umlenkbar. Robust wie das Audit-Log (Inter-Prozess-Lock, lokaler Fallback mit Replay).
+- **Fehler-Code-Liste:** `Data\config\stoerungs_codes.json` — zweistufig (Kategorie → Ursachen), editierbar. Fehlt/fehlerhaft → eingebaute Default-Taxonomie. Aufbau in `CONFIG_REFERENZ.md` §10.
+- **Auswertung (Admin-Tab „Störungen / Auswertung"):** Filter (Zeitraum mit Schnellwahl „letzte 2 Wochen"/„dieser Monat", Produkt, Prozess, Station, Kategorie, Status), Detailtabelle, KPI-Kacheln (Anzahl, Σ Störzeit, **MTTR**, **MTBF**, **Verfügbarkeit**), Gruppierung (Station/Kategorie/Prozess) und **Excel-Export**.
+- **Verfügbarkeit** braucht eine Planzeit; der Tab schlägt sie aus Schichtlänge × aktiven Tagen vor und lässt sie überschreiben. MTTR/MTBF/Zählungen funktionieren ohne Planzeit. Volle OEE (Leistung × Qualität) ist eine spätere Erweiterung (braucht Stückzahlen + Soll-Taktzeit).
 
 ## 5. Betrieb
 

@@ -1,5 +1,21 @@
 # Versionshistorie – QAInput
 
+## v0.9.1 – 2026-06-30
+
+> **Störungs- und Stillstandserfassung.** Bediener melden Maschinenstörungen aus der Messwertmaske; die Stillstandszeit wird geloggt, klassifiziert und bei der Freigabe abgeschlossen. Auswertung inkl. Verfügbarkeit/MTTR/MTBF als OEE-Vorstufe.
+
+### Neu
+- **Störungsfenster aus der Messwertmaske** – Neuer Button „⚠ Störung / Stillstand" in der Action-Bar öffnet ein Fenster, in dem **erfasst und freigegeben** wird. Erfassen: zweistufige Klassifizierung (Kategorie → Ursache), Station (Lokalisierung), Beschreibung; die Startzeit wird gesetzt. Freigeben: Technikername (Pflicht) + Behebungsbeschreibung (Pflicht), Endzeit und Dauer werden berechnet. Jede Störung ist an die laufende Produkt-/Prozess-(/Maschine-)Auswahl gebunden
+- **Offene Störung überlebt Logout/Neustart** – Beim Betreten der Messwertmaske wird eine offene Störung des aktuellen Kontexts aus dem Store rekonstruiert; der Button zeigt dann „⚠ Störung aktiv – freigeben"
+- **Eigener Störungs-Store** (`stoerungen.jsonl`) – Append-only JSONL nach dem gehärteten Audit-Muster (Inter-Prozess-Lock, lokaler Fallback mit Replay). System-of-Record getrennt vom Audit-Log; je Aktion zusätzlich ein Audit-Breadcrumb (`stoerung_start`/`stoerung_ende`)
+- **Zweistufige Fehler-Code-Liste** `data/stoerungs_codes.json` (Kategorie → Ursachen, konfigurierbar; fehlt/fehlerhaft → eingebaute Default-Taxonomie)
+- **Admin-Tab „Störungen / Auswertung"** – Filter (Zeitraum mit Schnellwahl „letzte 2 Wochen"/„dieser Monat", Produkt, Prozess, Station, Kategorie, Status), Detailtabelle, KPI-Kacheln (**Anzahl, Σ Störzeit, MTTR, MTBF, Verfügbarkeit**), wählbare Gruppierung (Station/Kategorie/Prozess) und **Excel-Export**
+- **Pfade konfigurierbar** – `QAINPUT_DOWNTIME_DIR`/Bootstrap-Key `downtime_dir` (Default: neben dem Audit-Trail); Code-Liste unter `stoerungs_codes.json` im `config_dir`
+
+### Hinweise
+- Verfügbarkeit braucht eine Planzeit; der Auswertungs-Tab schlägt sie aus Schichtlänge × aktiven Tagen vor und lässt sie überschreiben. MTTR/MTBF/Zählungen sind ohne Planzeit verfügbar
+- Volle OEE (Leistung × Qualität) ist eine spätere Erweiterung (benötigt Stückzahlen + Soll-Taktzeit, die heute nicht erfasst werden)
+
 ## v0.9.0 – 2026-06-30
 
 > Versions-Neubasislinie: Die App wird ausdrücklich auf **0.9.0** gesetzt (Vorgänger-Stand war 1.9.0). Ab hier zählt 0.9.x als aktuelle Pre-1.0-Linie.
