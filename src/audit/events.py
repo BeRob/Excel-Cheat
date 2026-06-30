@@ -50,4 +50,7 @@ class Event:
     CONFIG_RELEASED = "config_released"
     CONTEXT_EDIT_REQUESTED = "context_edit_requested"
 
+    PREFLIGHT_OK = "preflight_ok"
+    PREFLIGHT_FAIL = "preflight_fail"
+
     EXCEPTION = "exception"

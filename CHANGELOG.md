@@ -1,5 +1,15 @@
 # Versionshistorie – QAInput
 
+## v0.10.0 – 2026-06-30
+
+### Neu
+- **Installer-basiertes Deployment (baramundi)** – Ablösung der portablen Verteilung durch zwei Inno-Setup-Installer (`installer/`): ein **Client-Setup** (Thin Client `QAInput.exe` + `_internal\` + `config.json` nach `Program Files`, silent-fähig für baramundi) und ein optionales **Backend-Setup** (legt die Datenstruktur auf dem Netzlaufwerk an und seedet Startdateien, idempotent via `onlyifdoesntexist`)
+- **Startup-Preflight** (`src/config/preflight.py`) – Beim App-Start werden alle konfigurierten Pfade geprüft: `users.kv`/Produkte/Templates lesbar, Audit-/Log-Verzeichnis schreibbar (echter Schreibtest). Kritische Befunde → klarer Diagnose-Dialog + `PREFLIGHT_FAIL`-Audit-Event + sauberer Abbruch statt Crash; sonst `PREFLIGHT_OK` (optionale Dateien nur als Warnung)
+- **Build-Pipeline** `installer/build_installers.ps1` – baut PyInstaller, liest die Version aus `src/version.py`, staged die Seed-Struktur und kompiliert beide Setups versionssynchron
+
+### Geändert
+- **Netzpfade auf UNC** – Deployment-`config.json` nutzt `\\SERVER\Freigabe\…` statt Laufwerksbuchstaben (`X:\`), da baramundi als SYSTEM-Konto keine benutzergemappten Laufwerke sieht
+
 ## v0.9.0 – 2026-06-30
 
 > Versions-Neubasislinie: Die App wird ausdrücklich auf **0.9.0** gesetzt (Vorgänger-Stand war 1.9.0). Ab hier zählt 0.9.x als aktuelle Pre-1.0-Linie.

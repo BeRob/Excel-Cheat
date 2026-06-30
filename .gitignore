@@ -17,6 +17,9 @@ data/freigabedokumente/
 dist/
 build/
 deployment/
+# Installer: generierte Artefakte (Skripte/Vorlagen bleiben getrackt)
+installer/Output/
+installer/seed/
 simulation_output/
 .env
 CLAUDE.md

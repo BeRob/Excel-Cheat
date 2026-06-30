@@ -1,0 +1,8 @@
+{
+  "users_dir":              "\\\\SERVER\\Freigabe\\Produktion\\14_QAInput\\Data\\user",
+  "config_dir":             "\\\\SERVER\\Freigabe\\Produktion\\14_QAInput\\Data\\config",
+  "products_dir":           "\\\\SERVER\\Freigabe\\Produktion\\14_QAInput\\Data\\products",
+  "process_templates_dir":  "\\\\SERVER\\Freigabe\\Produktion\\14_QAInput\\Data\\process_templates",
+  "audit_dir":              "\\\\SERVER\\Freigabe\\Produktion\\14_QAInput\\Audit",
+  "log_dir":                "\\\\SERVER\\Freigabe\\Produktion\\14_QAInput\\Log"
+}

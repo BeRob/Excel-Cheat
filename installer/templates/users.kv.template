@@ -1,0 +1,12 @@
+; QAInput Benutzerdatenbank — VORLAGE
+; Format:  user.<id>.<property>=<value>
+; Properties:  password, name, qr (optional), admin (true|false)
+; Zeilen ohne '=' werden beim Laden ignoriert (dienen hier als Kommentar).
+;
+; WICHTIG: Vor Go-Live anpassen — mindestens das Admin-Passwort ändern und
+; die realen Bediener anlegen. Diese Datei wird vom Backend-Setup nur dann
+; abgelegt, wenn am Ziel noch keine users.kv existiert (onlyifdoesntexist).
+
+user.admin.name=Administrator
+user.admin.password=changeme
+user.admin.admin=true

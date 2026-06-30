@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 # (Major, Minor, Patch, Build) — Build bleibt typischerweise 0.
-APP_VERSION_TUPLE: tuple[int, int, int, int] = (0, 9, 0, 0)
+APP_VERSION_TUPLE: tuple[int, int, int, int] = (0, 10, 0, 0)
 APP_VERSION: str = ".".join(str(n) for n in APP_VERSION_TUPLE[:3])
 APP_VERSION_FULL: str = ".".join(str(n) for n in APP_VERSION_TUPLE)
 

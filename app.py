@@ -94,6 +94,10 @@ class MeasurementApp:
             AUDIT_LOG_PATH,
             lock_timeout=_num(raw_cfg, "audit_lock_timeout_seconds", 5.0),
         )
+        # Vor dem Laden der Configs prüfen, ob alle Pfade erreichbar sind.
+        # Bricht bei kritischen Befunden mit klarer Meldung ab, statt später
+        # mit unvollständigem Audit-Trail weiterzulaufen (GMP).
+        self._run_preflight()
         try:
             self.state.app_config = load_app_config(
                 APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
@@ -192,6 +196,65 @@ class MeasurementApp:
 
         self._create_views()
         self.navigate("login")
+
+    def _run_preflight(self) -> None:
+        """Prüft beim Start, ob alle konfigurierten Pfade erreichbar sind.
+
+        Bei kritischen Befunden: Fehlerdialog + `PREFLIGHT_FAIL`-Audit-Event,
+        danach sauberer Abbruch. Sonst `PREFLIGHT_OK` (Warnings im Log)."""
+        from src.config.preflight import check_paths
+
+        result = check_paths()
+
+        def _as_dicts(issues):
+            return [
+                {"label": i.label, "path": str(i.path), "reason": i.reason}
+                for i in issues
+            ]
+
+        for i in result.warnings:
+            _logger.warning(
+                "Preflight-Warnung: %s (%s) — %s", i.label, i.path, i.reason
+            )
+
+        if result.ok:
+            self.state.audit.log_event(
+                Event.PREFLIGHT_OK, details={"warnings": _as_dicts(result.warnings)},
+            )
+            return
+
+        crit = result.critical
+        for i in crit:
+            _logger.error(
+                "Preflight kritisch: %s (%s) — %s", i.label, i.path, i.reason
+            )
+        try:
+            self.state.audit.log_event(
+                Event.PREFLIGHT_FAIL, level="error",
+                details={
+                    "critical": _as_dicts(crit),
+                    "warnings": _as_dicts(result.warnings),
+                },
+            )
+        except Exception:
+            pass
+
+        lines = "\n".join(
+            f"•  {i.label}:\n     {i.reason}\n     {i.path}" for i in crit
+        )
+        messagebox.showerror(
+            "QAInput kann nicht starten",
+            "Folgende benötigte Pfade sind nicht erreichbar:\n\n"
+            f"{lines}\n\n"
+            "Bitte prüfen, ob das Netzlaufwerk verfügbar ist und die Pfade in "
+            "config.json korrekt sind.\n\nDie Anwendung wird beendet.",
+        )
+        shutdown_logging()
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
+        raise SystemExit(1)
 
     def _increase_font(self) -> None:
         self._font_scale = scale_fonts(+1, self._font_scale)
