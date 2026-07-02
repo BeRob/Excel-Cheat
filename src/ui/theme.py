@@ -51,6 +51,9 @@ FONTS: dict[str, object] = {
     "body": ("Segoe UI", 11),
     "body_bold": ("Segoe UI", 11, "bold"),
     "small": ("Segoe UI", 10),
+    "tiny": ("Segoe UI", 9),
+    "tiny_bold": ("Segoe UI", 9, "bold"),
+    "mono": ("Consolas", 10),
 }
 
 _BASE_SIZES: dict[str, int] = {
@@ -60,6 +63,9 @@ _BASE_SIZES: dict[str, int] = {
     "body": 11,
     "body_bold": 11,
     "small": 10,
+    "tiny": 9,
+    "tiny_bold": 9,
+    "mono": 10,
 }
 
 _FONT_WEIGHTS: dict[str, str] = {
@@ -69,6 +75,14 @@ _FONT_WEIGHTS: dict[str, str] = {
     "body": "normal",
     "body_bold": "bold",
     "small": "normal",
+    "tiny": "normal",
+    "tiny_bold": "bold",
+    "mono": "normal",
+}
+
+# Schrift-Familie je Font-Key (Default Segoe UI; mono nutzt Consolas)
+_FONT_FAMILIES: dict[str, str] = {
+    "mono": "Consolas",
 }
 
 _font_objects: dict[str, tkfont.Font] = {}
@@ -82,10 +96,11 @@ def _init_fonts(scale: int = 0) -> None:
     for name, base in _BASE_SIZES.items():
         size = base + scale
         weight = _FONT_WEIGHTS[name]
+        family = _FONT_FAMILIES.get(name, "Segoe UI")
         if name in _font_objects:
             _font_objects[name].configure(size=size)
         else:
-            _font_objects[name] = tkfont.Font(family="Segoe UI", size=size, weight=weight)
+            _font_objects[name] = tkfont.Font(family=family, size=size, weight=weight)
         FONTS[name] = _font_objects[name]
 
 
@@ -200,7 +215,7 @@ def apply_theme(root: tk.Tk, scale: int = 0) -> None:
     style.configure(
         "TButton",
         font=FONTS["body_bold"],
-        padding=(12, 6),
+        padding=(10, 5),
         background=COLORS["surface"],
         foreground=COLORS["text_primary"],
         borderwidth=1,
@@ -218,7 +233,7 @@ def apply_theme(root: tk.Tk, scale: int = 0) -> None:
         background=COLORS["accent"],
         foreground=COLORS["text_on_primary"],
         font=FONTS["body_bold"],
-        padding=(16, 10),
+        padding=(14, 7),
         borderwidth=1,
         relief="solid",
         bordercolor=COLORS["accent_hover"],
@@ -230,6 +245,56 @@ def apply_theme(root: tk.Tk, scale: int = 0) -> None:
             ("disabled", COLORS["disabled"]),
         ],
         foreground=[("disabled", COLORS["background"])],
+    )
+
+    # Kompakter Icon-Button (✎ / ⚙ / 📅 / ◀ ▶) — kein width=-Hack nötig
+    style.configure(
+        "Icon.TButton",
+        font=FONTS["body"],
+        padding=(4, 2),
+        background=COLORS["surface"],
+        foreground=COLORS["text_primary"],
+        borderwidth=1,
+        relief="solid",
+        bordercolor=COLORS["border"],
+    )
+    style.map(
+        "Icon.TButton",
+        background=[("active", COLORS["border"]), ("disabled", COLORS["disabled"])],
+        foreground=[("disabled", COLORS["text_secondary"])],
+    )
+
+    # Kleiner Zeilen-Button (Bearbeiten / ✕ je Feldzeile im Config-Editor)
+    style.configure(
+        "Small.TButton",
+        font=FONTS["small"],
+        padding=(6, 3),
+        background=COLORS["surface"],
+        foreground=COLORS["text_primary"],
+        borderwidth=1,
+        relief="solid",
+        bordercolor=COLORS["border"],
+    )
+    style.map(
+        "Small.TButton",
+        background=[("active", COLORS["border"]), ("disabled", COLORS["disabled"])],
+        foreground=[("disabled", COLORS["text_secondary"])],
+    )
+
+    # Winziger ⓘ-Auslöser für Hover-Tooltips (ersetzt Erklärungstexte)
+    style.configure(
+        "Info.TButton",
+        font=FONTS["tiny_bold"],
+        padding=(2, 0),
+        background=COLORS["background"],
+        foreground=COLORS["accent"],
+        borderwidth=0,
+        relief="flat",
+    )
+    style.map(
+        "Info.TButton",
+        background=[("active", COLORS["accent_light"])],
+        foreground=[("active", COLORS["accent_hover"])],
     )
 
     style.configure(
@@ -334,6 +399,43 @@ def apply_theme(root: tk.Tk, scale: int = 0) -> None:
         foreground=COLORS["warning"],
         background=COLORS["background"],
         font=FONTS["body"],
+    )
+
+    # Feld-ID als Monospace-Chip (Config-Editor-Feldliste)
+    style.configure(
+        "FieldId.TLabel",
+        font=FONTS["mono"],
+        background=COLORS["surface"],
+        foreground=COLORS["text_primary"],
+        relief="solid",
+        borderwidth=1,
+        bordercolor=COLORS["border"],
+        padding=(4, 1),
+    )
+    style.configure(
+        "FieldIdMuted.TLabel",
+        font=FONTS["mono"],
+        background=COLORS["background"],
+        foreground=COLORS["disabled"],
+        relief="solid",
+        borderwidth=1,
+        bordercolor=COLORS["border"],
+        padding=(4, 1),
+    )
+
+    # Dezenter Hinweis-/Sekundärtext (vereinheitlicht verstreute Inline-Labels)
+    style.configure(
+        "Hint.TLabel",
+        font=FONTS["tiny"],
+        background=COLORS["background"],
+        foreground=COLORS["text_secondary"],
+    )
+    # Spaltenüberschrift der Feldliste
+    style.configure(
+        "ColHeader.TLabel",
+        font=FONTS["tiny_bold"],
+        background=COLORS["background"],
+        foreground=COLORS["text_secondary"],
     )
 
     style.configure("Header.TFrame", background=COLORS["background"])

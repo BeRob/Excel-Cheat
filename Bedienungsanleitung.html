@@ -80,7 +80,7 @@
 </head>
 <body>
 <h1>QAInput &ndash; Bedienungsanleitung</h1>
-<p>Technische Dokumentation für Administratoren, Entwickler und Wartung. Beschreibt Architektur, Code-Aufbau, Konfigurationssystem und Datenfluss von QAInput v1.5.0.</p>
+<p>Technische Dokumentation für Administratoren, Entwickler und Wartung. Beschreibt Architektur, Code-Aufbau, Konfigurationssystem und Datenfluss von QAInput v0.9.1.</p>
 <p>Eine schlanke Anleitung für Endbenutzer (Mitarbeiter im Produktionsbetrieb) liegt separat als <code>Kurzanleitung.html</code> bei.</p>
 
 <div class="toc">
@@ -557,11 +557,14 @@ user.max.admin=true</code></pre>
 <table>
 <thead><tr><th>Position</th><th>Buttons</th></tr></thead>
 <tbody>
-<tr><td>Links</td><td><em>Layout: Horizontal/Vertikal</em>, <em>Prozess wechseln</em>, <em>Abmelden</em></td></tr>
+<tr><td>Links</td><td><em>Layout: Horizontal/Vertikal</em>, <em>Prozess wechseln</em>, <em>⚠ Störung / Stillstand</em>, <em>Abmelden</em></td></tr>
 <tr><td>Rechts</td><td><em>Felder leeren</em>, <em>Speichern</em> (Accent)</td></tr>
 </tbody>
 </table>
 <p>Damit liegt nichts mehr mitten im Form. Layout-Default ist <strong>horizontal</strong> (<code>AppState.layout_mode = "horizontal"</code>).</p>
+
+<h4>Störungs-/Stillstandserfassung (seit v0.9.1)</h4>
+<p>Der Button <em>⚠ Störung / Stillstand</em> öffnet das <code>StoerungFenster</code> (<code>src/ui/downtime_window.py</code>) &ndash; ein Fenster für <strong>Erfassen und Freigeben</strong>. Liegt eine offene Störung für das aktuelle Produkt+Prozess(+Maschine) vor, zeigt es den Freigabe-Abschnitt (Technikername + Behebung, beide Pflicht, ohne Re-Auth), sonst den Erfassungs-Abschnitt (Kategorie → Ursache aus <code>data/stoerungs_codes.json</code>, Station, Beschreibung). Geschrieben wird in den eigenen append-only Store <code>stoerungen.jsonl</code> (<code>DowntimeStore</code>), plus Audit-Breadcrumb <code>STOERUNG_START</code>/<code>STOERUNG_ENDE</code>. <code>FormView.on_show</code> rekonstruiert eine offene Störung aus dem Store, sodass der Button-Text bei aktivem Stillstand auf <em>⚠ Störung aktiv &ndash; freigeben</em> wechselt. Auswertung im Admin-Tab „Störungen / Auswertung" (<code>downtime_report_view.py</code>); Rechen-Logik Tk-frei in <code>downtime_query.py</code> (Verfügbarkeit, MTTR, MTBF).</p>
 
 <h3><code>review_dialog.py</code> &ndash; Übersichtsdialog</h3>
 <p>Modaler <code>tk.Toplevel</code> mit zwei Modi:</p>
@@ -854,6 +857,6 @@ build.bat</code></pre>
 <p>Zielordner auf dem Produktionsserver: <code>X:\Produktion\14_QAInput\QAInput\</code>.</p>
 
 <hr />
-<p style="color:#888; font-size:0.9em;">QAInput v1.5.0 &ndash; Questalpha GmbH</p>
+<p style="color:#888; font-size:0.9em;">QAInput v0.9.1 &ndash; Questalpha GmbH</p>
 </body>
 </html>

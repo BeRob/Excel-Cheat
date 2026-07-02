@@ -80,6 +80,10 @@ PROCESS_TEMPLATES_DIR = _resolve_dir(
 AUDIT_DIR = _resolve_dir(
     "QAINPUT_AUDIT_DIR", _BOOTSTRAP.get("audit_dir"), DATA_DIR,
 )
+# Störungs-/Stillstands-Store (GMP-Record, daher Default neben dem Audit-Trail).
+DOWNTIME_DIR = _resolve_dir(
+    "QAINPUT_DOWNTIME_DIR", _BOOTSTRAP.get("downtime_dir"), AUDIT_DIR,
+)
 # Logs (debug.log, error.log) liegen getrennt vom GMP-Audit-Trail.
 # Default: <DATA_DIR>/logs/ — also Sibling zum Audit, nicht im selben Ordner.
 LOG_DIR = _resolve_dir(
@@ -98,6 +102,10 @@ DEBUG_LOG_PATH = LOG_DIR / "debug.log"
 ERROR_LOG_PATH = LOG_DIR / "error.log"
 
 UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"
+
+# Störungs-Store (append-only JSONL) + zweistufige Fehler-Code-Liste.
+DOWNTIME_LOG_PATH = DOWNTIME_DIR / "stoerungen.jsonl"
+STOERUNGS_CODES_PATH = CONFIG_DIR / "stoerungs_codes.json"
 
 # Word-Vorlage für Freigabedokumente (vom QM gepflegt, mit {{...}}-Platzhaltern).
 # Fehlt sie, fällt die Erzeugung auf ein festes HTML-Layout zurück.

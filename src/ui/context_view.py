@@ -60,8 +60,8 @@ class ContextView(BaseView):
 
         self.no_fields_label = ttk.Label(
             self,
-            text="Keine festen Werte definiert. Sie können direkt weiter zur Messung.",
-            foreground=COLORS["text_secondary"],
+            text="Keine festen Werte definiert — direkt weiter zur Messung.",
+            style="Hint.TLabel",
         )
         self.no_fields_label.grid(row=3, column=0, padx=40, pady=5)
         self.no_fields_label.grid_remove()
@@ -165,7 +165,7 @@ class ContextView(BaseView):
                 widget.bind("<Return>", lambda e: e.widget.tk_focusNext().focus_set() or "break")
                 widget.pack(side="left")
                 ttk.Button(
-                    container, text="📅", width=3,
+                    container, text="📅", style="Icon.TButton",
                     command=lambda v=var: self._open_date_picker(v),
                 ).pack(side="left", padx=(4, 0))
                 self._field_entries.append(widget)

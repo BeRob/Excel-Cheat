@@ -20,6 +20,7 @@ from src.config.settings import APP_ROOT
 from src.ui.base_view import BaseView
 from src.ui.analysis_view import AnalysisView
 from src.ui.config_editor_view import ConfigEditorView
+from src.ui.downtime_report_view import DowntimeReportView
 from src.ui.theme import COLORS, FONTS
 
 
@@ -125,7 +126,7 @@ class ProductProcessView(BaseView):
         info_frame.columnconfigure(0, weight=1)
 
         self.info_text = tk.Text(
-            info_frame, height=8, wrap="word", state="disabled",
+            info_frame, height=5, wrap="word", state="disabled",
             font=FONTS["small"], bg=COLORS["background"],
             relief="flat", borderwidth=0,
         )
@@ -159,6 +160,9 @@ class ProductProcessView(BaseView):
 
             analysis_tab = AnalysisView(notebook, self.app_state)
             notebook.add(analysis_tab, text="Datenauswertung")
+
+            downtime_tab = DowntimeReportView(notebook, self.app_state)
+            notebook.add(downtime_tab, text="Störungen / Auswertung")
 
             config_editor_tab = ConfigEditorView(notebook, self.app_state)
             notebook.add(config_editor_tab, text="Produktkonfiguration")

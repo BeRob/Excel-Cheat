@@ -200,3 +200,27 @@ HTML mit festem Layout.
   ]
 }
 ```
+
+---
+
+## 10. Störungs-Codes (`data/stoerungs_codes.json`)
+
+Zweistufige Fehler-Klassifizierung für die Störungserfassung (Kategorie →
+Ursache). Fehlt die Datei oder ist sie fehlerhaft, greift die eingebaute
+Default-Taxonomie aus `src/downtime/downtime_models.py` (`DEFAULT_KATEGORIEN`).
+Pfad: `config_dir/stoerungs_codes.json` (`STOERUNGS_CODES_PATH`).
+
+```json
+{
+  "kategorien": [
+    {"name": "Mechanik", "ursachen": ["Lagerschaden", "Werkzeugbruch", "Materialstau"]},
+    {"name": "Elektrik", "ursachen": ["Sensorfehler", "Antrieb/Motor", "Steuerung/SPS"]},
+    {"name": "Sonstiges", "ursachen": ["Warten auf Technik", "Alle übrigen Verluste"]}
+  ]
+}
+```
+
+Der Störungs-Store selbst (`stoerungen.jsonl`, append-only, ein `stoerung_start`-
+und ein `stoerung_ende`-Eintrag je Störung, gepaart über `id`) ist **kein**
+Config-File, sondern Laufzeit-Record. Ablage: `QAINPUT_DOWNTIME_DIR` /
+Bootstrap-Key `downtime_dir` (Default: neben dem Audit-Trail).

@@ -98,7 +98,7 @@
 
 <h1>QAInput &ndash; Kurzanleitung für Mitarbeiter</h1>
 <p>Diese Anleitung erklärt, wie Sie QAInput im Alltag bedienen. Sie richtet sich an Mitarbeiter ohne Vorkenntnisse.</p>
-<p style="color:#666; font-size:0.95em;">Version 0.9.0</p>
+<p style="color:#666; font-size:0.95em;">Version 0.9.1</p>
 
 <div class="toc">
     <strong>Inhalt</strong>
@@ -112,6 +112,7 @@
         <li><a href="#pruefen-senden">Speichern und Senden</a></li>
         <li><a href="#oos">Eingabe außerhalb der Spezifikation</a></li>
         <li><a href="#verlauf">Verlauf der letzten Messungen</a></li>
+        <li><a href="#stoerung">Störung / Stillstand melden</a></li>
         <li><a href="#bedienhilfen">Bedienhilfen (Schrift, Dark Mode, Info)</a></li>
         <li><a href="#troubleshooting">Was tun, wenn …?</a></li>
     </ol>
@@ -147,7 +148,7 @@
 </div>
 
 <div class="tip">
-    <strong>Buttons unten am Bildschirm:</strong> <em>Abmelden</em>, <em>Prozess wechseln</em>, <em>Layout</em> sowie <em>Felder leeren</em> und <em>Speichern</em> liegen alle in einer Leiste am unteren Fensterrand. So gibt es keine Buttons mehr mitten im Formular.
+    <strong>Buttons unten am Bildschirm:</strong> <em>Abmelden</em>, <em>Prozess wechseln</em>, <em>⚠ Störung / Stillstand</em>, <em>Layout</em> sowie <em>Felder leeren</em> und <em>Speichern</em> liegen alle in einer Leiste am unteren Fensterrand. So gibt es keine Buttons mehr mitten im Formular.
 </div>
 
 <hr />
@@ -214,7 +215,7 @@
     <li><strong>Darunter:</strong> Anzeige der festen Werte (FA-Nr., LOT, Verwendbarkeitsdatum, Messmittel) &ndash; nur lesend. Neben jedem Wert ein kleines <em>✎</em>-Symbol; ein Klick darauf bringt Sie zurück zum Bildschirm „Feste Werte", um die Eingabe zu korrigieren.</li>
     <li><strong>Mitte:</strong> Eingabefelder für die Messwerte. Bei manchen Prozessen zusätzlich ein Block <em>Gemeinsame Werte</em> oder <em>Feste Werte</em>.</li>
     <li><strong>Darunter:</strong> Schmale Verlaufs-Leiste mit dem <em>▼ Verlauf</em>-Knopf und der letzten Messung als 1-Zeilen-Vorschau (siehe Abschnitt <em>Verlauf</em> weiter unten).</li>
-    <li><strong>Ganz unten:</strong> Eine einzige Action-Bar &ndash; links die Navigations-Buttons (<em>Layout</em>, <em>Prozess wechseln</em>, <em>Abmelden</em>), rechts die großen Buttons <em>Felder leeren</em> und <em>Speichern</em>.</li>
+    <li><strong>Ganz unten:</strong> Eine einzige Action-Bar &ndash; links die Navigations-Buttons (<em>Layout</em>, <em>Prozess wechseln</em>, <em>⚠ Störung / Stillstand</em>, <em>Abmelden</em>), rechts die großen Buttons <em>Felder leeren</em> und <em>Speichern</em>.</li>
 </ul>
 <div class="tip">
     Das Layout ist so optimiert, dass Sie alle Messfelder ohne Scrollen sehen können. Standard-Anordnung der Felder ist <em>horizontal</em> (mehrere Spalten nebeneinander).
@@ -331,6 +332,33 @@
 
 <hr />
 
+<h2 id="stoerung">Störung / Stillstand melden</h2>
+<p>Wenn die Maschine während der Produktion stehen bleibt (Defekt, Materialstau, Werkzeugbruch …), erfassen Sie die Störung direkt in QAInput. So wird die <strong>Stillstandszeit</strong> sauber dokumentiert und später ausgewertet (z. B. Verfügbarkeit der Anlage). Die Störung wird automatisch dem aktuell gewählten <strong>Produkt und Prozess</strong> zugeordnet.</p>
+
+<h3>Störung erfassen (Beginn)</h3>
+<ol>
+    <li>Im Messwert-Bildschirm unten auf <em>⚠ Störung / Stillstand</em> klicken &ndash; das Störungsfenster öffnet sich.</li>
+    <li><strong>Kategorie</strong> wählen (z. B. Mechanik, Elektrik, Material) und darunter die passende <strong>Ursache</strong>.</li>
+    <li><strong>Station</strong> eintragen &ndash; wo genau an der Maschine der Fehler ist (freier Text, z. B. <code>Station 12</code>).</li>
+    <li>Optional eine kurze <strong>Beschreibung</strong> ergänzen.</li>
+    <li>Auf <em>Störung erfassen</em> klicken &ndash; ab jetzt läuft die Stillstandszeit. Der Button unten zeigt nun <em>⚠ Störung aktiv &ndash; freigeben</em>.</li>
+</ol>
+
+<h3>Maschine freigeben (Ende)</h3>
+<p>Nachdem die Technik den Fehler behoben hat:</p>
+<ol>
+    <li>Erneut auf <em>⚠ Störung aktiv &ndash; freigeben</em> klicken &ndash; das Fenster zeigt oben die laufende Störung mit der bisherigen Dauer.</li>
+    <li><strong>Techniker (Name)</strong> eintragen (Pflicht).</li>
+    <li><strong>Behebung</strong> beschreiben &ndash; was wurde gemacht, um den Fehler zu beheben (Pflicht).</li>
+    <li>Auf <em>Maschine freigeben</em> klicken &ndash; die Endzeit wird gesetzt und die Stillstandsdauer berechnet.</li>
+</ol>
+
+<div class="tip">
+    <strong>Abmelden oder Neustart während einer Störung?</strong> Kein Problem &ndash; die offene Störung bleibt erhalten. Wenn Sie dasselbe Produkt/denselben Prozess wieder öffnen, zeigt der Button erneut <em>⚠ Störung aktiv &ndash; freigeben</em>, und das Fenster steht direkt beim Freigabe-Schritt.
+</div>
+
+<hr />
+
 <h2 id="bedienhilfen">Bedienhilfen</h2>
 
 <h3>Schrift größer / kleiner</h3>
@@ -421,7 +449,7 @@
 </ul>
 
 <hr />
-<p style="color:#888; font-size:0.9em;">QAInput v1.5.0 &ndash; Questalpha GmbH</p>
+<p style="color:#888; font-size:0.9em;">QAInput v0.9.1 &ndash; Questalpha GmbH</p>
 
 </body>
 </html>

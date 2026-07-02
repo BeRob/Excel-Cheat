@@ -6,6 +6,16 @@ QAInput ist eine Desktop-Anwendung zur Erfassung von Messwerten in der Qualität
 
 Die Grundidee: Statt manuell Excel-Vorlagen zu öffnen und Spalten zuzuordnen, wird alles über JSON-Konfigurationsdateien gesteuert. Ein neues Produkt hinzufügen bedeutet einfach: eine neue JSON-Datei in den `data/products/`-Ordner legen -- oder direkt im integrierten Admin-Editor anlegen. Kein Code ändern.
 
+Seit v0.9.1 erfasst die Anwendung zusätzlich **Maschinenstörungen und Stillstandszeiten** (an Produkt/Prozess gebunden): der Bediener meldet eine Störung per Knopfdruck, die Technik behebt sie und gibt die Maschine wieder frei. Ein Admin-Tab wertet die Störungen aus (Verfügbarkeit, MTTR/MTBF, Zahlen je Station/Kategorie/Zeitraum) — siehe Abschnitt „Admin-Funktionen" und `CLAUDE.md`.
+
+---
+
+## Versionierung
+
+Single Source of Truth für die Anwendungsversion ist `src/version.py` (`APP_VERSION_TUPLE`, `APP_VERSION`, `APP_VERSION_DATE`); `version_info.txt` (Windows-Ressource der exe) wird beim Versions-Bump manuell synchron gehalten. Der Audit-Trail schreibt die Version in jedes Event (Feld `app_version`).
+
+**Versions-Neubasislinie (2026-06-30):** Mit v0.9.0 wurde die Zählung ausdrücklich von 1.9.0 auf **0.9.0** zurückgesetzt — ab dort zählt 0.9.x als aktuelle Pre-1.0-Linie (siehe CHANGELOG). Für Auswertungen des Audit-Trails bedeutet das: `app_version`-Werte 1.x stammen aus Events **vor** dem 2026-06-30 und liegen zeitlich VOR allen 0.9.x+-Events — die Versionsfolge im Log ist über diesen Punkt hinweg nicht numerisch monoton. Maßgeblich für die zeitliche Ordnung ist immer der `ts`-Zeitstempel des Events.
+
 ---
 
 ## Projektstruktur
@@ -92,11 +102,16 @@ Im Messwert-Bildschirm kann mit Tastatur navigiert werden:
 
 ## Admin-Funktionen
 
-Admin-Benutzer (gekennzeichnet durch `admin=true` in `users.kv`) bekommen in der Produkt/Prozess-Ansicht drei Tabs statt einem:
+Admin-Benutzer (gekennzeichnet durch `admin=true` in `users.kv`) bekommen in der Produkt/Prozess-Ansicht vier Tabs statt einem:
 
 1. **Produkt/Prozess** -- Die normale Auswahl-Ansicht (für alle Benutzer)
 2. **Datenauswertung** -- Excel-Dateien öffnen und als Tabelle anzeigen
-3. **Produktkonfiguration** -- Neues Feature: Produkt-JSON-Dateien direkt in der App erstellen und bearbeiten
+3. **Störungen / Auswertung** -- Erfasste Störungen/Stillstandszeiten filtern und auswerten (Verfügbarkeit, MTTR/MTBF, Zahlen je Station/Kategorie/Prozess; Excel-Export)
+4. **Produktkonfiguration** -- Produkt-JSON-Dateien direkt in der App erstellen und bearbeiten
+
+### Störungen / Auswertung
+
+Liest den append-only Störungs-Store (`stoerungen.jsonl`) und zeigt eine Detailtabelle plus KPI-Kacheln. Filter: Zeitraum (Schnellwahl „letzte 2 Wochen"/„dieser Monat"), Produkt, Prozess, Station, Kategorie, Status (offen/behoben). Gruppierung nach Station/Kategorie/Prozess; Export der gefilterten Liste + Aggregate als `.xlsx`. **Verfügbarkeit** braucht eine Planzeit (vorgeschlagen aus Schichtlänge × aktiven Tagen, überschreibbar); MTTR/MTBF/Zählungen funktionieren ohne. Die fachliche Rechnung liegt Tk-frei in `src/downtime/downtime_query.py`. Die Bediener-Erfassung selbst läuft über das Störungsfenster aus dem Messwert-Bildschirm (`src/ui/downtime_window.py`).
 
 ### Produktkonfigurations-Editor
 
@@ -406,6 +421,20 @@ Fehler blockieren den Senden-Button. Warnungen erlauben das Senden, werden aber 
 
 Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Lässt eine Excel-Datei öffnen und zeigt deren Daten in einer scrollbaren Tabelle an.
 
+### `src/downtime/` -- Störungs-/Stillstandserfassung
+
+- **downtime_store.py** (`DowntimeStore`) -- Append-only JSONL-Store `stoerungen.jsonl` (eigener GMP-Record, getrennt vom Audit-Log) mit Inter-Prozess-Lock, lokalem Fallback und Replay nach dem `AuditLogger`-Muster. Je Störung zwei Zeilen (`stoerung_start`/`stoerung_ende`), gepaart über `id`.
+- **downtime_models.py** -- `Stoerung`-Dataclass (Start+Ende, `computed_dauer_sekunden`), `StoerungsCodes` + `load_stoerungs_codes` (zweistufige Fehler-Code-Liste mit eingebauter Default-Taxonomie).
+- **downtime_query.py** -- Tk-frei und unit-getestet: `pair_stoerungen`, `find_open`, `filter_stoerungen`, `aggregate_by_station/kategorie/prozess`, `mttr`, `mtbf`, `verfuegbarkeit`.
+
+### `src/ui/downtime_window.py` -- Störungsfenster
+
+Ein modaler Dialog (`StoerungFenster`), geöffnet über den Button „⚠ Störung / Stillstand" in der FormView-Action-Bar. Zeigt je nach offener Störung den **Erfassungs**- (Kategorie → Ursache, Station, Beschreibung) oder den **Freigabe**-Abschnitt (Technikername + Behebung, beide Pflicht; ohne Re-Authentifizierung). Schreibt in den `DowntimeStore` und loggt ein Audit-Breadcrumb. `FormView` rekonstruiert eine offene Störung beim Anzeigen aus dem Store (überlebt Logout/Neustart).
+
+### `src/ui/downtime_report_view.py` -- Störungs-Auswertung
+
+Nur für Admins (Tab „Störungen / Auswertung"). Siehe Abschnitt „Admin-Funktionen".
+
 ### `src/ui/config_editor_view.py` -- Produktkonfigurations-Editor
 
 Nur für Admins zugänglich (als Tab in der Produkt/Prozess-Ansicht). Enthält zwei Klassen:
@@ -446,7 +475,7 @@ Testet das komplette Konfigurationssystem:
 - JSON-Laden mit Defaults und Sonderoptionen (row_group_size, output_dir)
 - Template-Auflösung dünner Configs + Multi-Nutzen-Erkennung (`is_multi_nutzen`)
 - `test_wide_format.py` -- Wide-Format: Clone-Spalten-Expansion, group_shared→clone-Kompat, identifier-Rolle, Schreib-/Resume-Roundtrip
-- Stand: 241 Tests gesamt (alle Suiten zusammen), alle grün
+- Stand: 275 Tests gesamt (alle Suiten zusammen), alle grün
 
 ### test_config_writer.py (26 Tests)
 
@@ -492,6 +521,14 @@ Testet den Benutzerdatei-Parser:
 - Kommentare und Leerzeilen
 - Sonderzeichen in Werten
 - Fehlerhafte Zeilen
+
+### test_downtime_models.py / test_downtime_store.py / test_downtime_query.py (34 Tests)
+
+Testet die Störungserfassung (Tk-frei):
+- Fehler-Code-Liste laden (gültig / fehlend / fehlerhaft → Default-Taxonomie)
+- `Stoerung`-Modell: offen/behoben, Dauer-Berechnung aus Zeitstempeln
+- Store: Append/Read-Roundtrip, ungültige Zeilen überspringen, Start/Ende-Paarung
+- Query: `find_open` (Kontext + Maschine), Filter (Zeitraum/Station/Kategorie/Status), Aggregation je Station/Kategorie, MTTR/MTBF/Verfügbarkeit gegen handgerechnete Fälle
 
 ---
 

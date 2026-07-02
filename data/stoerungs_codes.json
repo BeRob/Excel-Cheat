@@ -1,0 +1,25 @@
+{
+  "_kommentar": "Zweistufige Fehler-Code-Liste für die Störungserfassung (Kategorie → Ursache). Best Practice: 15–40 konkrete Codes, eine Catch-all-Kategorie. Editierbar; fehlt/fehlerhaft → eingebaute Default-Taxonomie aus src/downtime/downtime_models.py.",
+  "kategorien": [
+    {
+      "name": "Mechanik",
+      "ursachen": ["Lagerschaden", "Werkzeugbruch", "Materialstau", "Verschleiß", "Justage/Einstellung", "Pneumatik/Hydraulik"]
+    },
+    {
+      "name": "Elektrik",
+      "ursachen": ["Sensorfehler", "Antrieb/Motor", "Steuerung/SPS", "Verkabelung", "Sicherung/Schütz"]
+    },
+    {
+      "name": "Material",
+      "ursachen": ["Fehlmaterial", "Materialfehler", "Materialwechsel", "Materialzufuhr"]
+    },
+    {
+      "name": "Bediener/Rüstung",
+      "ursachen": ["Rüstung/Umbau", "Bedienfehler", "Reinigung", "Probennahme"]
+    },
+    {
+      "name": "Sonstiges",
+      "ursachen": ["Wartung geplant", "Warten auf Technik", "Alle übrigen Verluste"]
+    }
+  ]
+}

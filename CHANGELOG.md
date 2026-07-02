@@ -1,6 +1,25 @@
 # Versionshistorie – QAInput
 
-## v0.10.0 – 2026-06-30
+## v0.11.0 – 2026-07-03
+
+> Hinweis: **v0.10.0 (baramundi-Installer-Deployment + Startup-Preflight) ist ein paralleler Entwicklungszweig** (`feature/deployment-baramundi`, noch in Arbeit) und in diesem Stand **nicht enthalten**. Die Nummer 0.10.0 bleibt für diesen Zweig reserviert; die Zusammenführung erfolgt nach Abschluss der Feature-Entwicklung als eigenes Release.
+
+### Neu
+- **Wächter für Template-ID-Änderungen** – Wird bei einem bereits gespeicherten Produkt eine `template_id` umbenannt oder ein Prozess entfernt, verlangt der Config-Editor beim Speichern eine ausdrückliche Bestätigung: Die Template-ID ist Excel-Dateiname + Fortsetzungs-Schlüssel — bestehende Excel-Dateien würden nicht fortgesetzt. Logik Tk-frei in `config_editing.removed_template_ids` (6 neue Tests); ersetzt die frühere Dauerwarnung robuster als der Hover-Hinweis
+- **Hover-Tooltips** (`src/ui/tooltip.py`) – Erklärtexte im Config-Editor sind zu ⓘ-Symbolen mit Tooltip geworden (platzsparend, folgt dem Dark-Mode). Ein Klick/Touch auf ⓘ togglet den Tooltip zusätzlich — funktioniert auch ohne Hover
+
+### Geändert
+- **UI-Politur** – Einheitliche ttk-Styles statt verstreuter Inline-Fonts/`width=`-Hacks: `Icon.TButton` (✎/⚙/📅/◀▶/+/−/↑↓), `Small.TButton` (Zeilen-Buttons), `Info.TButton` (ⓘ), `Hint.TLabel` (Hinweistexte), `FieldId.TLabel` (Monospace-Chips); neue Font-Keys `tiny`/`tiny_bold`/`mono`; kompaktere Buttons und Feld-Border (3→2 px)
+- **Config-Editor-Feldliste** – Spaltenkopf (✓/ID/Typ/Rolle/Anzeigename/Min/Soll/Max), Feld-ID als Monospace-Chip, Trennlinien zwischen den Zeilen. Kopfzeile und Datenzeilen nutzen ein gemeinsames **Pixel-Spaltenraster** (`_configure_list_columns`) — bündige Spalten unabhängig von den Schriftgrößen; Bearbeiten/✕ liegen in einer Aktionszelle, damit Extra-Feld-Zeilen die Spalten nicht verschieben
+- **OoS-Banner präzisiert** – Der Hinweis im Prüfen-Dialog nennt wieder explizit, dass ‚n/a' als Bemerkung nicht genügt (Bemerkungen ist mit „n/a" vorbelegt — ohne den Zusatz wirkte die Meldung widersprüchlich)
+- **Neues-Produkt-Assistent** – startet mit expliziter Fenstergeometrie statt `state("zoomed")` (das überdeckte die Taskleiste und verdeckte die Fußzeilen-Buttons)
+
+### Entfernt
+- **↑/↓-Buttons in der Feldliste** – Umsortieren jetzt ausschließlich per Maus-Drag am Griff ⠿
+
+## v0.10.0 – 2026-06-30 (paralleler Zweig)
+
+> Entwicklungszweig `feature/deployment-baramundi` — am 2026-07-03 mit main (v0.11.0) synchronisiert; dieser Zweigstand enthält damit zusätzlich v0.9.1 und v0.11.0. Die Zusammenführung nach main erfolgt nach Abschluss der Feature-Entwicklung als eigenes Release.
 
 ### Neu
 - **Installer-basiertes Deployment (baramundi)** – Ablösung der portablen Verteilung durch zwei Inno-Setup-Installer (`installer/`): ein **Client-Setup** (Thin Client `QAInput.exe` + `_internal\` + `config.json` nach `Program Files`, silent-fähig für baramundi) und ein optionales **Backend-Setup** (legt die Datenstruktur auf dem Netzlaufwerk an und seedet Startdateien, idempotent via `onlyifdoesntexist`)
@@ -9,6 +28,22 @@
 
 ### Geändert
 - **Netzpfade auf UNC** – Deployment-`config.json` nutzt `\\SERVER\Freigabe\…` statt Laufwerksbuchstaben (`X:\`), da baramundi als SYSTEM-Konto keine benutzergemappten Laufwerke sieht
+
+## v0.9.1 – 2026-06-30
+
+> **Störungs- und Stillstandserfassung.** Bediener melden Maschinenstörungen aus der Messwertmaske; die Stillstandszeit wird geloggt, klassifiziert und bei der Freigabe abgeschlossen. Auswertung inkl. Verfügbarkeit/MTTR/MTBF als OEE-Vorstufe.
+
+### Neu
+- **Störungsfenster aus der Messwertmaske** – Neuer Button „⚠ Störung / Stillstand" in der Action-Bar öffnet ein Fenster, in dem **erfasst und freigegeben** wird. Erfassen: zweistufige Klassifizierung (Kategorie → Ursache), Station (Lokalisierung), Beschreibung; die Startzeit wird gesetzt. Freigeben: Technikername (Pflicht) + Behebungsbeschreibung (Pflicht), Endzeit und Dauer werden berechnet. Jede Störung ist an die laufende Produkt-/Prozess-(/Maschine-)Auswahl gebunden
+- **Offene Störung überlebt Logout/Neustart** – Beim Betreten der Messwertmaske wird eine offene Störung des aktuellen Kontexts aus dem Store rekonstruiert; der Button zeigt dann „⚠ Störung aktiv – freigeben"
+- **Eigener Störungs-Store** (`stoerungen.jsonl`) – Append-only JSONL nach dem gehärteten Audit-Muster (Inter-Prozess-Lock, lokaler Fallback mit Replay). System-of-Record getrennt vom Audit-Log; je Aktion zusätzlich ein Audit-Breadcrumb (`stoerung_start`/`stoerung_ende`)
+- **Zweistufige Fehler-Code-Liste** `data/stoerungs_codes.json` (Kategorie → Ursachen, konfigurierbar; fehlt/fehlerhaft → eingebaute Default-Taxonomie)
+- **Admin-Tab „Störungen / Auswertung"** – Filter (Zeitraum mit Schnellwahl „letzte 2 Wochen"/„dieser Monat", Produkt, Prozess, Station, Kategorie, Status), Detailtabelle, KPI-Kacheln (**Anzahl, Σ Störzeit, MTTR, MTBF, Verfügbarkeit**), wählbare Gruppierung (Station/Kategorie/Prozess) und **Excel-Export**
+- **Pfade konfigurierbar** – `QAINPUT_DOWNTIME_DIR`/Bootstrap-Key `downtime_dir` (Default: neben dem Audit-Trail); Code-Liste unter `stoerungs_codes.json` im `config_dir`
+
+### Hinweise
+- Verfügbarkeit braucht eine Planzeit; der Auswertungs-Tab schlägt sie aus Schichtlänge × aktiven Tagen vor und lässt sie überschreiben. MTTR/MTBF/Zählungen sind ohne Planzeit verfügbar
+- Volle OEE (Leistung × Qualität) ist eine spätere Erweiterung (benötigt Stückzahlen + Soll-Taktzeit, die heute nicht erfasst werden)
 
 ## v0.9.0 – 2026-06-30
 

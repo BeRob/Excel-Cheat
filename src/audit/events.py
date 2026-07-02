@@ -53,4 +53,10 @@ class Event:
     PREFLIGHT_OK = "preflight_ok"
     PREFLIGHT_FAIL = "preflight_fail"
 
+    # Störungs-/Stillstandserfassung — Breadcrumbs ins zentrale Audit-Log.
+    # System-of-Record ist der eigene Störungs-Store (data/.../stoerungen.jsonl).
+    STOERUNG_START = "stoerung_start"
+    STOERUNG_ENDE = "stoerung_ende"
+    STOERUNG_FAIL = "stoerung_fail"
+
     EXCEPTION = "exception"
