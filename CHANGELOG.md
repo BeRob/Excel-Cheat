@@ -1,5 +1,22 @@
 # Versionshistorie – QAInput
 
+## v0.11.0 – 2026-07-03
+
+> Hinweis: **v0.10.0 (baramundi-Installer-Deployment + Startup-Preflight) ist ein paralleler Entwicklungszweig** (`feature/deployment-baramundi`, noch in Arbeit) und in diesem Stand **nicht enthalten**. Die Nummer 0.10.0 bleibt für diesen Zweig reserviert; die Zusammenführung erfolgt nach Abschluss der Feature-Entwicklung als eigenes Release.
+
+### Neu
+- **Wächter für Template-ID-Änderungen** – Wird bei einem bereits gespeicherten Produkt eine `template_id` umbenannt oder ein Prozess entfernt, verlangt der Config-Editor beim Speichern eine ausdrückliche Bestätigung: Die Template-ID ist Excel-Dateiname + Fortsetzungs-Schlüssel — bestehende Excel-Dateien würden nicht fortgesetzt. Logik Tk-frei in `config_editing.removed_template_ids` (6 neue Tests); ersetzt die frühere Dauerwarnung robuster als der Hover-Hinweis
+- **Hover-Tooltips** (`src/ui/tooltip.py`) – Erklärtexte im Config-Editor sind zu ⓘ-Symbolen mit Tooltip geworden (platzsparend, folgt dem Dark-Mode). Ein Klick/Touch auf ⓘ togglet den Tooltip zusätzlich — funktioniert auch ohne Hover
+
+### Geändert
+- **UI-Politur** – Einheitliche ttk-Styles statt verstreuter Inline-Fonts/`width=`-Hacks: `Icon.TButton` (✎/⚙/📅/◀▶/+/−/↑↓), `Small.TButton` (Zeilen-Buttons), `Info.TButton` (ⓘ), `Hint.TLabel` (Hinweistexte), `FieldId.TLabel` (Monospace-Chips); neue Font-Keys `tiny`/`tiny_bold`/`mono`; kompaktere Buttons und Feld-Border (3→2 px)
+- **Config-Editor-Feldliste** – Spaltenkopf (✓/ID/Typ/Rolle/Anzeigename/Min/Soll/Max), Feld-ID als Monospace-Chip, Trennlinien zwischen den Zeilen. Kopfzeile und Datenzeilen nutzen ein gemeinsames **Pixel-Spaltenraster** (`_configure_list_columns`) — bündige Spalten unabhängig von den Schriftgrößen; Bearbeiten/✕ liegen in einer Aktionszelle, damit Extra-Feld-Zeilen die Spalten nicht verschieben
+- **OoS-Banner präzisiert** – Der Hinweis im Prüfen-Dialog nennt wieder explizit, dass ‚n/a' als Bemerkung nicht genügt (Bemerkungen ist mit „n/a" vorbelegt — ohne den Zusatz wirkte die Meldung widersprüchlich)
+- **Neues-Produkt-Assistent** – startet mit expliziter Fenstergeometrie statt `state("zoomed")` (das überdeckte die Taskleiste und verdeckte die Fußzeilen-Buttons)
+
+### Entfernt
+- **↑/↓-Buttons in der Feldliste** – Umsortieren jetzt ausschließlich per Maus-Drag am Griff ⠿
+
 ## v0.9.1 – 2026-06-30
 
 > **Störungs- und Stillstandserfassung.** Bediener melden Maschinenstörungen aus der Messwertmaske; die Stillstandszeit wird geloggt, klassifiziert und bei der Freigabe abgeschlossen. Auswertung inkl. Verfügbarkeit/MTTR/MTBF als OEE-Vorstufe.

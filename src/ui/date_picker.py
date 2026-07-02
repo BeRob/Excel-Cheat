@@ -88,7 +88,7 @@ class DatePickerDialog(tk.Toplevel):
         nav = ttk.Frame(outer)
         nav.pack(fill="x", pady=(0, 8))
 
-        ttk.Button(nav, text="◀", width=3, command=self._prev_month).pack(side="left")
+        ttk.Button(nav, text="◀", style="Icon.TButton", command=self._prev_month).pack(side="left")
 
         self._month_var = tk.StringVar(value=_MONTHS_DE[self._month - 1])
         self._month_combo = ttk.Combobox(
@@ -112,7 +112,7 @@ class DatePickerDialog(tk.Toplevel):
         self._year_spin.bind("<Return>", self._on_year_change)
         self._year_spin.bind("<FocusOut>", self._on_year_change)
 
-        ttk.Button(nav, text="▶", width=3, command=self._next_month).pack(side="left")
+        ttk.Button(nav, text="▶", style="Icon.TButton", command=self._next_month).pack(side="left")
 
         self._grid = ttk.Frame(outer)
         self._grid.pack()

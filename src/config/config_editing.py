@@ -10,6 +10,7 @@ volle ``fields``-Liste an config_writer, der gegen das Template zurückrechnet.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import replace
 from pathlib import Path
 
@@ -130,6 +131,20 @@ def apply_template_change(
     process.template = new_tpl.template
     process.template_revision = new_tpl.template_revision
     return kept_ids, dropped_ids
+
+
+def removed_template_ids(saved_ids: Iterable[str], product: ProductConfig) -> list[str]:
+    """Template-IDs, die im gespeicherten Dateistand existierten, im aktuellen
+    Editor-Stand aber fehlen (umbenannt oder Prozess entfernt).
+
+    Jede davon bricht bestehende Excel-Dateien: ``template_id`` ist
+    Excel-Dateiname + Resume-Schlüssel — die App setzt vorhandene Dateien
+    nicht fort, sondern beginnt neue. Das UI holt dafür vor dem Speichern
+    eine ausdrückliche Bestätigung ein (``ConfigEditorView._on_save``).
+    ``saved_ids`` ist der Snapshot beim Laden; leer für neue Dateien
+    (Assistent/Kopie) — dann feuert der Wächter nie."""
+    current = {p.template_id.strip() for p in product.processes}
+    return sorted(t.strip() for t in saved_ids if t.strip() and t.strip() not in current)
 
 
 def validate_editor_product(

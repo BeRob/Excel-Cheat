@@ -268,7 +268,7 @@ class ReviewDialog(tk.Toplevel):
                 ttk.Label(ctx_frame, text=f"{header}: {value}").pack(anchor="w")
         else:
             ttk.Label(ctx_frame, text="Keine festen Werte.",
-                      foreground=COLORS["text_secondary"]).pack(anchor="w")
+                      style="Hint.TLabel").pack(anchor="w")
 
         auto_frame = ttk.LabelFrame(self, text="Automatische Felder", padding=10)
         auto_frame.grid(row=2, column=0, padx=15, pady=5, sticky="ew")
@@ -315,8 +315,8 @@ class ReviewDialog(tk.Toplevel):
         oos_blocked = self._oos_without_remark()
         if oos_blocked:
             banner = (
-                "Außerhalb der Spezifikation: Bemerkungen erforderlich "
-                "(nicht leer, nicht 'n/a'). Betrifft: "
+                "Außerhalb der Spezifikation — Bemerkung nötig "
+                "(‚n/a' genügt nicht). Betrifft: "
                 + ", ".join(oos_blocked) + "."
             )
             ttk.Label(self, text=banner, style="Error.TLabel",
@@ -440,8 +440,7 @@ class ReviewDialog(tk.Toplevel):
                 spec_text = f"[≥{fd.spec_min}]"
             elif fd and fd.spec_max is not None:
                 spec_text = f"[≤{fd.spec_max}]"
-            ttk.Label(parent, text=spec_text,
-                      foreground=COLORS["text_secondary"]).grid(
+            ttk.Label(parent, text=spec_text, style="Hint.TLabel").grid(
                 row=i, column=2, sticky="w", padx=(0, 10), pady=2
             )
 

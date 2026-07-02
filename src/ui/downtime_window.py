@@ -302,7 +302,7 @@ class StoerungFenster(tk.Toplevel):
         if fault.beschreibung:
             info.append(("Beschreibung", fault.beschreibung))
         for r, (lbl, val) in enumerate(info):
-            ttk.Label(frame, text=f"{lbl}:", font=("Segoe UI", 9, "bold")).grid(
+            ttk.Label(frame, text=f"{lbl}:", font=FONTS["body_bold"]).grid(
                 row=r, column=0, sticky="nw", pady=2, padx=(0, 8)
             )
             ttk.Label(frame, text=val, wraplength=320).grid(

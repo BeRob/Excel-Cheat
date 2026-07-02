@@ -10,6 +10,7 @@ from src.config.config_editing import (
     default_active_ids,
     is_legacy_product,
     is_legacy_raw,
+    removed_template_ids,
     seed_process_from_template,
     validate_editor_product,
 )
@@ -265,6 +266,54 @@ class TestValidateEditorProduct(unittest.TestCase):
         p = ProductConfig(product_id="REF1", display_name="Ref 1", processes=[proc1, proc2])
         errs = validate_editor_product(p, self._templates())
         self.assertTrue(any("doppelt" in e for e in errs))
+
+
+class TestRemovedTemplateIds(unittest.TestCase):
+    """Wächter für template_id-Änderungen an bereits gespeicherten Produkten
+    (template_id = Excel-Dateiname + Resume-Schlüssel)."""
+
+    def _product(self, *tids: str) -> ProductConfig:
+        tpl = _walzen_template()
+        return ProductConfig(
+            product_id="REF1", display_name="Ref 1",
+            processes=[
+                seed_process_from_template(tpl, tid, f"Prozess {i}")
+                for i, tid in enumerate(tids, 1)
+            ],
+        )
+
+    def test_unchanged_ids_report_nothing(self):
+        product = self._product("IPC1_Walzen", "IPC2_Walzen")
+        self.assertEqual(
+            removed_template_ids({"IPC1_Walzen", "IPC2_Walzen"}, product), []
+        )
+
+    def test_renamed_id_is_reported(self):
+        product = self._product("IPC1_NEU", "IPC2_Walzen")
+        self.assertEqual(
+            removed_template_ids({"IPC1_Walzen", "IPC2_Walzen"}, product),
+            ["IPC1_Walzen"],
+        )
+
+    def test_removed_process_is_reported(self):
+        product = self._product("IPC1_Walzen")
+        self.assertEqual(
+            removed_template_ids({"IPC1_Walzen", "IPC2_Walzen"}, product),
+            ["IPC2_Walzen"],
+        )
+
+    def test_empty_snapshot_for_new_file(self):
+        # Assistent/Kopie: kein gespeicherter Stand -> Wächter feuert nie.
+        product = self._product("IPC1_Walzen")
+        self.assertEqual(removed_template_ids(set(), product), [])
+
+    def test_added_processes_are_not_reported(self):
+        product = self._product("IPC1_Walzen", "IPC2_Walzen")
+        self.assertEqual(removed_template_ids({"IPC1_Walzen"}, product), [])
+
+    def test_whitespace_only_differences_are_not_reported(self):
+        product = self._product("IPC1_Walzen")
+        self.assertEqual(removed_template_ids({" IPC1_Walzen "}, product), [])
 
 
 if __name__ == "__main__":

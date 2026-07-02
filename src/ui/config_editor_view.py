@@ -24,6 +24,7 @@ from src.audit.events import Event
 from src.config.config_editing import (
     apply_template_change,
     is_legacy_product,
+    removed_template_ids,
     seed_process_from_template,
     validate_editor_product,
 )
@@ -39,8 +40,33 @@ from src.config.process_config import (
 )
 from src.config.settings import APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
 from src.ui.theme import COLORS, FONTS
+from src.ui.tooltip import attach_info_icon
 
 logger = logging.getLogger(__name__)
+
+# Spaltenraster der Feldliste in PIXELN — identisch in Kopfzeile und jeder
+# Datenzeile gesetzt (getrennte grid-Container!), damit die Spalten unabhängig
+# von den Fonts der Zellinhalte bündig stehen (Zeichen-width misst in der
+# jeweiligen Widget-Font und fluchtet daher nicht containerübergreifend).
+# Spalte 5 (Anzeigename) stretcht; Nummern = grid-Spalten in _render_rows.
+_COL_PX: dict[int, int] = {
+    0: 24,    # Drag-Griff ⠿
+    1: 28,    # Aktiv-Checkbox
+    2: 230,   # Feld-ID (mono-Chip; Puffer für lange IDs bei Font-Zoom +3)
+    3: 80,    # Typ
+    4: 120,   # Rolle ("measurement" auch bei Font-Zoom +3)
+    6: 64,    # Spec Min
+    7: 64,    # Spec Soll
+    8: 64,    # Spec Max
+    9: 150,   # Aktionen (Bearbeiten + ✕ bei Extra-Feldern)
+}
+
+
+def _configure_list_columns(container: tk.Widget) -> None:
+    """Setzt das gemeinsame Pixel-Spaltenraster der Feldliste (Kopf + Zeilen)."""
+    for col, px in _COL_PX.items():
+        container.columnconfigure(col, minsize=px)
+    container.columnconfigure(5, weight=1)
 
 
 # --------------------------------------------------------------------------- #
@@ -48,6 +74,15 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 def _copy_field(f: FieldDef) -> FieldDef:
     return replace(f, options=list(f.options) if f.options is not None else None)
+
+
+def _checkbox_with_info(master, r: int, label: str, var, info: str) -> int:
+    """Checkbox mit kurzem Label + ⓘ-Tooltip in einer Dialog-Zeile. Gibt r+1 zurück."""
+    cell = ttk.Frame(master)
+    cell.grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+    ttk.Checkbutton(cell, text=label, variable=var).pack(side="left")
+    attach_info_icon(cell, info).pack(side="left", padx=(4, 0))
+    return r + 1
 
 
 def _fmt_num(v) -> str:
@@ -201,53 +236,87 @@ class ProcessEditorPanel(ttk.Frame):
         self._template_combo.bind("<<ComboboxSelected>>", lambda e: self._on_template_changed())
 
         ttk.Label(head, text="Template-ID:").grid(row=1, column=0, sticky="w", pady=2)
+        tid_cell = ttk.Frame(head)
+        tid_cell.grid(row=1, column=1, sticky="w", pady=2)
         self._template_id_var = tk.StringVar()
-        tid_entry = ttk.Entry(head, textvariable=self._template_id_var, width=30)
-        tid_entry.grid(row=1, column=1, sticky="w", pady=2)
+        tid_entry = ttk.Entry(tid_cell, textvariable=self._template_id_var, width=30)
+        tid_entry.pack(side="left")
         tid_entry.bind("<KeyRelease>", lambda e: self._on_template_id_typed())
-        ttk.Label(
-            head,
-            text="⚠ Excel-Dateiname + Resume-Schlüssel — nach den ersten Excel-Dateien NICHT mehr ändern.",
-            style="Warning.TLabel",
-        ).grid(row=2, column=1, sticky="w")
+        attach_info_icon(
+            tid_cell,
+            "Excel-Dateiname + Resume-Schlüssel — nach den ersten Excel-Dateien "
+            "NICHT mehr ändern.",
+        ).pack(side="left", padx=(4, 0))
 
-        ttk.Label(head, text="Anzeigename:").grid(row=3, column=0, sticky="w", pady=2)
+        ttk.Label(head, text="Anzeigename:").grid(row=2, column=0, sticky="w", pady=2)
         self._name_var = tk.StringVar()
         name_entry = ttk.Entry(head, textvariable=self._name_var, width=40)
-        name_entry.grid(row=3, column=1, sticky="ew", pady=2)
+        name_entry.grid(row=2, column=1, sticky="ew", pady=2)
         name_entry.bind("<KeyRelease>", lambda e: self._dirty_cb())
 
-        ttk.Label(head, text="Standard-/Max-Anzahl Nutzen:").grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Label(head, text="Standard-/Max-Anzahl Nutzen:").grid(row=3, column=0, sticky="w", pady=2)
+        rg_cell = ttk.Frame(head)
+        rg_cell.grid(row=3, column=1, sticky="w", pady=2)
         self._rg_var = tk.StringVar()
-        rg_entry = ttk.Entry(head, textvariable=self._rg_var, width=8)
-        rg_entry.grid(row=4, column=1, sticky="w", pady=2)
+        rg_entry = ttk.Entry(rg_cell, textvariable=self._rg_var, width=8)
+        rg_entry.pack(side="left")
         rg_entry.bind("<KeyRelease>", lambda e: self._dirty_cb())
-        ttk.Label(
-            head,
-            text="(Bediener wählt beim Prozessstart 1..Max; nötig für clone-Felder)",
-            foreground=COLORS["text_secondary"],
-        ).grid(row=5, column=1, sticky="w")
+        attach_info_icon(
+            rg_cell,
+            "Bediener wählt beim Prozessstart 1..Max. Nötig für clone-Felder "
+            "(je Nutzen/Bahn eine Spalte).",
+        ).pack(side="left", padx=(4, 0))
 
         toolbar = ttk.Frame(self)
         toolbar.grid(row=1, column=0, sticky="ew", pady=(4, 2))
-        ttk.Label(
-            toolbar, text="Felder — anhaken = aktiv (Reihenfolge = Excel-Spalten):",
-            style="Subtitle.TLabel",
-        ).pack(side="left")
         ttk.Button(
-            toolbar, text="Eigenes Feld hinzufügen…", command=self._add_extra_field
+            toolbar, text="+ Eigenes Feld", style="Small.TButton",
+            command=self._add_extra_field,
         ).pack(side="right")
+        attach_info_icon(
+            toolbar,
+            "Anhaken = Feld aktiv. Reihenfolge (per Maus am Griff ⠿ ziehen) = "
+            "Reihenfolge der Excel-Spalten.",
+        ).pack(side="left", padx=(0, 4))
 
         list_wrap = ttk.Frame(self)
         list_wrap.grid(row=2, column=0, sticky="nsew")
         list_wrap.columnconfigure(0, weight=1)
-        list_wrap.rowconfigure(0, weight=1)
+        list_wrap.rowconfigure(1, weight=1)
+
+        # Einmalige Spaltenüberschrift (scrollt nicht mit) — spiegelt das
+        # grid-Layout von _render_rows mit denselben Breitenkonstanten.
+        hdr = ttk.Frame(list_wrap)
+        hdr.grid(row=0, column=0, sticky="ew", pady=(0, 2))
+        _configure_list_columns(hdr)
+        ttk.Label(hdr, text="").grid(row=0, column=0, padx=(0, 4))
+        ttk.Label(hdr, text="✓", style="ColHeader.TLabel").grid(row=0, column=1)
+        ttk.Label(hdr, text="ID", style="ColHeader.TLabel").grid(
+            row=0, column=2, sticky="w", padx=(0, 6)
+        )
+        ttk.Label(hdr, text="Typ", style="ColHeader.TLabel").grid(
+            row=0, column=3, sticky="w"
+        )
+        ttk.Label(hdr, text="Rolle", style="ColHeader.TLabel").grid(
+            row=0, column=4, sticky="w"
+        )
+        ttk.Label(hdr, text="Anzeigename", style="ColHeader.TLabel").grid(
+            row=0, column=5, sticky="w"
+        )
+        for col, txt in ((6, "Min"), (7, "Soll"), (8, "Max")):
+            ttk.Label(hdr, text=txt, style="ColHeader.TLabel").grid(
+                row=0, column=col, sticky="w", padx=1
+            )
+        # Leerer Platzhalter belegt die Aktions-Spalte, damit ihre minsize greift.
+        ttk.Label(hdr, text="").grid(row=0, column=9, sticky="ew", padx=(6, 1))
+
         self._canvas = tk.Canvas(list_wrap, bg=COLORS["background"], highlightthickness=0)
-        self._canvas.grid(row=0, column=0, sticky="nsew")
+        self._canvas.grid(row=1, column=0, sticky="nsew")
         vsb = ttk.Scrollbar(list_wrap, orient="vertical", command=self._canvas.yview)
-        vsb.grid(row=0, column=1, sticky="ns")
+        vsb.grid(row=1, column=1, sticky="ns")
         self._canvas.configure(yscrollcommand=vsb.set)
         self._rows_frame = ttk.Frame(self._canvas)
+        self._rows_frame.columnconfigure(0, weight=1)
         self._rows_window = self._canvas.create_window(
             (0, 0), window=self._rows_frame, anchor="nw"
         )
@@ -304,8 +373,8 @@ class ProcessEditorPanel(ttk.Frame):
         for i, row in enumerate(self._rows):
             f = row.field
             rf = ttk.Frame(self._rows_frame)
-            rf.grid(row=i, column=0, sticky="ew", pady=1)
-            rf.columnconfigure(5, weight=1)
+            rf.grid(row=2 * i, column=0, sticky="ew", pady=2)
+            _configure_list_columns(rf)
             rf.bind("<MouseWheel>", self._on_wheel)
             self._row_frames.append(rf)
 
@@ -322,15 +391,16 @@ class ProcessEditorPanel(ttk.Frame):
                 command=lambda r=row, v=active_var: self._on_toggle(r, v),
             ).grid(row=0, column=1, sticky="w")
 
-            id_fg = COLORS["disabled"] if not row.active else COLORS["text_primary"]
-            ttk.Label(rf, text=f.id, width=22, foreground=id_fg).grid(
-                row=0, column=2, sticky="w"
+            # Feld-ID als Monospace-Chip — füllt die Spalte (einheitliche Breite).
+            id_style = "FieldId.TLabel" if row.active else "FieldIdMuted.TLabel"
+            ttk.Label(rf, text=f.id, anchor="w", style=id_style).grid(
+                row=0, column=2, sticky="ew", padx=(0, 6)
             )
             ttk.Label(
-                rf, text=f.type, width=8, foreground=COLORS["text_secondary"]
+                rf, text=f.type, foreground=COLORS["text_secondary"]
             ).grid(row=0, column=3, sticky="w")
             ttk.Label(
-                rf, text=f.role, width=12, foreground=COLORS["text_secondary"]
+                rf, text=f.role, foreground=COLORS["text_secondary"]
             ).grid(row=0, column=4, sticky="w")
             tags = []
             if row.is_extra:
@@ -349,26 +419,34 @@ class ProcessEditorPanel(ttk.Frame):
                 target_var = tk.StringVar(value=_fmt_num(f.spec_target))
                 max_var = tk.StringVar(value=_fmt_num(f.spec_max))
                 for col, var in enumerate((min_var, target_var, max_var), start=6):
-                    e = ttk.Entry(rf, textvariable=var, width=7)
-                    e.grid(row=0, column=col, sticky="w", padx=1)
+                    e = ttk.Entry(rf, textvariable=var, width=4)
+                    e.grid(row=0, column=col, sticky="ew", padx=1)
                     e.bind("<FocusOut>", lambda ev: self._dirty_cb())
                 refs.update(min_var=min_var, target_var=target_var, max_var=max_var)
             else:
-                ttk.Label(rf, text="", width=23).grid(row=0, column=6, columnspan=3)
+                # Platzhalter belegt die Spec-Spalten, damit ihre minsize greift.
+                ttk.Label(rf, text="").grid(row=0, column=6, columnspan=3)
 
+            # Beide Aktionen in EINER Zelle, damit das ✕ der Extra-Felder den
+            # Spalten-Stretch der übrigen Zeilen nicht verschiebt.
+            action = ttk.Frame(rf)
+            action.grid(row=0, column=9, sticky="w", padx=(6, 1))
             ttk.Button(
-                rf, text="↑", width=2, command=lambda idx=i: self._move_row(idx, -1)
-            ).grid(row=0, column=9, padx=1)
-            ttk.Button(
-                rf, text="↓", width=2, command=lambda idx=i: self._move_row(idx, 1)
-            ).grid(row=0, column=10, padx=1)
-            ttk.Button(
-                rf, text="Bearbeiten", command=lambda r=row: self._edit_row(r)
-            ).grid(row=0, column=11, padx=1)
+                action, text="Bearbeiten", style="Small.TButton",
+                command=lambda r=row: self._edit_row(r),
+            ).pack(side="left")
             if row.is_extra:
                 ttk.Button(
-                    rf, text="✕", width=2, command=lambda r=row: self._remove_extra(r)
-                ).grid(row=0, column=12, padx=1)
+                    action, text="✕", style="Small.TButton",
+                    command=lambda r=row: self._remove_extra(r),
+                ).pack(side="left", padx=(4, 0))
+
+            # Dezente Trennlinie zwischen den Feldzeilen (vom Drag-Highlight
+            # unberührt, da nur die rf-Frames umkonfiguriert werden).
+            if i < len(self._rows) - 1:
+                ttk.Separator(self._rows_frame, orient="horizontal").grid(
+                    row=2 * i + 1, column=0, sticky="ew"
+                )
 
             self._render_refs.append(refs)
 
@@ -441,15 +519,6 @@ class ProcessEditorPanel(ttk.Frame):
         row.active = bool(var.get())
         self._dirty_cb()
         self.after_idle(self._render_rows)
-
-    def _move_row(self, idx: int, direction: int) -> None:
-        new = idx + direction
-        if new < 0 or new >= len(self._rows):
-            return
-        self._harvest()
-        self._rows[idx], self._rows[new] = self._rows[new], self._rows[idx]
-        self._render_rows()
-        self._dirty_cb()
 
     def _on_template_id_typed(self) -> None:
         self._template_id_manual = True
@@ -602,25 +671,22 @@ class FieldOverrideDialog(tk.Toplevel):
         r += 1
 
         self._clone_var = tk.BooleanVar(value=f.clone)
-        ttk.Checkbutton(
-            m, text="clone (je Nutzen/Bahn eigene Spalte: „Breite Bahn 1“ …)",
-            variable=self._clone_var,
-        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-        r += 1
+        r = _checkbox_with_info(
+            m, r, "clone", self._clone_var,
+            "Je Nutzen/Bahn eine eigene Excel-Spalte („Breite Bahn 1“, „Breite Bahn 2“ …).",
+        )
 
         self._machine_var = tk.BooleanVar(value=f.machine_scoped)
-        ttk.Checkbutton(
-            m, text="machine_scoped (an Maschinen-Auswahl gebunden)",
-            variable=self._machine_var,
-        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-        r += 1
+        r = _checkbox_with_info(
+            m, r, "machine_scoped", self._machine_var,
+            "Wert an die Maschinen-Auswahl gebunden (pro Maschine eigene aktive Rolle).",
+        )
 
         self._info_var = tk.BooleanVar(value=f.info_header)
-        ttk.Checkbutton(
-            m, text="info_header (in Excel-Kopfblock statt Spalte)",
-            variable=self._info_var,
-        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-        r += 1
+        r = _checkbox_with_info(
+            m, r, "info_header", self._info_var,
+            "Wird in den Excel-Kopfblock geschrieben statt als Datenspalte.",
+        )
 
         self._opts_text = None
         if f.type == "choice":
@@ -752,23 +818,22 @@ class FieldEditorDialog(tk.Toplevel):
         r += 1
 
         self._clone_var = tk.BooleanVar(value=field.clone if field else False)
-        ttk.Checkbutton(
-            m, text="clone (je Nutzen/Bahn eigene Spalte)",
-            variable=self._clone_var,
-        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-        r += 1
+        r = _checkbox_with_info(
+            m, r, "clone", self._clone_var,
+            "Je Nutzen/Bahn eine eigene Excel-Spalte („Breite Bahn 1“ …).",
+        )
 
         self._info_var = tk.BooleanVar(value=field.info_header if field else False)
-        ttk.Checkbutton(
-            m, text="info_header (in Excel-Kopfblock)", variable=self._info_var
-        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-        r += 1
+        r = _checkbox_with_info(
+            m, r, "info_header", self._info_var,
+            "Wird in den Excel-Kopfblock geschrieben statt als Datenspalte.",
+        )
 
         self._machine_var = tk.BooleanVar(value=field.machine_scoped if field else False)
-        ttk.Checkbutton(
-            m, text="machine_scoped", variable=self._machine_var
-        ).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
-        r += 1
+        r = _checkbox_with_info(
+            m, r, "machine_scoped", self._machine_var,
+            "Wert an die Maschinen-Auswahl gebunden.",
+        )
 
         ttk.Label(m, text="Default-Wert:").grid(row=r, column=0, sticky="w", pady=3)
         self._default_var = tk.StringVar(value=(field.default_value or "") if field else "")
@@ -905,18 +970,22 @@ class NewProductWizard(tk.Toplevel):
         self._build()
         self.protocol("WM_DELETE_WINDOW", self.destroy)
         self.focus_set()
-        # Maximiert (Vollbild mit Titelleiste) starten — der Assistent zeigt
-        # Prozessliste + Feld-Panel nebeneinander und braucht Platz.
+        # Groß (fast Vollbild) starten — der Assistent zeigt Prozessliste +
+        # Feld-Panel nebeneinander und braucht Platz. Bewusst KEIN
+        # state("zoomed"): das überdeckte hier die Taskleiste und verdeckte die
+        # Fußzeilen-Buttons. Stattdessen explizite Geometrie mit Rändern.
         self.after_idle(self._maximize)
 
     def _maximize(self) -> None:
-        try:
-            self.state("zoomed")  # Windows
-        except tk.TclError:
-            try:
-                self.attributes("-zoomed", True)  # X11
-            except tk.TclError:
-                pass
+        self.update_idletasks()
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        # Untererer Rand groß genug, um Taskleiste + Fensterrahmen freizuhalten.
+        w = min(1600, sw - 80)
+        h = sh - 130
+        x = max(0, (sw - w) // 2)
+        y = 20
+        self.geometry(f"{w}x{h}+{x}+{y}")
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -964,13 +1033,13 @@ class NewProductWizard(tk.Toplevel):
         btns = ttk.Frame(left)
         btns.grid(row=1, column=0, pady=(5, 0))
         ttk.Button(btns, text="+ Prozess", command=self._add_process).pack(side="left", padx=2)
-        ttk.Button(btns, text="−", width=3, command=self._remove_process).pack(side="left", padx=2)
+        ttk.Button(btns, text="−", style="Icon.TButton", command=self._remove_process).pack(side="left", padx=2)
 
         self._panel = ProcessEditorPanel(body, self._templates, dirty_callback=lambda: None)
         self._panel.grid(row=0, column=1, sticky="nsew")
         self._placeholder = ttk.Label(
             body, text="„+ Prozess“ klicken, um einen Prozessschritt anzulegen.",
-            foreground=COLORS["text_secondary"],
+            style="Hint.TLabel",
         )
 
         foot = ttk.Frame(self)
@@ -1071,6 +1140,9 @@ class ConfigEditorView(ttk.Frame):
         self._product: ProductConfig | None = None
         self._selected_idx: int | None = None
         self._loaded_id: str | None = None
+        # template_ids des gespeicherten Dateistands — Vergleichsbasis für den
+        # Wächter in _on_save (leer = neue Datei, Wächter feuert nie).
+        self._saved_template_ids: set[str] = set()
         self._dirty = False
         self._build_ui()
         self._load_product_list()
@@ -1123,11 +1195,17 @@ class ConfigEditorView(ttk.Frame):
 
         badge_frame = ttk.Frame(pf)
         badge_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(8, 0))
-        self._badge = ttk.Label(badge_frame, text="—", font=FONTS["body_bold"])
+        # Statusbadge als dezenter Chip (fester Hintergrund + Rahmen) für ein
+        # ruhigeres, professionelleres Bild als nur farbiger Text.
+        self._badge = ttk.Label(
+            badge_frame, text="—", font=FONTS["body_bold"],
+            background=COLORS["surface"], padding=(8, 3),
+            relief="solid", borderwidth=1,
+        )
         self._badge.pack(side="left")
         self._hint_var = tk.StringVar(value="")
         ttk.Label(
-            badge_frame, textvariable=self._hint_var, foreground=COLORS["text_secondary"]
+            badge_frame, textvariable=self._hint_var, style="Hint.TLabel"
         ).pack(side="left", padx=(12, 0))
 
         proc_frame = ttk.LabelFrame(self, text="Prozesse", padding=10)
@@ -1149,10 +1227,10 @@ class ConfigEditorView(ttk.Frame):
         self._proc_listbox.bind("<<ListboxSelect>>", lambda e: self._on_process_selected())
         pbtn = ttk.Frame(left)
         pbtn.grid(row=1, column=0, pady=(5, 0))
-        ttk.Button(pbtn, text="+", width=3, command=self._add_process).pack(side="left", padx=2)
-        ttk.Button(pbtn, text="−", width=3, command=self._remove_process).pack(side="left", padx=2)
-        ttk.Button(pbtn, text="↑", width=3, command=lambda: self._move_process(-1)).pack(side="left", padx=2)
-        ttk.Button(pbtn, text="↓", width=3, command=lambda: self._move_process(1)).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="+", style="Icon.TButton", command=self._add_process).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="−", style="Icon.TButton", command=self._remove_process).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="↑", style="Icon.TButton", command=lambda: self._move_process(-1)).pack(side="left", padx=2)
+        ttk.Button(pbtn, text="↓", style="Icon.TButton", command=lambda: self._move_process(1)).pack(side="left", padx=2)
 
         right = ttk.Frame(proc_frame)
         right.grid(row=0, column=1, sticky="nsew")
@@ -1165,7 +1243,7 @@ class ConfigEditorView(ttk.Frame):
         self._no_proc_label = ttk.Label(
             right,
             text="Prozess links auswählen oder mit „+“ hinzufügen.",
-            foreground=COLORS["text_secondary"],
+            style="Hint.TLabel",
         )
 
         bottom = ttk.Frame(self)
@@ -1235,6 +1313,7 @@ class ConfigEditorView(ttk.Frame):
 
         self._panel.set_templates(tpls)
         self._loaded_id = product.product_id
+        self._saved_template_ids = {p.template_id.strip() for p in product.processes}
         self._populate(product)
         self._dirty = False
         self._status_var.set(f"Geladen: {name}")
@@ -1250,6 +1329,7 @@ class ConfigEditorView(ttk.Frame):
     def _adopt_wizard_product(self, product: ProductConfig) -> None:
         self._panel.set_templates(self._templates())
         self._loaded_id = None  # neues Produkt -> eigene Datei
+        self._saved_template_ids = set()
         self._populate(product)
         self._dirty = True
         self._status_var.set("Neues Produkt aus Assistent — bitte speichern.")
@@ -1282,6 +1362,7 @@ class ConfigEditorView(ttk.Frame):
         product.revision_history = []
         self._panel.set_templates(tpls)
         self._loaded_id = None
+        self._saved_template_ids = set()
         self._populate(product)
         self._dirty = True
         self._status_var.set(f"Kopie von {name} — neue Produkt-ID vergeben und speichern.")
@@ -1427,6 +1508,25 @@ class ConfigEditorView(ttk.Frame):
             messagebox.showerror("Validierungsfehler", "\n".join(errors[:25]))
             return
 
+        # template_id-Wächter: geänderte/entfernte IDs an einer bereits
+        # gespeicherten Datei brechen Resume + Excel-Dateinamen — nur mit
+        # ausdrücklicher Bestätigung speichern.
+        if product.product_id == self._loaded_id:
+            removed = removed_template_ids(self._saved_template_ids, product)
+            if removed and not messagebox.askyesno(
+                "Template-ID geändert",
+                "Folgende Template-IDs sind gegenüber dem gespeicherten Stand "
+                "geändert oder entfernt:\n\n  "
+                + "\n  ".join(removed)
+                + "\n\nDie Template-ID ist Excel-Dateiname und "
+                "Fortsetzungs-Schlüssel: bestehende Excel-Dateien werden NICHT "
+                "fortgesetzt, es entstehen neue Dateien.\n\nTrotzdem speichern?",
+                icon="warning",
+                default="no",
+            ):
+                self._status_var.set("Speichern abgebrochen (Template-ID-Änderung).")
+                return
+
         target = PRODUCTS_DIR / f"{product.product_id}.json"
         if (
             target.exists()
@@ -1465,6 +1565,7 @@ class ConfigEditorView(ttk.Frame):
             return
 
         self._loaded_id = product.product_id
+        self._saved_template_ids = {p.template_id.strip() for p in product.processes}
         self._dirty = False
 
         if self.app_state.audit:

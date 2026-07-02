@@ -23,3 +23,9 @@ CLAUDE.md
 excel files/
 Manual_QAInput.pdf
 develop/
+# lokale Arbeits-/Review-Artefakte im Root (bewusst unversioniert)
+/GxP-Code-Review_*.docx
+/QAInput_Funktionsbeschreibung_*.docx
+/SOP-*.docx
+/data/products_overview.html
+/neue IPCs/

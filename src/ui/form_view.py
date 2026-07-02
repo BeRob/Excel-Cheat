@@ -193,8 +193,8 @@ class FormView(BaseView):
         ).grid(row=0, column=1, sticky="w")
 
         ttk.Button(
-            bar, text="⚙", width=3, command=self._open_history_column_picker,
-            style="Manual.TButton",
+            bar, text="⚙", command=self._open_history_column_picker,
+            style="Icon.TButton",
         ).grid(row=0, column=2, sticky="e", padx=(8, 0))
 
         # Frame für das Treeview – per default versteckt (collapsed).
@@ -277,18 +277,18 @@ class FormView(BaseView):
         pv = self.app_state.persistent_values
         for fd in get_info_header_fields(process):
             cell = ttk.Frame(self.header_bar)
-            cell.pack(side="left", padx=(0, 14))
+            cell.pack(side="left", padx=(0, 8))
             ttk.Label(
                 cell, text=f"{fd.display_name}:",
-                font=("Segoe UI", 9, "bold"),
+                font=FONTS["body_bold"],
             ).pack(side="left")
             ttk.Label(
                 cell, text=pv.get(fd.display_name, "") or "—",
                 foreground=COLORS["accent"],
             ).pack(side="left", padx=(4, 2))
             ttk.Button(
-                cell, text="✎", width=2,
-                style="Manual.TButton",
+                cell, text="✎",
+                style="Icon.TButton",
                 command=self._change_context,
             ).pack(side="left")
 
@@ -406,7 +406,7 @@ class FormView(BaseView):
                 ttk.Label(
                     cell,
                     text=f"{fd.display_name} M{opt}:",
-                    font=("Segoe UI", 9, "bold"),
+                    font=FONTS["body_bold"],
                 ).pack(side="left")
                 var = tk.StringVar()
                 stored = self.app_state.machine_scoped_values.get(fd.id, {}).get(opt, "")
@@ -542,9 +542,7 @@ class FormView(BaseView):
                 spec_text = _format_spec_text(fd)
                 if spec_text:
                     ttk.Label(
-                        ctx_frame, text=spec_text,
-                        foreground=COLORS["text_secondary"],
-                        font=("Segoe UI", 8),
+                        ctx_frame, text=spec_text, style="Hint.TLabel",
                     ).grid(row=i, column=2, sticky="w", pady=3, padx=(5, 0))
 
                 self.persistent_vars[fd.display_name] = var
@@ -631,10 +629,8 @@ class FormView(BaseView):
         info_frame.pack(fill="x", padx=5, pady=(0, 5))
         ttk.Label(
             info_frame,
-            text=f"{label}/Nutzen je Messung: {count}  "
-                 f"(beim Prozessstart festgelegt)",
-            foreground=COLORS["text_secondary"],
-            font=("Segoe UI", 9, "bold"),
+            text=f"{label}/Nutzen je Messung: {count}",
+            font=FONTS["body_bold"],
         ).pack(side="left")
 
         # Gemeinsame Werte: pro-Messung-Kontext + Kennungen + nicht-geklonte Messwerte
@@ -722,8 +718,7 @@ class FormView(BaseView):
                     ttk.Label(
                         section,
                         text=spec_text,
-                        foreground=COLORS["text_secondary"],
-                        font=("Segoe UI", 8),
+                        style="Hint.TLabel",
                     ).grid(row=row_idx, column=2, sticky="w", pady=5, padx=(5, 0))
 
                 self.field_vars[key] = var
@@ -782,9 +777,7 @@ class FormView(BaseView):
             spec_text = _format_spec_text(fd)
             if spec_text:
                 ttk.Label(
-                    parent, text=spec_text,
-                    foreground=COLORS["text_secondary"],
-                    font=("Segoe UI", 8),
+                    parent, text=spec_text, style="Hint.TLabel",
                 ).grid(row=i, column=2, sticky="w", pady=5, padx=(5, 0))
 
             self.field_vars[fd.display_name] = var
@@ -812,8 +805,9 @@ class FormView(BaseView):
             cell.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
             cell.columnconfigure(0, weight=1)
 
-            ttk.Label(cell, text=f"{fd.display_name}:",
-                      font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
+            ttk.Label(cell, text=f"{fd.display_name}:").grid(
+                row=0, column=0, sticky="w"
+            )
 
             var = tk.StringVar()
             if fd.role == "context" and fd.display_name in self.app_state.persistent_values:
@@ -827,9 +821,7 @@ class FormView(BaseView):
             spec_text = _format_spec_text(fd)
             if spec_text:
                 ttk.Label(
-                    cell, text=spec_text,
-                    foreground=COLORS["text_secondary"],
-                    font=("Segoe UI", 8),
+                    cell, text=spec_text, style="Hint.TLabel",
                 ).grid(row=2, column=0, sticky="w", pady=(2, 0))
 
             self.field_vars[fd.display_name] = var
@@ -846,7 +838,7 @@ class FormView(BaseView):
     ) -> tuple[tk.Widget, tk.Widget]:
         """Gibt (input_widget, container) zurück.
 
-        Alle Felder werden in einen 3px-Container gewickelt, damit die
+        Alle Felder werden in einen 2px-Container gewickelt, damit die
         Außenmaße identisch sind (Spec-Felder haben einen farbigen Border,
         andere einen transparenten Spacer in der Hintergrundfarbe).
 
@@ -859,7 +851,7 @@ class FormView(BaseView):
 
         if fd.type == "choice" and fd.options:
             container = tk.Frame(
-                parent, bg=COLORS["background"], padx=3, pady=3,
+                parent, bg=COLORS["background"], padx=2, pady=2,
             )
             widget = ttk.Combobox(
                 container, textvariable=var, values=fd.options,
@@ -870,7 +862,7 @@ class FormView(BaseView):
             return widget, container
 
         if has_spec:
-            border = tk.Frame(parent, bg=COLORS["border"], padx=3, pady=3)
+            border = tk.Frame(parent, bg=COLORS["border"], padx=2, pady=2)
             entry = ttk.Entry(border, textvariable=var, width=23)
             entry.pack(fill="both", expand=True)
             entry.bind("<Return>", self._focus_next)
@@ -883,7 +875,7 @@ class FormView(BaseView):
             self._validation_borders[key] = border
             return entry, border
 
-        container = tk.Frame(parent, bg=COLORS["background"], padx=3, pady=3)
+        container = tk.Frame(parent, bg=COLORS["background"], padx=2, pady=2)
         widget = ttk.Entry(container, textvariable=var, width=23)
         widget.pack(fill="both", expand=True)
         widget.bind("<Return>", self._focus_next)

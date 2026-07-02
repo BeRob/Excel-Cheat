@@ -10,6 +10,14 @@ Seit v0.9.1 erfasst die Anwendung zusätzlich **Maschinenstörungen und Stillsta
 
 ---
 
+## Versionierung
+
+Single Source of Truth für die Anwendungsversion ist `src/version.py` (`APP_VERSION_TUPLE`, `APP_VERSION`, `APP_VERSION_DATE`); `version_info.txt` (Windows-Ressource der exe) wird beim Versions-Bump manuell synchron gehalten. Der Audit-Trail schreibt die Version in jedes Event (Feld `app_version`).
+
+**Versions-Neubasislinie (2026-06-30):** Mit v0.9.0 wurde die Zählung ausdrücklich von 1.9.0 auf **0.9.0** zurückgesetzt — ab dort zählt 0.9.x als aktuelle Pre-1.0-Linie (siehe CHANGELOG). Für Auswertungen des Audit-Trails bedeutet das: `app_version`-Werte 1.x stammen aus Events **vor** dem 2026-06-30 und liegen zeitlich VOR allen 0.9.x+-Events — die Versionsfolge im Log ist über diesen Punkt hinweg nicht numerisch monoton. Maßgeblich für die zeitliche Ordnung ist immer der `ts`-Zeitstempel des Events.
+
+---
+
 ## Projektstruktur
 
 ```

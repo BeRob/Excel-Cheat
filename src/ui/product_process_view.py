@@ -126,7 +126,7 @@ class ProductProcessView(BaseView):
         info_frame.columnconfigure(0, weight=1)
 
         self.info_text = tk.Text(
-            info_frame, height=8, wrap="word", state="disabled",
+            info_frame, height=5, wrap="word", state="disabled",
             font=FONTS["small"], bg=COLORS["background"],
             relief="flat", borderwidth=0,
         )
