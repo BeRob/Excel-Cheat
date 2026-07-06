@@ -5,8 +5,10 @@ dieser Prioritätsreihenfolge:
 
 1. Umgebungsvariable (z.B. QAINPUT_DATA_DIR als Fallback).
 2. Bootstrap-Datei <APP_ROOT>/config.json mit optionalen Keys
-   users_dir, config_dir, products_dir, audit_dir, log_dir
-   (absolute Pfade, ~ erlaubt). Malformed JSON wird ignoriert.
+   users_dir, config_dir, products_dir, process_templates_dir,
+   audit_dir, downtime_dir, log_dir, vorlagen_dir,
+   freigabedokumente_dir, ui_prefs_dir (absolute Pfade, ~ erlaubt).
+   Malformed JSON wird ignoriert.
 3. Default: Unterordner von <APP_ROOT>/data (Entwicklungsstand).
 
 Die Bootstrap-Datei ist nicht das gleiche wie app_config.json.
@@ -55,6 +57,17 @@ def _resolve_dir(env_var: str, config_value: object, default: Path) -> Path:
     return default
 
 
+def _local_base() -> Path:
+    """Stations-lokaler Basisordner für Dateien, die NICHT ins Netz gehören
+    (z.B. UI-Präferenzen). Analog zum Audit-Fallback: %LOCALAPPDATA% unter
+    Windows, sonst ~/.cache."""
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("TEMP") or "."
+    else:
+        base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return Path(base) / "QAInput"
+
+
 _BOOTSTRAP = _load_bootstrap_config()
 
 # Fallback-Basis wenn keine spezifischen Dirs konfiguriert sind (Entwicklung)
@@ -89,6 +102,21 @@ DOWNTIME_DIR = _resolve_dir(
 LOG_DIR = _resolve_dir(
     "QAINPUT_LOG_DIR", _BOOTSTRAP.get("log_dir"), DATA_DIR / "logs",
 )
+# Word-Vorlagen (freigabedokument.docx) — read-only, gehören zur Konfiguration.
+VORLAGEN_DIR = _resolve_dir(
+    "QAINPUT_VORLAGEN_DIR", _BOOTSTRAP.get("vorlagen_dir"), DATA_DIR / "vorlagen",
+)
+# Generierte Freigabedokumente (schreibbar) — eigener Ordner, damit sie nicht
+# beim read-only-Config-Ordner bzw. neben der Exe landen.
+FREIGABEDOKUMENTE_DIR = _resolve_dir(
+    "QAINPUT_FREIGABEDOKUMENTE_DIR", _BOOTSTRAP.get("freigabedokumente_dir"),
+    DATA_DIR / "freigabedokumente",
+)
+# UI-Präferenzen sind pro Station lokal (werden zur Laufzeit geschrieben und
+# gehören nicht in den zentralen read-only-Config-Ordner). Override möglich.
+UI_PREFS_DIR = _resolve_dir(
+    "QAINPUT_UI_PREFS_DIR", _BOOTSTRAP.get("ui_prefs_dir"), _local_base(),
+)
 
 from src.version import APP_VERSION  # noqa: F401  re-export
 
@@ -101,7 +129,7 @@ AUDIT_LOG_PATH = AUDIT_DIR / "audit_log.jsonl"
 DEBUG_LOG_PATH = LOG_DIR / "debug.log"
 ERROR_LOG_PATH = LOG_DIR / "error.log"
 
-UI_PREFS_PATH = DATA_DIR / "ui_prefs.json"
+UI_PREFS_PATH = UI_PREFS_DIR / "ui_prefs.json"
 
 # Störungs-Store (append-only JSONL) + zweistufige Fehler-Code-Liste.
 DOWNTIME_LOG_PATH = DOWNTIME_DIR / "stoerungen.jsonl"
@@ -109,10 +137,7 @@ STOERUNGS_CODES_PATH = CONFIG_DIR / "stoerungs_codes.json"
 
 # Word-Vorlage für Freigabedokumente (vom QM gepflegt, mit {{...}}-Platzhaltern).
 # Fehlt sie, fällt die Erzeugung auf ein festes HTML-Layout zurück.
-FREIGABE_VORLAGE_PATH = DATA_DIR / "vorlagen" / "freigabedokument.docx"
-# Ablage der erzeugten Freigabedokumente (gitignored — das unterschriebene
-# Papier ist der Nachweis).
-FREIGABEDOKUMENTE_DIR = DATA_DIR / "freigabedokumente"
+FREIGABE_VORLAGE_PATH = VORLAGEN_DIR / "freigabedokument.docx"
 
 
 def load_ui_prefs() -> dict:

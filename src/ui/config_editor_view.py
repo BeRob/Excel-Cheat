@@ -39,6 +39,7 @@ from src.config.process_config import (
     load_product_config,
 )
 from src.config.settings import APP_CONFIG_PATH, PRODUCTS_DIR, PROCESS_TEMPLATES_DIR
+from src.ui.dialog_util import make_scrollable, place_dialog
 from src.ui.theme import COLORS, FONTS
 from src.ui.tooltip import attach_info_icon
 
@@ -110,7 +111,6 @@ def choose_template(parent, templates: dict[str, ProcessTemplate]) -> str | None
     dlg.title("Operation wählen")
     dlg.transient(parent)
     dlg.grab_set()
-    dlg.resizable(False, False)
     result: dict[str, str | None] = {"name": None}
 
     frame = ttk.Frame(dlg, padding=15)
@@ -134,6 +134,7 @@ def choose_template(parent, templates: dict[str, ProcessTemplate]) -> str | None
     ttk.Button(bf, text="Abbrechen", command=dlg.destroy).pack(side="left", padx=6)
     ttk.Button(bf, text="OK", style="Accent.TButton", command=ok).pack(side="left", padx=6)
 
+    place_dialog(dlg, parent, min_size=(320, 160), resizable=(False, False))
     dlg.wait_window()
     return result["name"]
 
@@ -624,13 +625,28 @@ class FieldOverrideDialog(tk.Toplevel):
         self.title(f"Feld bearbeiten: {field.id}")
         self.transient(parent)
         self.grab_set()
-        self.resizable(False, False)
         self._build()
+        place_dialog(self, parent, min_size=(420, 320), resizable=(False, True))
         self.protocol("WM_DELETE_WINDOW", self.destroy)
         self.focus_set()
 
     def _build(self) -> None:
-        m = ttk.Frame(self, padding=15)
+        # Buttons in fester Fußzeile, Formular scrollbar → bei vielen
+        # Choice-Optionen fällt „Übernehmen“ nie aus dem Fenster.
+        footer = ttk.Frame(self)
+        footer.pack(side="bottom", fill="x")
+        bf = ttk.Frame(footer)
+        bf.pack(pady=(8, 12))
+        ttk.Button(bf, text="Abbrechen", command=self.destroy).pack(
+            side="left", padx=(0, 8)
+        )
+        ttk.Button(
+            bf, text="Übernehmen", style="Accent.TButton", command=self._save
+        ).pack(side="left")
+
+        body = ttk.Frame(self)
+        body.pack(side="top", fill="both", expand=True)
+        m = ttk.Frame(make_scrollable(body), padding=15)
         m.pack(fill="both", expand=True)
         m.columnconfigure(1, weight=1)
         f = self._field
@@ -703,15 +719,6 @@ class FieldOverrideDialog(tk.Toplevel):
                 self._opts_text.insert("1.0", "\n".join(f.options))
             r += 1
 
-        bf = ttk.Frame(m)
-        bf.grid(row=r, column=0, columnspan=2, pady=(12, 0), sticky="e")
-        ttk.Button(bf, text="Abbrechen", command=self.destroy).pack(
-            side="left", padx=(0, 8)
-        )
-        ttk.Button(
-            bf, text="Übernehmen", style="Accent.TButton", command=self._save
-        ).pack(side="left")
-
     def _save(self) -> None:
         opts = self._field.options
         if self._opts_text is not None:
@@ -757,16 +764,29 @@ class FieldEditorDialog(tk.Toplevel):
             self._forbidden.discard(field.id)  # eigene ID erlauben
 
         self.title("Eigenes Feld bearbeiten" if self._editing else "Neues eigenes Feld")
-        self.geometry("470x600")
-        self.resizable(False, True)
         self.transient(parent)
         self.grab_set()
         self._build_ui(field)
+        place_dialog(self, parent, min_size=(470, 420), resizable=(False, True))
         self.focus_set()
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     def _build_ui(self, field: FieldDef | None) -> None:
-        m = ttk.Frame(self, padding=15)
+        # Buttons in fester Fußzeile, Formular scrollbar.
+        footer = ttk.Frame(self)
+        footer.pack(side="bottom", fill="x")
+        bf = ttk.Frame(footer)
+        bf.pack(pady=(10, 12))
+        ttk.Button(bf, text="Abbrechen", command=self.destroy).pack(
+            side="left", padx=(0, 10)
+        )
+        ttk.Button(
+            bf, text="Speichern", style="Accent.TButton", command=self._save
+        ).pack(side="left")
+
+        body = ttk.Frame(self)
+        body.pack(side="top", fill="both", expand=True)
+        m = ttk.Frame(make_scrollable(body), padding=15)
         m.pack(fill="both", expand=True)
         m.columnconfigure(1, weight=1)
         r = 0
@@ -873,15 +893,6 @@ class FieldEditorDialog(tk.Toplevel):
         if field and field.options:
             self._opts_text.insert("1.0", "\n".join(field.options))
 
-        bf = ttk.Frame(m)
-        bf.grid(row=r, column=0, columnspan=2, pady=(15, 0), sticky="e")
-        ttk.Button(bf, text="Abbrechen", command=self.destroy).pack(
-            side="left", padx=(0, 10)
-        )
-        ttk.Button(
-            bf, text="Speichern", style="Accent.TButton", command=self._save
-        ).pack(side="left")
-
         self._on_type_changed()
 
     def _on_type_changed(self) -> None:
@@ -980,12 +991,15 @@ class NewProductWizard(tk.Toplevel):
         self.update_idletasks()
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        # Untererer Rand groß genug, um Taskleiste + Fensterrahmen freizuhalten.
+        # Bewusst groß (zwei Spalten), aber mit symmetrischem Rand zentriert,
+        # damit Taskleiste + Fensterrahmen frei bleiben und die Fußzeilen-Buttons
+        # sichtbar sind. (Kein place_dialog: das würde auf Inhaltshöhe schrumpfen.)
         w = min(1600, sw - 80)
-        h = sh - 130
+        h = min(1000, sh - 120)
         x = max(0, (sw - w) // 2)
-        y = 20
+        y = max(0, (sh - h) // 2)
         self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(900, 560)
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -1714,7 +1728,6 @@ class ConfigEditorView(ttk.Frame):
         dialog.title("Freigabe erfassen")
         dialog.transient(self)
         dialog.grab_set()
-        dialog.resizable(False, False)
         frame = ttk.Frame(dialog, padding=15)
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(1, weight=1)
@@ -1787,6 +1800,8 @@ class ConfigEditorView(ttk.Frame):
         ttk.Button(
             bf, text="Freigabe erfassen", style="Accent.TButton", command=on_ok
         ).pack(side="left", padx=8)
+
+        place_dialog(dialog, self, min_size=(420, 240), resizable=(False, False))
 
     # -- Diverses ---------------------------------------------------------- #
     def _choose_output_dir(self) -> None:

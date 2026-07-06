@@ -31,6 +31,7 @@ from src.excel.writer import write_measurement_row, write_measurement_rows
 from src.ui.base_view import BaseView
 from src.ui.review_dialog import ReviewDialog
 from src.ui.downtime_window import StoerungFenster
+from src.ui.dialog_util import make_scrollable, place_dialog
 from src.ui.theme import COLORS, FONTS
 from src.downtime.downtime_query import pair_stoerungen, find_open
 
@@ -1491,16 +1492,19 @@ class FormView(BaseView):
             style="Subtitle.TLabel",
         ).pack(padx=15, pady=(15, 8), anchor="w")
 
-        check_frame = ttk.Frame(dialog)
-        check_frame.pack(fill="both", expand=True, padx=15)
+        # Buttons unten fixieren, Checkliste scrollbar → bei vielen Spalten
+        # bleibt OK/Abbrechen sichtbar.
+        btn_row = ttk.Frame(dialog)
+        btn_row.pack(side="bottom", fill="x", padx=15, pady=15)
+
+        body = ttk.Frame(dialog)
+        body.pack(side="top", fill="both", expand=True, padx=15)
+        check_frame = make_scrollable(body)
         vars_map: dict[str, tk.BooleanVar] = {}
         for name in available:
             v = tk.BooleanVar(value=name in self._history_columns)
             vars_map[name] = v
             ttk.Checkbutton(check_frame, text=name, variable=v).pack(anchor="w")
-
-        btn_row = ttk.Frame(dialog)
-        btn_row.pack(fill="x", padx=15, pady=15)
 
         def on_ok():
             new_cols = [name for name in available if vars_map[name].get()]
@@ -1526,3 +1530,5 @@ class FormView(BaseView):
         ttk.Button(
             btn_row, text="OK", command=on_ok, style="Accent.TButton",
         ).pack(side="right", padx=5)
+
+        place_dialog(dialog, self.winfo_toplevel(), min_size=(320, 280))

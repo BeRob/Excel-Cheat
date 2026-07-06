@@ -8,6 +8,7 @@ from datetime import date, datetime
 from tkinter import ttk
 from typing import Callable
 
+from src.ui.dialog_util import place_dialog
 from src.ui.theme import COLORS
 
 
@@ -56,30 +57,14 @@ class DatePickerDialog(tk.Toplevel):
         self.title("Datum auswählen")
         self.transient(parent)
         self.grab_set()
-        self.resizable(False, False)
         self.configure(bg=COLORS["background"])
         self.protocol("WM_DELETE_WINDOW", self._cancel)
 
         self._build_ui()
         self._render_calendar()
 
-        self.update_idletasks()
-        self._center_on_parent(parent)
+        place_dialog(self, parent, min_size=(260, 260), resizable=(False, False))
         self.focus_set()
-
-    def _center_on_parent(self, parent: tk.Widget) -> None:
-        try:
-            px = parent.winfo_rootx()
-            py = parent.winfo_rooty()
-            pw = parent.winfo_width()
-            ph = parent.winfo_height()
-            w = self.winfo_width()
-            h = self.winfo_height()
-            x = px + (pw - w) // 2
-            y = py + (ph - h) // 2
-            self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
-        except tk.TclError:
-            pass
 
     def _build_ui(self) -> None:
         outer = ttk.Frame(self, padding=10)

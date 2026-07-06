@@ -34,6 +34,7 @@ from src.ui.product_process_view import ProductProcessView
 from src.ui.context_view import ContextView
 from src.ui.form_view import FormView
 from src.ui.base_view import BaseView
+from src.ui.dialog_util import place_dialog
 
 
 import logging
@@ -242,7 +243,6 @@ class MeasurementApp:
         dlg.transient(self.root)
         dlg.grab_set()
         dlg.configure(bg=COLORS["background"])
-        dlg.resizable(False, True)
 
         header = ttk.Frame(dlg)
         header.pack(fill="x", padx=20, pady=(20, 5))
@@ -331,14 +331,7 @@ class MeasurementApp:
             style="Accent.TButton",
         ).pack(pady=(5, 20))
 
-        dlg.update_idletasks()
-        rw = self.root.winfo_rootx()
-        rh = self.root.winfo_rooty()
-        rw_w = self.root.winfo_width()
-        rw_h = self.root.winfo_height()
-        dw = dlg.winfo_reqwidth()
-        dh = dlg.winfo_reqheight()
-        dlg.geometry(f"+{rw + (rw_w - dw)//2}+{rh + (rw_h - dh)//2}")
+        place_dialog(dlg, self.root, min_size=(420, 360), resizable=(False, True))
 
     def _on_uncaught_exception(self, exc: BaseException) -> None:
         """Vom logging_setup als Callback bei sys.excepthook / Tk-Hook gerufen."""

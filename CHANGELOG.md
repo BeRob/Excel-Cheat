@@ -1,5 +1,19 @@
 # Versionshistorie – QAInput
 
+## v0.12.0 – 2026-07-07
+
+> Fenster-Anordnung vereinheitlicht + neue, klar gegliederte Netzlaufwerk-Struktur.
+
+### Behoben
+- **Störungsfenster nicht mehr unten abgeschnitten** – Das Fenster „Störung / Stillstand" begrenzte seine Höhe zwar auf den Bildschirm, hatte aber keinen Scrollbereich; bei offener Störung (Freigabe-Abschnitt + Liste „Letzte Störungen") wanderten „Maschine freigeben" und „Schließen" aus dem sichtbaren Bereich. Inhalt liegt jetzt in einem scrollbaren Bereich, der **„Schließen"-Button ist fest in der Fußzeile** und immer erreichbar
+
+### Geändert
+- **Einheitliche Dialog-Anordnung** – Neuer gemeinsamer Helfer `src/ui/dialog_util.py` (`place_dialog` = an Inhalt anpassen, auf Bildschirm begrenzen, auf dem Elternfenster zentrieren, Mindestgröße setzen; `make_scrollable` = Scrollbereich). Angewandt auf alle Toplevel-Dialoge (Störungsfenster, Prüfen-Dialog, Datumsauswahl, Info-Dialog, Feld-Override/-Editor, Operation-/Freigabe-Dialoge, Verlauf-Spaltenauswahl); wo der Inhalt wachsen kann, sind die Aktions-Buttons gepinnt und die Liste scrollt. Der Neues-Produkt-Assistent wird symmetrisch mit Rand zentriert (Taskleiste bleibt frei)
+- **Neue Netzlaufwerk-Struktur** – Empfohlene Ablage nach GMP-Funktion gegliedert, kleingeschrieben mit Nummern-Präfix: `01_konfiguration` (read-only), `02_aufzeichnungen` (Messwerte/Audit-Trail/Störungen), `03_protokolle`, `04_freigabedokumente`, `05_dokumentation`. Einrichtungsanleitung inkl. Ordner-Anlage, „welche Datei wohin", NTFS-Rechten und `config.json`-Vorlage in **`NETZWERK_EINRICHTUNG.md`**; `deployment/config.json` auf die neue Struktur umgestellt
+
+### Neu
+- **Eigene Pfad-Schlüssel** in `settings.py`/`config.json`: `vorlagen_dir` (`QAINPUT_VORLAGEN_DIR`), `freigabedokumente_dir` (`QAINPUT_FREIGABEDOKUMENTE_DIR`) und `ui_prefs_dir` (`QAINPUT_UI_PREFS_DIR`). Bisher hingen Vorlagen und **generierte Freigabedokumente** am `DATA_DIR` und landeten in Produktion neben der Exe (nicht beschreibbar) — jetzt gezielt platzierbar. `ui_prefs.json` (Verlauf-Spaltenauswahl, kein GMP-Record) liegt standardmäßig **pro Station lokal** unter `%LOCALAPPDATA%\QAInput\`. Bestehende Defaults bleiben abwärtskompatibel
+
 ## v0.11.0 – 2026-07-03
 
 > Hinweis: **v0.10.0 (baramundi-Installer-Deployment + Startup-Preflight) ist ein paralleler Entwicklungszweig** (`feature/deployment-baramundi`, noch in Arbeit) und in diesem Stand **nicht enthalten**. Die Nummer 0.10.0 bleibt für diesen Zweig reserviert; die Zusammenführung erfolgt nach Abschluss der Feature-Entwicklung als eigenes Release.

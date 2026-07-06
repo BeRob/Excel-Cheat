@@ -22,6 +22,7 @@ from typing import Callable
 from src.audit.events import Event
 from src.downtime.downtime_models import Stoerung
 from src.downtime.downtime_query import find_open, pair_stoerungen
+from src.ui.dialog_util import make_scrollable, place_dialog
 from src.ui.theme import COLORS, FONTS
 
 
@@ -65,8 +66,19 @@ class StoerungFenster(tk.Toplevel):
         self.configure(bg=COLORS["background"])
         self.protocol("WM_DELETE_WINDOW", self._close)
 
+        # Skelett: scrollbarer Inhalt oben, fest sichtbare Fußzeile unten.
+        # So bleibt der „Schließen“-Button immer erreichbar, auch wenn der
+        # Inhalt (Freigabe + Liste) höher als der Bildschirm wird.
+        footer = ttk.Frame(self)
+        footer.pack(side="bottom", fill="x")
+        ttk.Button(footer, text="Schließen", command=self._close).pack(pady=(6, 12))
+        body = ttk.Frame(self)
+        body.pack(side="top", fill="both", expand=True)
+        self._content = make_scrollable(body)
+        self._content.columnconfigure(0, weight=1)
+
         self._build()
-        self._center()
+        place_dialog(self, parent, min_size=(560, 420))
         self.focus_set()
 
     # ---- Kontext-Helfer --------------------------------------------------
@@ -92,26 +104,22 @@ class StoerungFenster(tk.Toplevel):
     # ---- Aufbau ----------------------------------------------------------
 
     def _build(self) -> None:
-        for child in self.winfo_children():
+        for child in self._content.winfo_children():
             child.destroy()
 
-        self.columnconfigure(0, weight=1)
         product = self.app_state.selected_product
         process = self.app_state.selected_process
 
         ttk.Label(
-            self, text="Störung / Stillstand", style="Subtitle.TLabel",
+            self._content, text="Störung / Stillstand", style="Subtitle.TLabel",
         ).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 2))
 
         if not product or not process:
             ttk.Label(
-                self,
+                self._content,
                 text="Kein Produkt/Prozess aktiv — Störung kann nicht erfasst werden.",
                 style="Error.TLabel", wraplength=460,
             ).grid(row=1, column=0, padx=15, pady=10)
-            ttk.Button(self, text="Schließen", command=self._close).grid(
-                row=2, column=0, pady=(0, 15)
-            )
             return
 
         ctx = (
@@ -120,7 +128,7 @@ class StoerungFenster(tk.Toplevel):
         )
         if self.maschine:
             ctx += f"  ·  Maschine {self.maschine}"
-        ttk.Label(self, text=ctx, style="HeaderInfo.TLabel").grid(
+        ttk.Label(self._content, text=ctx, style="HeaderInfo.TLabel").grid(
             row=1, column=0, sticky="w", padx=15, pady=(0, 8)
         )
 
@@ -142,14 +150,10 @@ class StoerungFenster(tk.Toplevel):
 
         self._build_letzte_liste()
 
-        ttk.Button(self, text="Schließen", command=self._close).grid(
-            row=9, column=0, pady=(6, 15)
-        )
-
     # ---- Erfassen --------------------------------------------------------
 
     def _build_erfassen(self) -> None:
-        frame = ttk.LabelFrame(self, text="Störung erfassen", padding=12)
+        frame = ttk.LabelFrame(self._content, text="Störung erfassen", padding=12)
         frame.grid(row=2, column=0, sticky="ew", padx=15, pady=5)
         frame.columnconfigure(1, weight=1)
 
@@ -200,7 +204,7 @@ class StoerungFenster(tk.Toplevel):
         )
         self.erfassen_btn.grid(row=5, column=0, columnspan=2, pady=(8, 0))
 
-        self._hint = ttk.Label(self, text="", style="Error.TLabel", wraplength=460)
+        self._hint = ttk.Label(self._content, text="", style="Error.TLabel", wraplength=460)
         self._hint.grid(row=3, column=0, padx=15)
 
     def _on_kategorie(self, _event=None) -> None:
@@ -277,11 +281,12 @@ class StoerungFenster(tk.Toplevel):
             parent=self,
         )
         self._build()  # neu aufbauen → zeigt jetzt den Freigabe-Abschnitt
+        place_dialog(self, self.master, min_size=(560, 420))
 
     # ---- Freigeben -------------------------------------------------------
 
     def _build_freigabe(self, fault: Stoerung) -> None:
-        frame = ttk.LabelFrame(self, text="Offene Störung — Maschine freigeben", padding=12)
+        frame = ttk.LabelFrame(self._content, text="Offene Störung — Maschine freigeben", padding=12)
         frame.grid(row=2, column=0, sticky="ew", padx=15, pady=5)
         frame.columnconfigure(1, weight=1)
 
@@ -422,7 +427,7 @@ class StoerungFenster(tk.Toplevel):
         if not items:
             return
 
-        frame = ttk.LabelFrame(self, text="Letzte Störungen (dieser Prozess)", padding=8)
+        frame = ttk.LabelFrame(self._content, text="Letzte Störungen (dieser Prozess)", padding=8)
         frame.grid(row=8, column=0, sticky="ew", padx=15, pady=(8, 2))
         frame.columnconfigure(0, weight=1)
 
@@ -449,17 +454,6 @@ class StoerungFenster(tk.Toplevel):
         tree.grid(row=0, column=0, sticky="ew")
 
     # ---- Sonstiges -------------------------------------------------------
-
-    def _center(self) -> None:
-        self.update_idletasks()
-        w = max(540, self.winfo_reqwidth())
-        h = self.winfo_reqheight()
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = min(w, sw - 80)
-        h = min(h, sh - 100)
-        x = max(0, (sw - w) // 2)
-        y = max(0, (sh - h) // 2 - 20)
-        self.geometry(f"{w}x{h}+{x}+{y}")
 
     def _close(self) -> None:
         try:

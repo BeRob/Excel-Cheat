@@ -10,6 +10,7 @@ from pathlib import Path
 
 from src.domain.state import AppState
 from src.domain.validation import validate_measurements, ValidationResult
+from src.ui.dialog_util import place_dialog
 from src.ui.theme import COLORS
 
 if TYPE_CHECKING:
@@ -158,31 +159,17 @@ class ReviewDialog(tk.Toplevel):
             )
 
         self.title("Prüfen und Senden")
-        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
 
         self._build_ui()
-        self._fit_to_content()
+        # Messwerte-Bereich scrollt intern (Canvas) → Zusammenfassung und
+        # Senden-Button bleiben immer sichtbar. Mindestbreite 720, damit das
+        # OoS-„Bemerkung nötig"-Banner (wraplength 680) nie beschnitten wird.
+        place_dialog(self, parent, min_size=(720, 360))
 
         self.focus_set()
         self.protocol("WM_DELETE_WINDOW", self._cancel)
-
-    def _fit_to_content(self) -> None:
-        """Fenster an den Inhalt anpassen, auf die Bildschirmgröße begrenzen und
-        zentrieren. Der Messwerte-Bereich scrollt — so bleiben Zusammenfassung
-        und der Senden-Button immer sichtbar (nicht mehr unten abgeschnitten)."""
-        self.update_idletasks()
-        req_w = max(720, self.winfo_reqwidth())
-        req_h = self.winfo_reqheight()
-        screen_w = self.winfo_screenwidth()
-        screen_h = self.winfo_screenheight()
-        w = min(req_w, screen_w - 80)
-        h = min(req_h, screen_h - 100)
-        x = max(0, (screen_w - w) // 2)
-        y = max(0, (screen_h - h) // 2 - 20)
-        self.geometry(f"{w}x{h}+{x}+{y}")
-        self.minsize(560, 360)
 
     def _has_errors(self) -> bool:
         if self._is_multi:
