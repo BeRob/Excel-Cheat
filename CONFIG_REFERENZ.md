@@ -95,7 +95,7 @@ durchgereicht. Neue Configs bitte immer dünn anlegen.
 | id `rollen_nr` (role identifier) | Reine Rollennummer als eigene Kennung; wahlweise neben oder statt `rolle_bahn_nutzen` |
 | id `rolle_bahn_nutzen` (role identifier) | Konvention ab Schälen: zusammengesetzte Kennung „Rollen Nr. / Bahn / Nutzen" (display_name) |
 | id `lfd_nr` (role identifier) | Manuelles Eingabefeld (kein Auto-Zähler), pro Rolle; nur Produkte, die es in `active_fields` aufnehmen |
-| ids `schichtdicke` / `schichtdicke_anfang_links` … | Ein Messwert je Nutzen; Produkte mit Positionsmessung nehmen stattdessen die Anfang/Ende-links/rechts-Varianten. nass/trocken = Produkt-Eigenschaft (display_name-Override), kein eigenes Feld |
+| ids `schichtdicke` / `schichtdicke_anfang_links` … / `schichtdicke_trocken_oben` … | Ein Messwert je Nutzen; Produkte mit Positionsmessung nehmen die Anfang/Ende-links/rechts-Varianten, Produkte mit Messung beider Zustände (trocken/nass × oben/unten, z. B. REF31827) die Zustands-Varianten (seit Schaelen-Template Rev. 4) |
 | display_name `FA-Nr.`, `LOT Nr.`, `Verwendbarkeitsdatum` | Werden beim Prozesswechsel als „carried values" vorgetragen — exakt diese Schreibweise verwenden |
 | `FA-Nr.` + `LOT Nr.` | Bestandteil des Excel-Dateinamens und des Resume-Schlüssels |
 | type `choice` (alle) | Behält den Wert über Messungen hinweg (wird beim Felder-Leeren nicht geleert) |

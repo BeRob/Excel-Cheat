@@ -1,9 +1,10 @@
 {
   "template": "Schaelen",
-  "template_revision": 3,
+  "template_revision": 4,
   "_unification_notes": {
-    "schichtdicke": "Ein Messwert je Nutzen (clone=true → je Nutzen eine Spalte 'Schichtdicke Nutzen 1' …). nass/trocken ist eine Produkt-Eigenschaft, kein eigenes Feld; bei Bedarf display_name je Produkt per field_override setzen.",
+    "schichtdicke": "Ein Messwert je Nutzen (clone=true → je Nutzen eine Spalte 'Schichtdicke Nutzen 1' …). Misst ein Produkt nur einen Zustand, bei Bedarf display_name je Produkt per field_override setzen.",
     "schichtdicke_anfang_links": "Positions-Variante (Anfang/Ende x links/rechts), je Nutzen (clone=true) — nur für Produkte, die an mehreren Positionen messen. Einfache Produkte nehmen stattdessen 'schichtdicke'.",
+    "schichtdicke_trocken_oben": "Zustands-Variante (trocken/nass x oben/unten), je Nutzen (clone=true) — für Produkte, die Ober- und Unterseite in beiden Zuständen messen (z. B. REF31827; dort einzeilig via clone=false-Override).",
     "schalspalt_oben": "Pro Rolle einmal (clone=false), gilt für alle Nutzen.",
     "rollen_nr": "Reine Rollennummer als eigene Kennung (role=identifier).",
     "rolle_bahn_nutzen": "Zusammengesetzte Kennung Rolle/Bahn/Nutzen (role=identifier); ersetzt ab Schälen die einfache Rollen-Nr.",
@@ -29,6 +30,10 @@
     {"id": "schichtdicke_anfang_rechts", "display_name": "Schichtdicke Anfang rechts", "type": "number", "role": "measurement", "clone": true},
     {"id": "schichtdicke_ende_links", "display_name": "Schichtdicke Ende links", "type": "number", "role": "measurement", "clone": true},
     {"id": "schichtdicke_ende_rechts", "display_name": "Schichtdicke Ende rechts", "type": "number", "role": "measurement", "clone": true},
+    {"id": "schichtdicke_trocken_oben", "display_name": "Schichtdicke trocken oben", "type": "number", "role": "measurement", "clone": true},
+    {"id": "schichtdicke_trocken_unten", "display_name": "Schichtdicke trocken unten", "type": "number", "role": "measurement", "clone": true},
+    {"id": "schichtdicke_nass_oben", "display_name": "Schichtdicke nass oben", "type": "number", "role": "measurement", "clone": true},
+    {"id": "schichtdicke_nass_unten", "display_name": "Schichtdicke nass unten", "type": "number", "role": "measurement", "clone": true},
     {"id": "laenge", "display_name": "Länge", "type": "number", "role": "measurement", "clone": true},
     {"id": "bemerkungen", "display_name": "Bemerkungen", "type": "text", "role": "measurement", "optional": true, "default_value": "n/a", "clone": true},
     {"id": "datum", "display_name": "Datum", "type": "text", "role": "auto"},
